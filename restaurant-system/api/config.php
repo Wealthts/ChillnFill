@@ -1,0 +1,35 @@
+<?php
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// ตั้งค่าการเชื่อมต่อฐานข้อมูล
+$host = 'localhost';
+$dbname = 'restaurant_system';
+$username = 'root';
+$password = '';
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->exec("SET NAMES utf8");
+} catch(PDOException $e) {
+    die(json_encode(['success' => false, 'message' => 'Connection failed: ' . $e->getMessage()]));
+}
+
+// เริ่ม session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// ฟังก์ชันสร้าง order number
+function generateOrderNumber() {
+    return 'ORD' . date('Ymd') . rand(1000, 9999);
+}
+?>
