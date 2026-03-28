@@ -39,6 +39,9 @@
 
         <button id="confirmPaymentBtn" class="btn btn-sm mt-5 w-full rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">Confirm Payment</button>
         <a href="menu.html" class="btn btn-sm mt-3 w-full rounded-full bg-[#efe4d8] text-[#5f4028] border-none hover:bg-[#f3eadf]">Back to Menu</a>
+        <button id="openHistoryBtn" class="btn btn-sm mt-3 w-full rounded-full bg-[#a97a52] text-[#fbf5ee] border-none hover:bg-[#7a4e2f]">
+            View My Payment & Reviews
+        </button>
     </div>
 
     <div id="reviewCard" class="hidden rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
@@ -57,13 +60,16 @@
         <button id="submitReviewBtn" class="btn btn-sm w-full mt-4 rounded-full bg-[#a97a52] text-white border-none hover:bg-[#7a4e2f]">Submit Review</button>
     </div>
 
-    <div id="paymentHistoryCard" class="rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
-        <div class="text-xl font-extrabold text-[#5f4028] mb-2">Payment History & Reviews</div>
+    <div id="paymentHistoryCard" class="hidden rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
+        <div class="mb-3 flex items-center justify-between">
+            <div class="text-xl font-extrabold text-[#5f4028]">Payment History & Reviews</div>
+            <button id="closeHistoryBtn" class="btn btn-ghost btn-sm text-2xl" aria-label="Close">&times;</button>
+        </div>
         <div class="text-sm text-[#a97a52] mb-4">Your recent payments for this table</div>
         <div id="paymentHistoryList" class="space-y-3"></div>
     </div>
 </div>
 
-<script src="../js/payment.js?v=20260328_1"></script>
+<script src="../js/payment.js?v=20260328_2"></script>
 </body>
 </html>

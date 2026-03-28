@@ -206,6 +206,9 @@ const reviewTextarea = document.getElementById("reviewTextarea");
 const submitReviewBtn = document.getElementById("submitReviewBtn");
 const paymentTableText = document.getElementById("paymentTableText");
 const paymentHistoryList = document.getElementById("paymentHistoryList");
+const paymentHistoryCard = document.getElementById("paymentHistoryCard");
+const openHistoryBtn = document.getElementById("openHistoryBtn");
+const closeHistoryBtn = document.getElementById("closeHistoryBtn");
 
 function showNotice(message) {
     if (!paymentNotice) return;
@@ -292,6 +295,17 @@ function renderPaymentHistory() {
             </div>
         `;
     }).join("");
+}
+
+function openHistory() {
+    if (!paymentHistoryCard) return;
+    renderPaymentHistory();
+    paymentHistoryCard.classList.remove("hidden");
+}
+
+function closeHistory() {
+    if (!paymentHistoryCard) return;
+    paymentHistoryCard.classList.add("hidden");
 }
 
 function showReviewCard(message) {
@@ -498,6 +512,8 @@ document.querySelectorAll("#starRating .star").forEach((star) => {
 
 if (confirmPaymentBtn) confirmPaymentBtn.addEventListener("click", confirmPayment);
 if (submitReviewBtn) submitReviewBtn.addEventListener("click", submitReview);
+if (openHistoryBtn) openHistoryBtn.addEventListener("click", openHistory);
+if (closeHistoryBtn) closeHistoryBtn.addEventListener("click", closeHistory);
 
 initPaymentPage();
 renderPaymentHistory();
