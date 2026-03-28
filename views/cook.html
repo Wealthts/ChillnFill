@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="color-scheme" content="light">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cook Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-[#f3eadf] text-[#5f4028] font-['Sarabun'] min-h-screen p-6">
+  <div class="mx-auto w-full max-w-4xl">
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-3xl font-bold">Cook Orders</h1>
+        <div id="cookIdentity" class="text-sm text-[#a97a52]"></div>
+      </div>
+      <button id="logoutCookBtn" class="btn rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">Logout</button>
+    </div>
+
+    <div class="mb-4 flex flex-wrap gap-2">
+      <button id="showOrdersBtn" class="btn btn-sm rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none">Orders</button>
+      <button id="showDashboardBtn" class="btn btn-sm rounded-full bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7]">Dashboard</button>
+      <button id="showReviewsBtn" class="btn btn-sm rounded-full bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7]">Reviews</button>
+    </div>
+
+    <section id="cookOrdersSection">
+      <div id="ordersContainer" class="space-y-4"></div>
+    </section>
+
+    <section id="cookDashboardSection" class="hidden">
+      <div id="cookDashboardContainer" class="space-y-4"></div>
+    </section>
+
+    <section id="cookReviewsSection" class="hidden">
+      <div id="cookReviewsContainer" class="space-y-4"></div>
+    </section>
+  </div>
+
+  <script src="../js/cook.js?v=20260328_2"></script>
+</body>
+</html>

@@ -11,20 +11,47 @@
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="min-h-screen flex items-center justify-center bg-[#f3eadf] text-[#5f4028] font-['Sarabun'] p-6">
-    <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl p-6">
+    <div class="card w-full max-w-md bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl p-6">
         <h1 class="text-center text-2xl font-bold mb-2">Chill n Fill</h1>
         <p class="text-center text-sm text-[#a97a52] mb-4">Staff Login</p>
 
         <div id="message-container" class="mb-3"></div>
 
-        <input type="text" id="staff-username" placeholder="Username"
-            class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
-        <input type="password" id="staff-password" placeholder="Password"
-            class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-3">
-        <button id="btn-staff-login" type="button"
-            class="btn w-full border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:bg-[#5f4028] hover:border-[#5f4028]">
-            Login
-        </button>
+        <div id="staff-login-panel">
+            <input type="text" id="staff-username" placeholder="Username"
+                class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+            <input type="password" id="staff-password" placeholder="Password"
+                class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-3">
+            <button id="btn-staff-login" type="button"
+                class="btn w-full border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:bg-[#5f4028] hover:border-[#5f4028]">
+                Login
+            </button>
+
+            <button id="show-register-btn" type="button" class="btn btn-link w-full mt-2 text-[#7a4e2f] no-underline hover:underline">
+                Don't have account yet? Register
+            </button>
+        </div>
+
+        <div id="staff-register-panel" class="hidden">
+            <div class="my-5 border-t border-[#e6d7c7]"></div>
+
+            <h2 class="text-center text-lg font-bold mb-2">Register New Cook</h2>
+            <p class="text-center text-xs text-[#a97a52] mb-3">Create cook ID and password for new staff</p>
+
+            <input type="text" id="register-cook-name" placeholder="Full Name"
+                class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+            <input type="text" id="register-cook-id" placeholder="Cook ID"
+                class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+            <input type="password" id="register-cook-password" placeholder="Create Password"
+                class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-3">
+            <button id="btn-cook-register-from-staff" type="button"
+                class="btn w-full border-[#a97a52] bg-[#a97a52] text-[#f3eadf] hover:bg-[#7a4e2f] hover:border-[#7a4e2f]">
+                Register Cook
+            </button>
+            <button id="hide-register-btn" type="button" class="btn btn-link w-full mt-2 text-[#7a4e2f] no-underline hover:underline">
+                Back to login
+            </button>
+        </div>
     </div>
 
 <script src="../js/staff.js"></script>

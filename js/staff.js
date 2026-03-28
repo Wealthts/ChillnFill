@@ -64,12 +64,143 @@ function showMessage(text, type) {
     }
 }
 
+function bindEnter(ids, handler) {
+    ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            handler();
+        });
+    });
+}
+
+function normalizeCookId(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function isCookActive(cook) {
+    if (!cook || typeof cook !== 'object') return true;
+    if (typeof cook.active === 'boolean') return cook.active;
+    if ('cooking' in cook || 'serving' in cook) {
+        return Boolean(cook.cooking || cook.serving);
+    }
+    return true;
+}
+
+function isCookEnabledInLocalStorage(cookId) {
+    const cooks = JSON.parse(localStorage.getItem('cooks') || '[]');
+    const matched = cooks.find((cook) => normalizeCookId(cook.id) === normalizeCookId(cookId));
+    if (!matched) return true;
+    return isCookActive(matched);
+}
+
+function toggleRegisterPanel(show) {
+    const panel = document.getElementById('staff-register-panel');
+    const loginPanel = document.getElementById('staff-login-panel');
+    if (!panel) return;
+
+    panel.classList.toggle('hidden', !show);
+    if (loginPanel) {
+        loginPanel.classList.toggle('hidden', show);
+    }
+}
+
+function tryLocalCookLogin(cookId, password) {
+    const cooks = JSON.parse(localStorage.getItem('cooks') || '[]');
+    const matched = cooks.find((cook) => String(cook.id) === String(cookId) && String(cook.password) === String(password));
+    if (!matched) return false;
+    if (!isCookActive(matched)) {
+        showMessage('This cook account is disabled. Please contact admin.', 'error');
+        return true;
+    }
+
+    localStorage.setItem('user_type', 'cook');
+    localStorage.setItem('cook_id', matched.id || cookId);
+    localStorage.setItem('cook_name', matched.name || '');
+    window.location.href = 'cook.html';
+    return true;
+}
+
+function tryLocalCookRegister(cookId, password, fullName) {
+    const cooks = JSON.parse(localStorage.getItem('cooks') || '[]');
+    const exists = cooks.some((cook) => String(cook.id) === String(cookId));
+    if (exists) {
+        return { ok: false, message: 'Cook ID already exists in local storage.' };
+    }
+
+    cooks.push({
+        id: cookId,
+        password: password,
+        name: fullName,
+        active: true
+    });
+
+    localStorage.setItem('cooks', JSON.stringify(cooks));
+    return { ok: true, message: `Registered ${cookId} (local).` };
+}
+
+async function registerCookFromStaff() {
+    const fullName = document.getElementById('register-cook-name').value.trim();
+    const cookId = document.getElementById('register-cook-id').value.trim();
+    const password = document.getElementById('register-cook-password').value;
+
+    if (!fullName || !cookId || !password) {
+        showMessage('Please enter full name, cook ID and password.', 'error');
+        return;
+    }
+
+    if (password.length < 4) {
+        showMessage('Password must be at least 4 characters.', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}cook_register.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cook_id: cookId, password: password, full_name: fullName })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+        const data = await parseJsonResponse(response);
+        if (!data.success) {
+            showMessage(data.message || 'Cook registration failed.', 'error');
+            return;
+        }
+
+        showMessage(data.message || `Registered ${cookId} successfully.`, 'success');
+    } catch (error) {
+        const localResult = tryLocalCookRegister(cookId, password, fullName);
+        if (!localResult.ok) {
+            showMessage(localResult.message, 'error');
+            return;
+        }
+        showMessage(`API unavailable. ${localResult.message}`, 'success');
+    }
+
+    const fullNameInput = document.getElementById('register-cook-name');
+    const cookIdInput = document.getElementById('register-cook-id');
+    const passwordInput = document.getElementById('register-cook-password');
+    if (fullNameInput) fullNameInput.value = '';
+    if (cookIdInput) cookIdInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+}
+
 async function staffLogin() {
     const username = document.getElementById('staff-username').value.trim();
     const password = document.getElementById('staff-password').value;
 
     if (!username || !password) {
         showMessage('Please enter username and password.', 'error');
+        return;
+    }
+
+    if (!isCookEnabledInLocalStorage(username) && !(username === 'admin' && password === '0000')) {
+        showMessage('This cook account is disabled. Please contact admin.', 'error');
         return;
     }
 
@@ -100,10 +231,15 @@ async function staffLogin() {
                 localStorage.setItem('admin_logged_in', 'true');
                 window.location.href = 'admin.html';
             } else if (role === 'cook') {
+                const cookId = data.user_id || username;
+                if (!isCookEnabledInLocalStorage(cookId)) {
+                    showMessage('This cook account is disabled. Please contact admin.', 'error');
+                    return;
+                }
                 localStorage.setItem('user_type', 'cook');
-                localStorage.setItem('cook_id', data.user_id || username);
+                localStorage.setItem('cook_id', cookId);
                 localStorage.setItem('cook_name', data.full_name || '');
-                window.location.href = 'admin.html#orders';
+                window.location.href = 'cook.html';
             } else {
                 showMessage('Role not recognized.', 'error');
             }
@@ -121,14 +257,21 @@ async function staffLogin() {
             if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
             const data = await parseJsonResponse(response);
             if (data.success) {
+                if (!isCookEnabledInLocalStorage(data.cook_id)) {
+                    showMessage('This cook account is disabled. Please contact admin.', 'error');
+                    return;
+                }
                 localStorage.setItem('user_type', 'cook');
                 localStorage.setItem('cook_id', data.cook_id);
                 localStorage.setItem('cook_name', data.full_name);
-                window.location.href = 'admin.html#orders';
+                window.location.href = 'cook.html';
                 return;
             }
         } catch (inner) {
             // ignore and show below
+        }
+        if (tryLocalCookLogin(username, password)) {
+            return;
         }
         showMessage('Error: ' + error.message, 'error');
     }
@@ -138,4 +281,13 @@ async function staffLogin() {
     API_BASE = await findApiPath();
     const btn = document.getElementById('btn-staff-login');
     if (btn) btn.addEventListener('click', staffLogin);
+    const registerBtn = document.getElementById('btn-cook-register-from-staff');
+    if (registerBtn) registerBtn.addEventListener('click', registerCookFromStaff);
+    const showRegisterBtn = document.getElementById('show-register-btn');
+    if (showRegisterBtn) showRegisterBtn.addEventListener('click', () => toggleRegisterPanel(true));
+    const hideRegisterBtn = document.getElementById('hide-register-btn');
+    if (hideRegisterBtn) hideRegisterBtn.addEventListener('click', () => toggleRegisterPanel(false));
+
+    bindEnter(['staff-username', 'staff-password'], staffLogin);
+    bindEnter(['register-cook-name', 'register-cook-id', 'register-cook-password'], registerCookFromStaff);
 })();
