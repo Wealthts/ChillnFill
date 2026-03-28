@@ -1549,12 +1549,12 @@ const optionSets = {
         });
     }
 
-    if (openPaymentBtn) {
-        openPaymentBtn.addEventListener("click", (event) => {
-            event.preventDefault();
-            openPaymentPageTrigger();
-        });
-    }
+if (openPaymentBtn) {
+    openPaymentBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        openPaymentSelectionModal();
+    });
+}
 
     // Fallback: delegated handler keeps payment button responsive even if direct binding is disrupted.
     document.addEventListener("click", (event) => {
