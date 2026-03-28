@@ -127,8 +127,6 @@ function showLoginForm(role) {
 
     const formMap = {
         customer: 'customer-form',
-        cook: 'cook-login-form',
-        admin: 'admin-form',
     };
 
     const formId = formMap[role];
@@ -161,27 +159,11 @@ window.showRegisterForm = showRegisterForm;
 
 function initUiHandlers() {
     bindClick('btn-role-customer', () => showLoginForm('customer'));
-    bindClick('btn-role-cook', () => showLoginForm('cook'));
-    bindClick('btn-role-admin', () => showLoginForm('admin'));
 
     bindClick('btn-customer-login', customerLogin);
     bindClick('btn-customer-back', hideAllForms);
 
-    bindClick('btn-cook-login', cookLogin);
-    bindClick('btn-cook-register-link', showRegisterForm);
-    bindClick('btn-cook-back', hideAllForms);
-
-    bindClick('btn-cook-register', cookRegister);
-    bindClick('btn-cook-register-login', () => showLoginForm('cook'));
-    bindClick('btn-cook-register-back', hideAllForms);
-
-    bindClick('btn-admin-login', adminLogin);
-    bindClick('btn-admin-back', hideAllForms);
-
     bindEnter(['table-number'], customerLogin);
-    bindEnter(['cook-id', 'cook-password'], cookLogin);
-    bindEnter(['register-cook-id', 'register-password', 'register-fullname'], cookRegister);
-    bindEnter(['admin-username', 'admin-password'], adminLogin);
 }
 
 async function customerLogin() {
@@ -381,12 +363,8 @@ async function checkSession() {
     const hashRole = (window.location.hash || '').replace('#', '').trim();
     if (hashRole === 'customer') {
         showLoginForm('customer');
-    } else if (hashRole === 'cook') {
-        showLoginForm('cook');
-    } else if (hashRole === 'admin') {
-        showLoginForm('admin');
-    } else if (hashRole === 'register-cook') {
-        showRegisterForm();
+    } else if (hashRole === 'cook' || hashRole === 'admin' || hashRole === 'register-cook') {
+        window.location.href = 'staff.html';
     }
 
     if (window.location.pathname === '/' || (window.location.pathname.includes('.html') && !window.location.pathname.includes('dashboard'))) {

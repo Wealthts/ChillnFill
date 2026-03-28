@@ -21,6 +21,22 @@ function getDefaultDashboardFilter(){
 let dashboardFilter = getDefaultDashboardFilter();
 const MENU_CATALOG_SEED_KEY = "menus_seeded_from_catalog_v1";
 const MENUS_BACKUP_KEY = "menus_backup_latest";
+const mediaImageByMenuName = {
+  "basil fried rice": "../media/basilfriedrice.jpg",
+  "tom yum goong": "../media/tomyumkung.jpg",
+  "pad thai": "../media/padthai.jpg",
+  "hainanese chicken rice": "../media/hainanesechickenrice.jpg",
+  "som tam thai": "../media/somtamthai.jpg",
+  "korean bbq beef": "../media/koreanbbq.jpg",
+  "beef basil": "../media/beefbasil.jpg",
+  "lime juice": "../media/limejuice.jpg"
+};
+
+function resolveMenuImage(menuName, fallbackImage){
+  const key = String(menuName || "").trim().toLowerCase();
+  return mediaImageByMenuName[key] || fallbackImage || "";
+}
+
 const defaultMenuCatalog = [
   {
     id: 1,
@@ -30,7 +46,7 @@ const defaultMenuCatalog = [
     desc: "Crispy chicken basil rice with fried egg",
     optionKeys: ["spice"],
     hasOptions: true,
-    img: "img/pad krapow.jpg",
+    img: resolveMenuImage("Basil Fried Rice"),
     available: true
   },
   {
@@ -41,7 +57,7 @@ const defaultMenuCatalog = [
     desc: "Clear spicy shrimp tom yum soup",
     optionKeys: ["spice"],
     hasOptions: true,
-    img: "img/tom yum kung.jpg",
+    img: resolveMenuImage("Tom Yum Goong"),
     available: true
   },
   {
@@ -52,7 +68,7 @@ const defaultMenuCatalog = [
     desc: "Thai stir-fried noodles with shrimp",
     optionKeys: ["spice"],
     hasOptions: true,
-    img: "img/pad thai shrimp.jpg",
+    img: resolveMenuImage("Pad Thai"),
     available: true
   },
   {
@@ -63,7 +79,7 @@ const defaultMenuCatalog = [
     desc: "Steamed chicken rice with special sauce",
     optionKeys: [],
     hasOptions: false,
-    img: "images/kaomunkai.jpg",
+    img: resolveMenuImage("Hainanese Chicken Rice"),
     available: true
   },
   {
@@ -74,7 +90,7 @@ const defaultMenuCatalog = [
     desc: "Spicy green papaya salad",
     optionKeys: ["spice"],
     hasOptions: true,
-    img: "images/somtam.jpg",
+    img: resolveMenuImage("Som Tam Thai"),
     available: true
   },
   {
@@ -85,7 +101,7 @@ const defaultMenuCatalog = [
     desc: "Korean-style marinated grilled beef",
     optionKeys: ["doneness"],
     hasOptions: true,
-    img: "images/beef.jpg",
+    img: resolveMenuImage("Korean BBQ Beef"),
     available: true
   },
   {
@@ -96,7 +112,7 @@ const defaultMenuCatalog = [
     desc: "Minced beef basil with fried egg",
     optionKeys: ["spice"],
     hasOptions: true,
-    img: "images/beef-basil.jpg",
+    img: resolveMenuImage("Beef Basil"),
     available: true
   },
   {
@@ -107,7 +123,7 @@ const defaultMenuCatalog = [
     desc: "Fresh lime juice",
     optionKeys: ["sweet", "ice"],
     hasOptions: true,
-    img: "images/lemon.jpg",
+    img: resolveMenuImage("Lime Juice"),
     available: true
   },
   {
@@ -118,7 +134,7 @@ const defaultMenuCatalog = [
     desc: "Iced green tea",
     optionKeys: ["sweet", "ice"],
     hasOptions: true,
-    img: "images/greentea.jpg",
+    img: resolveMenuImage("Green Tea"),
     available: true
   },
   {
@@ -129,7 +145,7 @@ const defaultMenuCatalog = [
     desc: "Vanilla ice cream",
     optionKeys: ["size"],
     hasOptions: true,
-    img: "images/icecream.jpg",
+    img: resolveMenuImage("Ice Cream"),
     available: true
   },
   {
@@ -140,7 +156,7 @@ const defaultMenuCatalog = [
     desc: "Crispy pork basil rice",
     optionKeys: ["spice"],
     hasOptions: true,
-    img: "images/crispy-pork.jpg",
+    img: resolveMenuImage("Crispy Pork Basil"),
     available: true
   },
   {
@@ -151,7 +167,7 @@ const defaultMenuCatalog = [
     desc: "Mixed seafood tom yum soup",
     optionKeys: ["spice"],
     hasOptions: true,
-    img: "images/seafood-tomyum.jpg",
+    img: resolveMenuImage("Seafood Tom Yum"),
     available: true
   },
   {
@@ -162,7 +178,7 @@ const defaultMenuCatalog = [
     desc: "Soda, Coke, Sprite",
     optionKeys: ["sweet", "ice"],
     hasOptions: true,
-    img: "images/soda.jpg",
+    img: resolveMenuImage("Soda"),
     available: true
   }
 ];
@@ -200,9 +216,17 @@ function saveMenusToStorage(menus){
 }
 
 function seedMenuCatalogIfNeeded(){
-  if (localStorage.getItem(MENU_CATALOG_SEED_KEY) === "1") return;
-
   const storedMenus = readMenusFromStorage();
+  if (Array.isArray(storedMenus) && storedMenus.length) {
+    localStorage.setItem(MENU_CATALOG_SEED_KEY, "1");
+    return;
+  }
+
+  if (localStorage.getItem(MENU_CATALOG_SEED_KEY) === "1") {
+    saveMenusToStorage(defaultMenuCatalog);
+    return;
+  }
+
   const existingByKey = new Set(storedMenus.map(menuSeedKeyOf));
   const mergedMenus = [...storedMenus];
 
@@ -613,24 +637,29 @@ function loadMenu(){
       ? optionKeys.map(formatOptionKeyLabel).join(", ")
       : "None";
     list.innerHTML += `
-      <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-        <div class="card-body flex flex-col items-center text-center">
-          ${m.img ? `<img src="${m.img}" class="w-28 rounded-lg mb-2" />` : ""}
-          <b class="text-lg">${m.name}</b>
-          <div>${m.price} Baht</div>
-          <div>Category: ${m.category || "single"}</div>
-          <div>Description: ${m.desc || "-"}</div>
-          <div>Options: ${optionText}</div>
-          <div>Status: ${m.available ? "Available" : "Disabled"}</div>
-
-          <div class="mt-3">
-            <button class="btn btn-sm ${m.available ? "btn-success" : "btn-error"}" aria-pressed="${m.available}" onclick="toggleMenu(${i})">
+      <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow-sm">
+        <div class="card-body p-4 gap-2">
+          ${resolveMenuImage(m.name, m.img) ? `<img src="${resolveMenuImage(m.name, m.img)}" class="w-full h-28 rounded-lg object-cover border border-[#e6d7c7]" />` : ""}
+          <div class="flex items-start justify-between gap-2">
+            <div class="font-bold text-base leading-tight">${m.name}</div>
+            <div class="text-sm font-semibold text-[#7a4e2f] whitespace-nowrap">${m.price} Baht</div>
+          </div>
+          <div class="text-xs text-[#5f4028] space-y-1">
+            <div><span class="opacity-70">Category:</span> ${m.category || "single"}</div>
+            <div><span class="opacity-70">Options:</span> ${optionText}</div>
+            <div><span class="opacity-70">Status:</span> ${m.available ? "Available" : "Disabled"}</div>
+          </div>
+          <div class="text-xs text-[#5f4028] bg-[#fffaf5] border border-[#e6d7c7] rounded-lg px-2 py-1 min-h-[52px]">
+            ${m.desc || "-"}
+          </div>
+          <div class="flex items-center justify-between mt-1">
+            <button class="btn btn-xs ${m.available ? "btn-success" : "btn-error"}" aria-pressed="${m.available}" onclick="toggleMenu(${i})">
               ${m.available ? "Enabled" : "Disabled"}
             </button>
-          </div>
-          <div class="card-actions justify-center mt-3">
-            <button class="btn btn-sm bg-[#fbf5ee] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="editMenu(${i})">Edit</button>
-            <button class="btn btn-sm bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="deleteMenu(${i})">Delete</button>
+            <div class="card-actions">
+              <button class="btn btn-xs bg-[#fbf5ee] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="editMenu(${i})">Edit</button>
+              <button class="btn btn-xs bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="deleteMenu(${i})">Delete</button>
+            </div>
           </div>
         </div>
       </div>
@@ -660,7 +689,7 @@ function addMenu(){
   function saveData(imgData){
     const imgToUse = imgData !== null && imgData !== undefined
       ? imgData
-      : (existing ? existing.img : "");
+      : resolveMenuImage(menuName.value, existing ? existing.img : "");
 
     const newItem = {
       id: existing ? existing.id : Date.now(),
@@ -670,7 +699,7 @@ function addMenu(){
       category: menuCategory ? menuCategory.value : (existing ? existing.category : "single"),
       optionKeys: menuOptionKeys,
       hasOptions: menuOptionKeys.length > 0,
-      img: imgToUse || "",
+      img: resolveMenuImage(menuName.value, imgToUse || ""),
       available: existing ? existing.available : true
     };
 
@@ -917,22 +946,58 @@ function loadReviews(){
   let reviews = JSON.parse(localStorage.getItem("reviews")) || [];
   let div = document.getElementById("reviews");
 
-  let avg = reviews.length 
-    ? (reviews.reduce((s,r)=>s+r.rating,0)/reviews.length).toFixed(1)
-    : 0;
+  const sortedReviews = reviews.sort((a,b)=> new Date(b.time || 0) - new Date(a.time || 0));
+  const avg = sortedReviews.length
+    ? (sortedReviews.reduce((s,r)=>s+Number(r.rating || 0),0)/sortedReviews.length).toFixed(1)
+    : "0.0";
+  const escapeText = (value) =>
+    String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  const formatReviewTime = (value) => {
+    const d = new Date(value || 0);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleString();
+  };
 
-  div.innerHTML = `<h2 class='text-2xl font-bold mt-6 mb-4'>Reviews (Avg: ${avg})</h2>`;
-
-  reviews.forEach(r=>{
-    div.innerHTML += `
-      <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow mb-4">
+  if (!sortedReviews.length) {
+    div.innerHTML = `
+      <h2 class='text-2xl font-bold mt-6 mb-4'>Reviews</h2>
+      <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
         <div class="card-body">
-          ⭐ ${r.rating}/5<br>
-          ${r.comment}
+          <div class="text-sm text-[#a97a52]">Average Rating</div>
+          <div class="text-2xl font-extrabold text-[#5f4028]">${avg}</div>
+          <div class="text-sm text-[#a97a52] mt-2">No reviews yet</div>
         </div>
       </div>
     `;
-  });
+    return;
+  }
+
+  div.innerHTML = `
+    <h2 class='text-2xl font-bold mt-6 mb-4'>Reviews</h2>
+    <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow mb-4">
+      <div class="card-body">
+        <div class="text-sm text-[#a97a52]">Average Rating</div>
+        <div class="text-2xl font-extrabold text-[#5f4028]">${avg} / 5</div>
+      </div>
+    </div>
+    ${sortedReviews.map((review) => `
+      <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow mb-4">
+        <div class="card-body">
+          <div class="flex items-center justify-between gap-3">
+            <div class="font-bold text-[#5f4028]">⭐ ${Number(review.rating || 0)} / 5</div>
+            <div class="text-xs text-[#a97a52]">${formatReviewTime(review.time)}</div>
+          </div>
+          <div class="text-sm text-[#5f4028] mt-2">${escapeText(review.comment || "-")}</div>
+          <div class="text-xs text-[#a97a52] mt-1">Table: ${escapeText(review.table || "-")}</div>
+        </div>
+      </div>
+    `).join("")}
+  `;
 }
 
 /* ================= DASHBOARD ================= */
