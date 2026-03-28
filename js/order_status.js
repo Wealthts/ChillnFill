@@ -14,11 +14,20 @@ function getCurrentTableNumber() {
     return localStorage.getItem("table_number") || "";
 }
 
+function isCustomerSession() {
+    return String(localStorage.getItem("user_type") || "").toLowerCase() === "customer";
+}
+
 function matchesCurrentSession(record) {
     if (!record) return false;
 
     const sessionId = getCurrentSessionId();
     const tableNumber = getCurrentTableNumber();
+    const customerSession = isCustomerSession();
+
+    if (customerSession && tableNumber) {
+        if (String(record.table || "") === String(tableNumber)) return true;
+    }
 
     if (sessionId && record.userId) {
         return String(record.userId) === String(sessionId);
@@ -113,3 +122,10 @@ window.addEventListener("storage", (event) => {
 });
 
 renderOrderStatus();
+
+const goToPaymentBtn = document.getElementById("goToPaymentBtn");
+if (goToPaymentBtn) {
+    goToPaymentBtn.addEventListener("click", () => {
+        window.location.href = "payment.html";
+    });
+}
