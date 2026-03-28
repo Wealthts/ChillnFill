@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="color-scheme" content="light">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Chill n Fill – Cart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#f3eadf] text-[#5f4028] font-['Sarabun']">
+<div class="fixed inset-0 bg-black/30"></div>
+<div class="relative min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-[560px] rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
+        <div class="flex items-center justify-between text-xl font-extrabold text-[#5f4028] mb-4">
+            <span>Your Orders</span>
+            <a href="menu.html" class="btn btn-ghost btn-sm text-2xl" aria-label="Back to menu">&times;</a>
+        </div>
+
+        <div id="cartSessionNotice" class="mb-4 hidden rounded-[24px] border border-[#d7b58f] bg-[#fff4e8] px-4 py-3 text-sm font-medium text-[#7a4e2f]"></div>
+
+        <div id="cartItemsContainer" class="my-3 max-h-[45vh] overflow-y-auto"></div>
+        <div class="text-right font-bold py-2">
+            Total <span id="modalTotalPrice">0</span> Baht
+        </div>
+        <div class="flex gap-3 mt-2">
+            <button id="clearCartBtn" class="btn btn-sm flex-1 rounded-full bg-[#e0cfbe] text-[#5f4028] border-none hover:bg-[#efe4d8]">Clear All</button>
+            <button id="sendKitchenBtn" class="btn btn-sm flex-1 rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">Send to Kitchen</button>
+        </div>
+
+        <div class="mt-4">
+            <a href="menu.html" class="btn btn-sm w-full rounded-full bg-[#efe4d8] text-[#5f4028] border-none hover:bg-[#f3eadf]">Back to Menu</a>
+        </div>
+    </div>
+</div>
+
+<div id="toastMsg" class="fixed bottom-6 left-4 right-4 z-50 rounded-full bg-[#5f4028] px-4 py-2 text-center text-sm font-medium text-white opacity-0 transition pointer-events-none">Sent to kitchen</div>
+
+<script src="../js/cart.js"></script>
+</body>
+</html>

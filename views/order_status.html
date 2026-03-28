@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="color-scheme" content="light">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Chill n Fill – Order Status</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#f3eadf] text-[#5f4028] font-['Sarabun']">
+<div class="fixed inset-0 bg-black/30"></div>
+<div class="relative min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-[560px] rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
+        <div class="flex items-center justify-between text-xl font-extrabold text-[#5f4028] mb-4">
+            <span>Order Status</span>
+            <a href="menu.html" class="btn btn-ghost btn-sm text-2xl" aria-label="Back to menu">&times;</a>
+        </div>
+
+        <div id="orderStatusContainer"></div>
+
+        <div class="mt-4">
+            <a href="menu.html" class="btn btn-sm w-full rounded-full bg-[#efe4d8] text-[#5f4028] border-none hover:bg-[#f3eadf]">Back to Menu</a>
+        </div>
+    </div>
+</div>
+
+<script src="../js/order_status.js"></script>
+</body>
+</html>

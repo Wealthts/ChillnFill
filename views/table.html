@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="th" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="color-scheme" content="light">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reserve Table</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+
+  <body class="min-h-screen flex flex-col items-center justify-center p-6 bg-[#f3eadf] text-[#5f4028] font-['Sarabun'] text-center">
+    <div class="mx-auto w-full max-w-5xl flex flex-col items-center gap-4">
+      <h1 class="text-[#5f4028] text-[1.8rem] font-bold leading-tight m-0">🍽️ You can choose a table.</h1>
+      <div class="flex items-center justify-center gap-4 flex-wrap max-w-full">
+        <div class="table-seat w-[84px] h-[84px] bg-[#7a4e2f] rounded-full text-[#f3eadf] flex items-center justify-center cursor-pointer shadow-[0_8px_18px_rgba(94,59,36,0.2)] font-bold text-[1.1rem] tracking-[0.5px]" data-table="1">1</div>
+        <div class="table-seat w-[84px] h-[84px] bg-[#7a4e2f] rounded-full text-[#f3eadf] flex items-center justify-center cursor-pointer shadow-[0_8px_18px_rgba(94,59,36,0.2)] font-bold text-[1.1rem] tracking-[0.5px]" data-table="2">2</div>
+        <div class="table-seat w-[84px] h-[84px] bg-[#7a4e2f] rounded-full text-[#f3eadf] flex items-center justify-center cursor-pointer shadow-[0_8px_18px_rgba(94,59,36,0.2)] font-bold text-[1.1rem] tracking-[0.5px]" data-table="3">3</div>
+        <div class="table-seat w-[84px] h-[84px] bg-[#7a4e2f] rounded-full text-[#f3eadf] flex items-center justify-center cursor-pointer shadow-[0_8px_18px_rgba(94,59,36,0.2)] font-bold text-[1.1rem] tracking-[0.5px]" data-table="4">4</div>
+        <div class="table-seat w-[84px] h-[84px] bg-[#7a4e2f] rounded-full text-[#f3eadf] flex items-center justify-center cursor-pointer shadow-[0_8px_18px_rgba(94,59,36,0.2)] font-bold text-[1.1rem] tracking-[0.5px]" data-table="5">5</div>
+        <div class="table-seat w-[84px] h-[84px] bg-[#7a4e2f] rounded-full text-[#f3eadf] flex items-center justify-center cursor-pointer shadow-[0_8px_18px_rgba(94,59,36,0.2)] font-bold text-[1.1rem] tracking-[0.5px]" data-table="6">6</div>
+      </div>
+    </div>
+
+    <!-- booking popup -->
+    <div class="fixed inset-0 hidden items-center justify-center bg-black/35 backdrop-blur-[5px]" id="bookingModal">
+      <div class="bg-[#fbf5ee] w-[min(420px,calc(100%-32px))] p-7 rounded-[24px] border border-[#e6d7c7] shadow-[0_15px_35px_rgba(94,59,36,0.18)] text-center">
+        <h3 class="mb-4 text-[20px] text-[#5f4028] font-semibold">Reserve Table <span id="tableNum"></span></h3>
+
+        <input class="w-full p-2.5 my-2 rounded-[12px] border border-[#e6d7c7] bg-[#fffaf5]" type="text" id="name" placeholder="Your name" />
+        <input class="w-full p-2.5 my-2 rounded-[12px] border border-[#e6d7c7] bg-[#fffaf5]" type="time" id="time" />
+
+        <div class="flex justify-center gap-4 mt-3">
+          <button class="bg-[#7a4e2f] text-[#f3eadf] border-0 px-7 py-2.5 rounded-full font-bold cursor-pointer transition hover:bg-[#5f4028]" id="btn-booking-confirm">Confirm</button>
+          <button class="bg-[#efe4d8] text-[#7a4e2f] border border-[#e6d7c7] px-7 py-2.5 rounded-full font-bold cursor-pointer transition hover:bg-[#f3eadf]" id="btn-booking-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- confirm popup -->
+    <div class="fixed inset-0 hidden items-center justify-center bg-black/35 backdrop-blur-[5px]" id="confirmModal">
+      <div class="bg-[#fbf5ee] w-[min(420px,calc(100%-32px))] p-7 rounded-[24px] border border-[#e6d7c7] shadow-[0_15px_35px_rgba(94,59,36,0.18)] text-center">
+        <h3 class="mb-4 text-[20px] text-[#5f4028] font-semibold">Confirm Reservation</h3>
+        <p id="confirmText" class="mb-6 text-[15px] text-[#7a4e2f] whitespace-pre-line leading-relaxed"></p>
+
+        <div class="flex justify-center gap-4">
+          <button class="bg-[#7a4e2f] text-[#f3eadf] border-0 px-7 py-2.5 rounded-full font-bold cursor-pointer transition hover:bg-[#5f4028]" id="btn-confirm-yes">Yes</button>
+          <button class="bg-[#efe4d8] text-[#7a4e2f] border border-[#e6d7c7] px-7 py-2.5 rounded-full font-bold cursor-pointer transition hover:bg-[#f3eadf]" id="btn-confirm-no">No</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../js/table.js?v=2"></script>
+  </body>
+</html>

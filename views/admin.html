@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+    <meta name="color-scheme" content="light">
+<title>Admin Panel</title>
+<link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#f3eadf] text-[#5f4028] font-['Sarabun']">
+
+<!-- LOGIN -->
+<div id="loginPage" class="min-h-screen flex items-center justify-center">
+  <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
+    <div class="card-body items-center text-center">
+      <h2 class="card-title">Admin Login</h2>
+      <input id="adminUser" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] text-left" placeholder="Username">
+      <input id="adminPass" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] text-left" type="password" placeholder="Password">
+      <div class="card-actions">
+        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="login()">Login</button>
+      </div>
+    </div>
+  </div>
+</div>  
+
+<!-- APP -->
+<div id="app" class="hidden min-h-screen bg-[#f3eadf]">
+  <aside class="fixed inset-y-0 left-0 w-64 bg-[#efe4d8] border-r border-[#e6d7c7] p-4 flex flex-col justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-center mb-4">Admin Panel</h2>
+      <div class="space-y-2">
+        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('dashboard')">Dashboard</button>
+        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('cooks')">Cooks</button>
+        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('menu')">Menu</button>
+        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('orders')">Orders</button>
+        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('payment')">Payments</button>
+        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('reviews')">Reviews</button>
+      </div>
+    </div>
+    <button class="btn w-full rounded-xl bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="ml-64 min-h-screen bg-[#f3eadf] px-6 py-8">
+    <div class="mx-auto w-full max-w-5xl">
+      <h1 id="title" class="text-3xl font-bold">Dashboard</h1>
+      <div id="clock" class="opacity-70 mt-1"></div>
+
+      <div id="dashboard" class="page"></div>
+      <div id="cooks" class="page"></div>
+      <div id="menu" class="page"></div>
+      <div id="orders" class="page"></div>
+      <div id="payment" class="page"></div>
+      <div id="reviews" class="page"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODALS -->
+<div id="cookModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
+    <div class="card-body">
+      <h3 class="card-title">Add Cook</h3>
+      <input id="cookName" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Name">
+      <input id="cookId" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="ID">
+      <input id="cookPass" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Password">
+      <div class="card-actions justify-end">
+        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="addCook()">Save</button>
+        <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeCookModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="editCookModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
+    <div class="card-body">
+      <h3 class="card-title">Edit Cook</h3>
+      <input id="editCookName" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+      <input id="editCookId" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" disabled>
+      <input id="editCookPass" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+      <div class="card-actions justify-end">
+        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="updateCook()">Update</button>
+        <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeEditCookModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="menuModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
+    <div class="card-body">
+      <h3 class="card-title">Add Menu</h3>
+      <input id="menuName" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Name">
+      <input id="menuPrice" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Price">
+      <input id="menuDesc" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Description">
+      <select id="menuCategory" class="select select-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+        <option value="single">Single Plate</option>
+        <option value="tomyum">Tom Yum</option>
+        <option value="salad">Salad</option>
+        <option value="main">Main</option>
+        <option value="drink">Drinks</option>
+        <option value="dessert">Dessert</option>
+      </select>
+      <div class="rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3">
+        <div class="font-semibold mb-2">Customization Options</div>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="spice"><span class="label-text">Spiciness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="sweet"><span class="label-text">Sweetness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="ice"><span class="label-text">Ice Level</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="doneness"><span class="label-text">Doneness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="size"><span class="label-text">Size</span></label>
+        </div>
+      </div>
+      <input id="menuImg" class="file-input file-input-bordered w-full" type="file">
+      <div class="card-actions justify-end">
+        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="addMenu()">Save</button>
+        <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeMenuModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="editMenuModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
+    <div class="card-body">
+      <h3 class="card-title">Edit Menu</h3>
+      <input id="editMenuName" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+      <input id="editMenuPrice" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+      <input id="editMenuDesc" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+      <select id="editMenuCategory" class="select select-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+        <option value="single">Single Plate</option>
+        <option value="tomyum">Tom Yum</option>
+        <option value="salad">Salad</option>
+        <option value="main">Main</option>
+        <option value="drink">Drinks</option>
+        <option value="dessert">Dessert</option>
+      </select>
+      <div class="rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3">
+        <div class="font-semibold mb-2">Customization Options</div>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="spice"><span class="label-text">Spiciness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="sweet"><span class="label-text">Sweetness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="ice"><span class="label-text">Ice Level</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="doneness"><span class="label-text">Doneness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="size"><span class="label-text">Size</span></label>
+        </div>
+      </div>
+      <div class="card-actions justify-end">
+        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="updateMenu()">Update</button>
+        <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeEditMenuModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../js/admin.js"></script>
+</body>
+</html>

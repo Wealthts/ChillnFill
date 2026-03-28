@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="color-scheme" content="light">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="api-base" content="/restaurant-system/api/">
+        <title>ChillnFill - In-House Ordering</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+        <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap"
+            rel="stylesheet">
+    </head>
+
+    <body class="min-h-screen flex justify-center items-center p-4 bg-[#f3eadf] text-[#5f4028] font-['Sarabun']">
+
+        <div class="card bg-[#fbf5ee] border border-[#e6d7c7] rounded-2xl p-6 sm:p-10 shadow-xl max-w-md w-full">
+            <h1 class="text-center text-[#5f4028] text-2xl sm:text-3xl font-bold mb-2">
+                Chill n Fill
+            </h1>
+            <p class="text-center text-sm text-[#a97a52] mb-6 sm:mb-8">
+                In-House Ordering
+            </p>
+            <div id="message-container"></div>
+
+            <!-- Role Buttons -->
+            <div class="flex flex-col sm:flex-row sm:flex-wrap gap-4 mb-6 sm:mb-8" id="role-buttons">
+                <button id="btn-role-customer" type="button"
+                    class="btn btn-lg w-full sm:flex-1 min-w-0 border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:bg-[#5f4028] hover:border-[#5f4028] shadow-md text-sm sm:text-base">
+                    Customer
+                </button>
+                <button id="btn-role-cook" type="button"
+                    class="btn btn-lg w-full sm:flex-1 min-w-0 border-[#a97a52] bg-[#a97a52] text-[#f3eadf] hover:bg-[#7a4e2f] hover:border-[#7a4e2f] shadow-md text-sm sm:text-base">
+                    Chef
+                </button>
+                <button id="btn-role-admin" type="button"
+                    class="btn btn-lg w-full sm:flex-1 min-w-0 border-[#5f4028] bg-[#5f4028] text-[#f3eadf] hover:bg-[#4b2f1d] hover:border-[#4b2f1d] shadow-md text-sm sm:text-base">
+                    Administrator
+                </button>
+            </div>
+
+            <!-- Customer Login Form -->
+            <div id="customer-form" class="login-form hidden">
+                <h2 class="text-[#a97a52] text-xl font-semibold mb-5">Customer Login</h2>
+                <input type="number" id="table-number" placeholder="Table Number"
+                    class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+                <button id="btn-customer-login" type="button"
+                    class="btn w-full mt-2 border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:bg-[#5f4028] hover:border-[#5f4028]">
+                    Login
+                </button>
+                <button id="btn-customer-back" type="button"
+                    class="btn w-full mt-2 border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
+                    Back
+                </button>
+            </div>
+
+            <!-- Cook Register Form -->
+            <div id="cook-register-form" class="login-form hidden">
+                <h2 class="text-[#a97a52] text-xl font-semibold mb-5">Register as Cook</h2>
+                <input type="text" id="register-cook-id" placeholder="Cook ID"
+                    class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+                <input type="password" id="register-password" placeholder="Password"
+                    class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+                <input type="text" id="register-fullname" placeholder="Full Name"
+                    class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+                <button id="btn-cook-register" type="button"
+                    class="btn w-full mt-2 border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:bg-[#5f4028] hover:border-[#5f4028]">
+                    Register
+                </button>
+                <button id="btn-cook-register-login" type="button"
+                    class="btn w-full mt-2 border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
+                    Already have an account? Log in
+                </button>
+                <button id="btn-cook-register-back" type="button"
+                    class="btn w-full mt-2 border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
+                    Back
+                </button>
+            </div>
+
+            <!-- Cook Login Form -->
+            <div id="cook-login-form" class="login-form hidden">
+                <h2 class="text-[#a97a52] text-xl font-semibold mb-5">Cook Login</h2>
+                <input type="text" id="cook-id" placeholder="Cook ID"
+                    class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+                <input type="password" id="cook-password" placeholder="Password"
+                    class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+                <button id="btn-cook-login" type="button"
+                    class="btn w-full mt-2 border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:bg-[#5f4028] hover:border-[#5f4028]">
+                    Login
+                </button>
+                <button id="btn-cook-register-link" type="button"
+                    class="btn w-full mt-2 border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
+                    Don't have an account yet? Register.
+                </button>
+                <button id="btn-cook-back" type="button"
+                    class="btn w-full mt-2 border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
+                    Back
+                </button>
+            </div>
+
+            <!-- Admin Login Form -->
+            <div id="admin-form" class="login-form hidden">
+                <h2 class="text-[#a97a52] text-xl font-semibold mb-5">Admin Login</h2>
+                <input type="text" id="admin-username" placeholder="Username"
+                    class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+                <input type="password" id="admin-password" placeholder="Password"
+                    class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-2">
+                <button id="btn-admin-login" type="button"
+                    class="btn w-full mt-2 border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:bg-[#5f4028] hover:border-[#5f4028]">
+                    Login
+                </button>
+                <button id="btn-admin-back" type="button"
+                    class="btn w-full mt-2 border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
+                    Back
+                </button>
+            </div>
+        </div>
+
+        <script src="../js/script.js?v=2"></script>
+
+    </body>
+
+</html>
