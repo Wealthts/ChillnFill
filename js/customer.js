@@ -76,6 +76,46 @@ function bindEnter(ids, handler) {
     });
 }
 
+function normalizeTableNumber(value) {
+    const parsed = Number.parseInt(String(value || '').trim(), 10);
+    if (!Number.isInteger(parsed)) return null;
+    if (parsed < 1 || parsed > 10) return null;
+    return parsed;
+}
+
+function initTablePicker(onSelect) {
+    const tableInput = document.getElementById('table-number');
+    const tableButtons = document.querySelectorAll('.table-picker-btn[data-table-select]');
+    if (!tableInput || !tableButtons.length) return;
+
+    const applySelection = (value) => {
+        const normalized = normalizeTableNumber(value);
+        tableInput.value = normalized === null ? '' : String(normalized);
+
+        tableButtons.forEach((button) => {
+            const isSelected = String(button.dataset.tableSelect || '') === String(normalized || '');
+            button.classList.toggle('bg-[#efe4d8]', isSelected);
+            button.classList.toggle('text-[#7a4e2f]', isSelected);
+            button.classList.toggle('ring-4', isSelected);
+            button.classList.toggle('ring-[#d7b58f]', isSelected);
+            button.classList.toggle('scale-105', isSelected);
+            button.classList.toggle('bg-[#7a4e2f]', !isSelected);
+            button.classList.toggle('text-[#f3eadf]', !isSelected);
+        });
+    };
+
+    tableButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            applySelection(button.dataset.tableSelect || '');
+            if (typeof onSelect === 'function') {
+                onSelect();
+            }
+        });
+    });
+
+    applySelection(tableInput.value || getCurrentTableNumber());
+}
+
 function safeParseJSON(value, fallback) {
     try {
         return JSON.parse(value);
@@ -252,10 +292,12 @@ function clearCustomerSessionFlow(tableNumber, userId = '') {
 }
 
 async function customerLogin() {
-    const tableNumber = document.getElementById('table-number').value;
+    const tableInput = document.getElementById('table-number');
+    const tableNumber = tableInput ? tableInput.value : '';
+    const normalizedTableNumber = normalizeTableNumber(tableNumber);
 
-    if (!tableNumber) {
-        showMessage('Please enter a table number.', 'error');
+    if (normalizedTableNumber === null) {
+        showMessage('Please enter a table number from 1 to 10.', 'error');
         return;
     }
 
@@ -263,7 +305,7 @@ async function customerLogin() {
         const response = await fetch(`${API_BASE}customer_login.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ table_number: parseInt(tableNumber, 10) })
+            body: JSON.stringify({ table_number: normalizedTableNumber })
         });
 
         if (!response.ok) {
@@ -287,9 +329,9 @@ async function customerLogin() {
     } catch (error) {
         // Fallback to local session for static usage
         const fallbackUserId = String(Date.now());
-        clearCustomerSessionFlow(tableNumber, fallbackUserId);
+        clearCustomerSessionFlow(normalizedTableNumber, fallbackUserId);
         localStorage.setItem('user_id', fallbackUserId);
-        localStorage.setItem('table_number', tableNumber);
+        localStorage.setItem('table_number', String(normalizedTableNumber));
         localStorage.setItem('user_type', 'customer');
         window.location.href = 'menu.html';
     }
@@ -297,9 +339,10 @@ async function customerLogin() {
 
 (async function init() {
     API_BASE = await findApiPath();
-    const btn = document.getElementById('btn-customer-login');
-    if (btn) btn.addEventListener('click', customerLogin);
     bindEnter(['table-number'], customerLogin);
+    initTablePicker(() => {
+        customerLogin();
+    });
 
     const historyBtn = document.getElementById('btn-view-history');
     if (historyBtn) historyBtn.addEventListener('click', openHistoryModal);

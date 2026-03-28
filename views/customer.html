@@ -16,19 +16,29 @@
     <body class="min-h-screen flex items-center justify-center bg-[#f3eadf] text-[#5f4028] font-['Sarabun'] p-6">
         <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl p-6">
             <h1 class="text-center text-2xl font-bold mb-2">Chill n Fill</h1>
-            <p class="text-center text-sm text-[#a97a52] mb-6">Customer Login</p>
+            <p class="text-center text-sm font-semibold text-[#a97a52] mb-6">Customer Login</p>
 
             <div id="message-container" class="mb-3"></div>
 
-            <input type="number" id="table-number" placeholder="Table Number"
-                class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] focus:outline-none focus:border-[#a97a52] mb-3">
+            <div class="mb-3">
+                <div class="mb-3 text-sm text-center font-semibold text-[#7a4e2f]">Select Table</div>
+                <div class="grid grid-cols-5 gap-3 justify-items-center" id="table-picker">
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="1">1</button>
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="2">2</button>
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="3">3</button>
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="4">4</button>
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="5">5</button>
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="6">6</button>
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="7">7</button>
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="8">8</button>
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="9">9</button>
+                    <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="10">10</button>
+                </div>
+                <input type="hidden" id="table-number">
+            </div>
 
-            <button id="btn-customer-login" type="button"
-                class="btn w-full border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:bg-[#5f4028] hover:border-[#5f4028]">
-                Login
-            </button>
             <button id="btn-view-history" type="button" onclick="openHistoryModal()"
-                class="btn w-full mt-2 border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
+                class="btn w-full border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
                 View Payment/Review History
             </button>
         </div>
@@ -43,7 +53,7 @@
             </div>
         </div>
 
-        <script src="../js/customer.js?v=20260328_3"></script>
+        <script src="../js/customer.js?v=20260328_7"></script>
     </body>
 
 </html>

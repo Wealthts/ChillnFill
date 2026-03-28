@@ -19,6 +19,7 @@ function getDefaultDashboardFilter(){
 }
 
 let dashboardFilter = getDefaultDashboardFilter();
+const ADMIN_ACTIVE_PAGE_KEY = "admin_active_page";
 const MENU_CATALOG_SEED_KEY = "menus_seeded_from_catalog_v1";
 const MENUS_BACKUP_KEY = "menus_backup_latest";
 const mediaImageByMenuName = {
@@ -268,6 +269,7 @@ function logout(){
   localStorage.removeItem("user_type");
   localStorage.removeItem("cook_id");
   localStorage.removeItem("cook_name");
+  localStorage.removeItem(ADMIN_ACTIVE_PAGE_KEY);
   window.location.href = "staff.html";
 }
 
@@ -311,18 +313,27 @@ setInterval(() => {
 /* ================= PAGE ================= */
 function showPage(page){
   let pages = ["dashboard","cooks","menu","orders","payment","reviews"];
+  if (!pages.includes(page)) page = "dashboard";
   pages.forEach(p=> document.getElementById(p).style.display="none");
 
   document.getElementById(page).style.display="block";
   const titleEl = document.getElementById("title");
   if (titleEl) titleEl.innerText = page.toUpperCase();
+  localStorage.setItem(ADMIN_ACTIVE_PAGE_KEY, page);
+  const nextHash = `#${page}`;
+  if (window.location.hash !== nextHash) {
+    window.history.replaceState(null, "", nextHash);
+  }
 }
 
 function applyInitialRoute(){
   const hashPage = (window.location.hash || "").replace("#", "").trim();
+  const storedPage = localStorage.getItem(ADMIN_ACTIVE_PAGE_KEY) || "";
   const pages = ["dashboard","cooks","menu","orders","payment","reviews"];
   if (pages.includes(hashPage)) {
     showPage(hashPage);
+  } else if (pages.includes(storedPage)) {
+    showPage(storedPage);
   } else {
     showPage("dashboard");
   }

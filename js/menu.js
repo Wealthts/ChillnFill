@@ -948,6 +948,8 @@ const optionSets = {
             : "";
 
         document.getElementById("itemModalTitle").innerHTML = `${menu.name} ${thaiLabel}`;
+        const itemModalPrice = document.getElementById("itemModalPrice");
+        if (itemModalPrice) itemModalPrice.innerText = `${menu.price} Baht`;
         document.getElementById("itemModalDesc").innerText = menu.desc || "Special from the Chill n Fill kitchen";
         document.getElementById("itemModalImage").src = resolveMenuImage(menu.name, menu.image);
         document.getElementById("itemModalNote").value = "";
@@ -974,14 +976,13 @@ const optionSets = {
 
         const filtered = getFilteredMenus();
         const orderingLocked = isOrderCreationDisabled();
-        const orderButtonLabel = isOrderingLocked() ? "Ordering Closed" : (orderingLocked ? "Leave Review First" : "Customize & Add");
 
         grid.innerHTML = "";
         updateSearchResultText(filtered.length);
 
         if (filtered.length === 0) {
             grid.innerHTML = `
-                <div class="text-center p-7 bg-[#fbf5ee] border border-dashed border-[#e6d7c7] rounded-3xl text-[#a97a52]">
+                <div class="text-center p-7 bg-[#fbf5ee] border border-dashed border-[#e6d7c7] rounded-3xl text-[#a97a52] md:col-span-2 xl:col-span-3">
                     No menu items found<br>
                     Try another keyword
                 </div>
@@ -991,22 +992,34 @@ const optionSets = {
 
         filtered.forEach((menu) => {
             const card = document.createElement("div");
-            card.className = "menu-card rounded-[24px] border border-[#e6d7c7] bg-[#fbf5ee] p-4 shadow-sm flex flex-col gap-3";
+            card.className = [
+                "menu-card",
+                "group",
+                "rounded-[30px]",
+                "border",
+                "border-[#e6d7c7]",
+                "bg-[#fbf5ee]",
+                "p-4",
+                "shadow-[0_10px_30px_rgba(95,64,40,0.08)]",
+                "flex",
+                "flex-col",
+                "gap-4",
+                orderingLocked ? "opacity-90" : "cursor-pointer transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(95,64,40,0.14)]"
+            ].join(" ").trim();
             card.innerHTML = `
-                <img src="${resolveMenuImage(menu.name, menu.image)}" alt="${menu.name}" class="menu-image w-full h-40 sm:h-44 object-cover rounded-[18px] border border-[#e6d7c7] bg-[#efe4d8]">
-                <div class="menu-row flex flex-wrap items-center justify-between gap-2">
-                    <div class="menu-info">
-                        <h3 class="text-lg font-bold text-[#5f4028]">
-                            ${menu.name}
-                            ${menu.thaiName ? `<span class="ml-2 text-xs font-medium text-[#a97a52]">(${menu.thaiName})</span>` : ""}
-                        </h3>
-                        <div class="menu-desc text-xs text-[#a97a52] mt-1">${menu.desc || "Special from the Chill n Fill kitchen"}</div>
-                    </div>
-                    <div class="price text-xl font-extrabold text-[#7a4e2f]">${menu.price} Baht</div>
+                <div class="overflow-hidden rounded-[22px] border border-[#e6d7c7] bg-[#efe4d8]">
+                    <img src="${resolveMenuImage(menu.name, menu.image)}" alt="${menu.name}" class="menu-image h-48 w-full object-cover transition duration-300 group-hover:scale-[1.03]">
                 </div>
-                <button class="order-btn btn btn-sm rounded-full border-none ${orderingLocked ? "bg-[#d8cabb] text-[#8b6c53] cursor-not-allowed" : "bg-[#7a4e2f] text-[#fbf5ee] hover:bg-[#5f4028]"}">
-                    ${orderButtonLabel}
-                </button>
+                <div class="menu-row flex items-center justify-between gap-4 px-1">
+                    <div class="min-w-0">
+                        <h3 class="truncate text-xl font-bold text-[#5f4028] sm:text-2xl">
+                            ${menu.name}
+                        </h3>
+                    </div>
+                    <div class="shrink-0 text-right text-xl font-extrabold text-[#7a4e2f] sm:text-2xl">
+                        ${menu.price} Baht
+                    </div>
+                </div>
             `;
 
             grid.appendChild(card);
@@ -1015,13 +1028,16 @@ const optionSets = {
                 return;
             }
 
-            const orderBtn = card.querySelector(".order-btn");
-            orderBtn.addEventListener("click", (event) => {
-                event.stopPropagation();
+            card.addEventListener("click", () => {
                 openItemModal(menu);
             });
 
-            card.addEventListener("click", () => {
+            card.tabIndex = 0;
+            card.setAttribute("role", "button");
+            card.setAttribute("aria-label", `Open ${menu.name}`);
+            card.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
                 openItemModal(menu);
             });
         });
@@ -1441,6 +1457,7 @@ const optionSets = {
     const openCartInlineBtn = document.getElementById("openCartInlineBtn");
     const closeCartBtn = document.getElementById("closeModalBtn");
     const openPaymentHistoryBtn = document.getElementById("openPaymentHistoryBtn");
+    const openOrderStatusBtn = document.getElementById("openOrderStatusBtn");
     const openPaymentBtn = document.getElementById("openPaymentBtn");
     const closePaymentHistoryBtn = document.getElementById("closePaymentHistoryBtn");
     const closePaymentBtn = document.getElementById("closePaymentBtn");
@@ -1565,6 +1582,13 @@ const optionSets = {
 
     if (openPaymentHistoryBtn) {
         openPaymentHistoryBtn.addEventListener("click", openPaymentHistoryModalNow);
+    }
+
+    if (openOrderStatusBtn) {
+        openOrderStatusBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            openOrderStatusModal();
+        });
     }
 
     if (logoutBtn) {
