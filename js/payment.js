@@ -205,10 +205,6 @@ const reviewSummaryText = document.getElementById("reviewSummaryText");
 const reviewTextarea = document.getElementById("reviewTextarea");
 const submitReviewBtn = document.getElementById("submitReviewBtn");
 const paymentTableText = document.getElementById("paymentTableText");
-const paymentHistoryList = document.getElementById("paymentHistoryList");
-const paymentHistoryCard = document.getElementById("paymentHistoryCard");
-const openHistoryBtn = document.getElementById("openHistoryBtn");
-const closeHistoryBtn = document.getElementById("closeHistoryBtn");
 
 function showNotice(message) {
     if (!paymentNotice) return;
@@ -251,61 +247,6 @@ function renderSummary(context) {
             </div>
         `).join("")}
     `;
-}
-
-function renderPaymentHistory() {
-    if (!paymentHistoryList) return;
-
-    const payments = getCurrentSessionPayments().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-
-    if (!payments.length) {
-        paymentHistoryList.innerHTML = `
-            <div class="text-center py-5 text-[#a97a52]">
-                No payment history for this session
-                <div class="text-xs mt-1">Table: ${getCurrentTableNumber() || "-"}</div>
-            </div>
-        `;
-        return;
-    }
-
-    paymentHistoryList.innerHTML = payments.map((payment) => {
-        const itemsText = Array.isArray(payment.items) && payment.items.length
-            ? payment.items.map((item) => `${item.name} x${item.qty}`).join(", ")
-            : "-";
-        const review = getReviewByPaymentId(payment.id);
-        const reviewTime = review && review.time ? new Date(review.time).toLocaleString() : "-";
-        const reviewText = review && review.comment ? review.comment : "No review yet";
-        const reviewRating = review ? renderStars(review.rating) : "Not rated";
-
-        return `
-            <div class="rounded-[24px] border border-[#e6d7c7] bg-[#fffaf5] p-4">
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                    <div class="font-bold text-[#5f4028]">Payment #${payment.id}</div>
-                    <div class="text-sm font-semibold text-[#7a4e2f]">${payment.amount} Baht</div>
-                </div>
-                <div class="text-sm text-[#a97a52]">Date: ${payment.time ? new Date(payment.time).toLocaleString() : "-"}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Method: ${payment.method || "Cash"}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Items: ${itemsText}</div>
-                <div class="mt-3 rounded-xl border border-[#e6d7c7] bg-[#fbf5ee] px-3 py-2">
-                    <div class="text-xs font-semibold text-[#7a4e2f] mb-1">Your Review</div>
-                    <div class="text-sm text-[#a97a52]">Rating: ${reviewRating}</div>
-                    <div class="text-sm text-[#a97a52] mt-1">Comment: ${reviewText}</div>
-                    <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${reviewTime}</div>
-                </div>
-            </div>
-        `;
-    }).join("");
-}
-
-function openHistory() {
-    if (!paymentHistoryCard) return;
-    renderPaymentHistory();
-    paymentHistoryCard.classList.remove("hidden");
-}
-
-function closeHistory() {
-    if (!paymentHistoryCard) return;
-    paymentHistoryCard.classList.add("hidden");
 }
 
 function showReviewCard(message) {
@@ -373,7 +314,6 @@ function confirmPayment() {
         confirmPaymentBtn.classList.add("opacity-60", "cursor-not-allowed");
     }
 
-    renderPaymentHistory();
 }
 
 function submitReview() {
@@ -428,7 +368,6 @@ function submitReview() {
         submitReviewBtn.classList.add("opacity-60", "cursor-not-allowed");
     }
 
-    renderPaymentHistory();
 }
 
 function initPaymentPage() {
@@ -512,8 +451,4 @@ document.querySelectorAll("#starRating .star").forEach((star) => {
 
 if (confirmPaymentBtn) confirmPaymentBtn.addEventListener("click", confirmPayment);
 if (submitReviewBtn) submitReviewBtn.addEventListener("click", submitReview);
-if (openHistoryBtn) openHistoryBtn.addEventListener("click", openHistory);
-if (closeHistoryBtn) closeHistoryBtn.addEventListener("click", closeHistory);
-
 initPaymentPage();
-renderPaymentHistory();
