@@ -49,6 +49,25 @@ const optionSets = {
         }
     };
 
+    const MENUS_BACKUP_KEY = "menus_backup_latest";
+    const defaultMenuImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
+    const mediaImageByMenuName = {
+        "basil fried rice": "../media/basilfriedrice.jpg",
+        "tom yum goong": "../media/tomyumkung.jpg",
+        "pad thai": "../media/padthai.jpg",
+        "hainanese chicken rice": "../media/hainanesechickenrice.jpg",
+        "som tam thai": "../media/somtamthai.jpg",
+        "korean bbq beef": "../media/koreanbbq.jpg",
+        "beef basil": "../media/beefbasil.jpg",
+        "lime juice": "../media/limejuice.jpg"
+    };
+
+    function resolveMenuImage(menuName, fallbackImage) {
+        const key = String(menuName || "").trim().toLowerCase();
+        return mediaImageByMenuName[key] || fallbackImage || defaultMenuImage;
+    }
+
     const menuDatabase = [
         {
             id: 1,
@@ -59,7 +78,7 @@ const optionSets = {
             desc: "Crispy chicken basil rice with fried egg",
             hasOptions: true,
             optionKeys: ["spice"],
-            image: "img/pad krapow.jpg"
+            image: resolveMenuImage("Basil Fried Rice")
         },
         {
             id: 2,
@@ -70,7 +89,7 @@ const optionSets = {
             desc: "Clear spicy shrimp tom yum soup",
             hasOptions: true,
             optionKeys: ["spice"],
-            image: "img/tom yum kung.jpg"
+            image: resolveMenuImage("Tom Yum Goong")
         },
         {
             id: 3,
@@ -81,7 +100,7 @@ const optionSets = {
             desc: "Thai stir‑fried noodles with shrimp",
             hasOptions: true,
             optionKeys: ["spice"],
-            image: "img/pad thai shrimp.jpg"
+            image: resolveMenuImage("Pad Thai")
         },
         {
             id: 4,
@@ -92,7 +111,7 @@ const optionSets = {
             desc: "Steamed chicken rice with special sauce",
             hasOptions: false,
             optionKeys: [],
-            image: "images/kaomunkai.jpg"
+            image: resolveMenuImage("Hainanese Chicken Rice")
         },
         {
             id: 5,
@@ -103,7 +122,7 @@ const optionSets = {
             desc: "Spicy green papaya salad",
             hasOptions: true,
             optionKeys: ["spice"],
-            image: "images/somtam.jpg"
+            image: resolveMenuImage("Som Tam Thai")
         },
         {
             id: 6,
@@ -114,7 +133,7 @@ const optionSets = {
             desc: "Korean‑style marinated grilled beef",
             hasOptions: true,
             optionKeys: ["doneness"],
-            image: "images/beef.jpg"
+            image: resolveMenuImage("Korean BBQ Beef")
         },
         {
             id: 7,
@@ -125,7 +144,7 @@ const optionSets = {
             desc: "Minced beef basil with fried egg",
             hasOptions: true,
             optionKeys: ["spice"],
-            image: "images/beef-basil.jpg"
+            image: resolveMenuImage("Beef Basil")
         },
         {
             id: 8,
@@ -136,7 +155,7 @@ const optionSets = {
             desc: "Fresh lime juice",
             hasOptions: true,
             optionKeys: ["sweet", "ice"],
-            image: "images/lemon.jpg"
+            image: resolveMenuImage("Lime Juice")
         },
         {
             id: 9,
@@ -147,7 +166,7 @@ const optionSets = {
             desc: "Iced green tea",
             hasOptions: true,
             optionKeys: ["sweet", "ice"],
-            image: "images/greentea.jpg"
+            image: resolveMenuImage("Green Tea")
         },
         {
             id: 10,
@@ -158,7 +177,7 @@ const optionSets = {
             desc: "Vanilla ice cream",
             hasOptions: true,
             optionKeys: ["size"],
-            image: "images/icecream.jpg"
+            image: resolveMenuImage("Ice Cream")
         },
         {
             id: 11,
@@ -169,7 +188,7 @@ const optionSets = {
             desc: "Crispy pork basil rice",
             hasOptions: true,
             optionKeys: ["spice"],
-            image: "images/crispy-pork.jpg"
+            image: resolveMenuImage("Crispy Pork Basil")
         },
         {
             id: 12,
@@ -180,7 +199,7 @@ const optionSets = {
             desc: "Mixed seafood tom yum soup",
             hasOptions: true,
             optionKeys: ["spice"],
-            image: "images/seafood-tomyum.jpg"
+            image: resolveMenuImage("Seafood Tom Yum")
         },
         {
             id: 13,
@@ -191,7 +210,7 @@ const optionSets = {
             desc: "Soda, Coke, Sprite",
             hasOptions: true,
             optionKeys: ["sweet", "ice"],
-            image: "images/soda.jpg"
+            image: resolveMenuImage("Soda")
         }
     ];
 
@@ -200,7 +219,6 @@ const optionSets = {
         pending: "Pending",
         failed: "Failed"
     };
-    const defaultMenuImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
     let cart = [];
     let currentCategory = "all";
@@ -245,6 +263,34 @@ const optionSets = {
         }
     }
 
+    function saveMenusToStorage(menus) {
+        const safeMenus = Array.isArray(menus) ? menus : [];
+        const payload = JSON.stringify(safeMenus);
+        localStorage.setItem("menus", payload);
+        localStorage.setItem(MENUS_BACKUP_KEY, payload);
+    }
+
+    function seedPresetMenusToSharedStorage() {
+        const storedMenus = safeParseJSON(localStorage.getItem("menus"), []);
+        const backupMenus = safeParseJSON(localStorage.getItem(MENUS_BACKUP_KEY), []);
+        const hasStoredMenus = Array.isArray(storedMenus) && storedMenus.length > 0;
+        const hasBackupMenus = Array.isArray(backupMenus) && backupMenus.length > 0;
+
+        if (hasStoredMenus) return;
+        if (hasBackupMenus) {
+            localStorage.setItem("menus", JSON.stringify(backupMenus));
+            return;
+        }
+
+        const presetMenus = menuDatabase.map((item) => ({
+            ...item,
+            img: resolveMenuImage(item.name, item.image),
+            image: resolveMenuImage(item.name, item.image),
+            available: true
+        }));
+        saveMenusToStorage(presetMenus);
+    }
+
     function normalizeMenuPrice(value) {
         const price = Number(value);
         return Number.isFinite(price) ? price : 0;
@@ -264,13 +310,13 @@ const optionSets = {
                 desc: item.desc || "",
                 hasOptions: Array.isArray(item.optionKeys) && item.optionKeys.length > 0,
                 optionKeys: Array.isArray(item.optionKeys) ? item.optionKeys : [],
-                image: item.img || item.image || defaultMenuImage
+                image: resolveMenuImage(item.name, item.img || item.image)
             }));
     }
 
     function getRuntimeMenuDatabase() {
         const storedMenus = safeParseJSON(localStorage.getItem("menus"), []);
-        const backupMenus = safeParseJSON(localStorage.getItem("menus_backup_latest"), []);
+        const backupMenus = safeParseJSON(localStorage.getItem(MENUS_BACKUP_KEY), []);
         const sourceMenus = Array.isArray(storedMenus) && storedMenus.length
             ? storedMenus
             : (Array.isArray(backupMenus) ? backupMenus : []);
@@ -279,22 +325,8 @@ const optionSets = {
         if (!normalizedMenus.length) {
             return menuDatabase;
         }
-
-        const keyOf = (item) => `${String(item.name || "").trim().toLowerCase()}|${String(item.category || "single").trim().toLowerCase()}`;
-        const mergedByKey = new Map(menuDatabase.map((item) => [keyOf(item), { ...item }]));
-
-        normalizedMenus.forEach((item) => {
-            const key = keyOf(item);
-            const base = mergedByKey.get(key) || {};
-            mergedByKey.set(key, {
-                ...base,
-                ...item,
-                thaiName: item.thaiName || base.thaiName || "",
-                image: item.image || base.image || defaultMenuImage
-            });
-        });
-
-        return Array.from(mergedByKey.values());
+        // Keep customer menu fully in sync with Admin page when admin data exists.
+        return normalizedMenus;
     }
 
     function getStatusClass(status) {
@@ -310,6 +342,13 @@ const optionSets = {
 
     function getCurrentTableNumber() {
         return localStorage.getItem("table_number") || "";
+    }
+
+    function normalizeTableKey(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        const digitsOnly = raw.replace(/\D+/g, "");
+        return digitsOnly || raw.toLowerCase();
     }
 
     function isCustomerSession() {
@@ -366,6 +405,24 @@ const optionSets = {
         localStorage.removeItem(getPendingReviewKey());
     }
 
+    function logoutCustomer() {
+        const lockKey = getOrderingLockKey();
+        const pendingKey = getPendingReviewKey();
+
+        localStorage.removeItem(lockKey);
+        localStorage.removeItem(pendingKey);
+        localStorage.removeItem("open_order_status");
+        localStorage.removeItem("open_payment_modal");
+        localStorage.removeItem("open_review_modal");
+        localStorage.removeItem("cart");
+        localStorage.removeItem("cart_owner_id");
+        localStorage.removeItem("user_type");
+        localStorage.removeItem("user_id");
+        localStorage.removeItem("table_number");
+
+        window.location.href = "index.html";
+    }
+
     function syncCartWithSession() {
         const sessionOwner = getCurrentSessionId() || getCurrentTableNumber() || "";
         const storedCart = safeParseJSON(localStorage.getItem("cart"), []);
@@ -412,11 +469,13 @@ const optionSets = {
 
         const sessionId = getCurrentSessionId();
         const tableNumber = getCurrentTableNumber();
+        const normalizedTable = normalizeTableKey(tableNumber);
+        const recordTable = normalizeTableKey(record.table);
         const customerSession = isCustomerSession();
 
         if (customerSession && tableNumber) {
             // Customer login creates a fresh user_id each time; table is the stable session boundary.
-            if (String(record.table || "") === String(tableNumber)) return true;
+            if (recordTable && normalizedTable && recordTable === normalizedTable) return true;
         }
 
         if (sessionId && record.userId) {
@@ -424,11 +483,11 @@ const optionSets = {
         }
 
         if (sessionId && !record.userId && tableNumber) {
-            return String(record.table) === String(tableNumber);
+            return recordTable && normalizedTable ? recordTable === normalizedTable : String(record.table) === String(tableNumber);
         }
 
         if (tableNumber) {
-            return String(record.table) === String(tableNumber);
+            return recordTable && normalizedTable ? recordTable === normalizedTable : String(record.table) === String(tableNumber);
         }
 
         return true;
@@ -439,7 +498,42 @@ const optionSets = {
     }
 
     function getCurrentSessionPayments() {
-        return getAllPayments().filter(matchesCurrentSession);
+        const payments = getAllPayments();
+        const scoped = payments.filter(matchesCurrentSession);
+        if (scoped.length > 0) return scoped;
+
+        const normalizedTable = normalizeTableKey(getCurrentTableNumber());
+        if (!normalizedTable) return scoped;
+
+        return payments.filter((payment) => normalizeTableKey(payment.table) === normalizedTable);
+    }
+
+    function getCurrentSessionReviews() {
+        const reviews = getAllReviews();
+        const scoped = reviews.filter(matchesCurrentSession);
+        if (scoped.length > 0) return scoped;
+
+        const paymentIdSet = new Set(getCurrentSessionPayments().map((payment) => String(payment.id)));
+        if (!paymentIdSet.size) return scoped;
+
+        return reviews.filter((review) => paymentIdSet.has(String(review.paymentId || "")));
+    }
+
+    function getReviewByPaymentId(paymentId) {
+        if (!paymentId) return null;
+        const reviews = getCurrentSessionReviews();
+        const target = String(paymentId);
+        const matched = reviews
+            .filter((review) => String(review.paymentId || "") === target)
+            .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+        return matched[0] || null;
+    }
+
+    function renderStars(rating) {
+        const value = Math.max(0, Math.min(5, Number(rating) || 0));
+        const filled = "★".repeat(value);
+        const empty = "☆".repeat(5 - value);
+        return `${filled}${empty}`;
     }
 
     function getOrderStatusClass(status) {
@@ -525,7 +619,12 @@ const optionSets = {
         const payments = getCurrentSessionPayments().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
 
         if (!payments.length) {
-            container.innerHTML = `<div class="text-center py-5 text-[#a97a52]">No payment history</div>`;
+            container.innerHTML = `
+                <div class="text-center py-5 text-[#a97a52]">
+                    No payment history for this session
+                    <div class="text-xs mt-1">Table: ${getCurrentTableNumber() || "-"} | User: ${getCurrentSessionId() || "-"}</div>
+                </div>
+            `;
             return;
         }
 
@@ -536,6 +635,11 @@ const optionSets = {
             const itemsText = Array.isArray(payment.items) && payment.items.length
                 ? payment.items.map((item) => `${item.name} x${item.qty}`).join(", ")
                 : "-";
+            const review = getReviewByPaymentId(payment.id);
+            const hasReview = Boolean(review || payment.reviewSubmitted);
+            const reviewTime = review && review.time ? new Date(review.time).toLocaleString() : "-";
+            const reviewText = review && review.comment ? review.comment : "-";
+            const reviewRating = review ? renderStars(review.rating) : "Not rated";
 
             return `
                 <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
@@ -552,6 +656,13 @@ const optionSets = {
                     <div class="text-sm text-[#a97a52] mt-1">Date: ${payment.time ? new Date(payment.time).toLocaleString() : "-"}</div>
                     <div class="text-sm text-[#a97a52] mt-1">Method: ${payment.method || "Cash"}</div>
                     <div class="text-sm text-[#a97a52] mt-1">Items: ${itemsText}</div>
+                    <div class="mt-3 rounded-xl border border-[#e6d7c7] bg-[#fbf5ee] px-3 py-2">
+                        <div class="text-xs font-semibold text-[#7a4e2f] mb-1">Your Review</div>
+                        <div class="text-sm text-[#a97a52]">Rating: ${reviewRating}</div>
+                        <div class="text-sm text-[#a97a52] mt-1">Comment: ${reviewText}</div>
+                        <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${reviewTime}</div>
+                        <button class="btn btn-xs mt-2 rounded-full bg-[#a97a52] text-white border-none hover:bg-[#7a4e2f]" onclick="openReviewForPayment('${payment.id}')">${hasReview ? "Edit Review" : "Rate & Review"}</button>
+                    </div>
                 </div>
             `;
         }).join("");
@@ -822,7 +933,7 @@ const optionSets = {
 
         document.getElementById("itemModalTitle").innerHTML = `${menu.name} ${thaiLabel}`;
         document.getElementById("itemModalDesc").innerText = menu.desc || "Special from the Chill n Fill kitchen";
-        document.getElementById("itemModalImage").src = menu.image;
+        document.getElementById("itemModalImage").src = resolveMenuImage(menu.name, menu.image);
         document.getElementById("itemModalNote").value = "";
         document.getElementById("itemQtyValue").innerText = "1";
 
@@ -866,7 +977,7 @@ const optionSets = {
             const card = document.createElement("div");
             card.className = "menu-card rounded-[24px] border border-[#e6d7c7] bg-[#fbf5ee] p-4 shadow-sm flex flex-col gap-3";
             card.innerHTML = `
-                <img src="${menu.image}" alt="${menu.name}" class="menu-image w-full h-40 sm:h-44 object-cover rounded-[18px] border border-[#e6d7c7] bg-[#efe4d8]">
+                <img src="${resolveMenuImage(menu.name, menu.image)}" alt="${menu.name}" class="menu-image w-full h-40 sm:h-44 object-cover rounded-[18px] border border-[#e6d7c7] bg-[#efe4d8]">
                 <div class="menu-row flex flex-wrap items-center justify-between gap-2">
                     <div class="menu-info">
                         <h3 class="text-lg font-bold text-[#5f4028]">
@@ -1023,6 +1134,7 @@ const optionSets = {
 
         const resolvedPayment = payment || findPaymentById(getPendingReviewPaymentId());
         currentReviewPaymentId = resolvedPayment ? String(resolvedPayment.id) : "";
+        const existingReview = currentReviewPaymentId ? getReviewByPaymentId(currentReviewPaymentId) : null;
 
         if (reviewSummaryText) {
             if (resolvedPayment) {
@@ -1032,10 +1144,16 @@ const optionSets = {
             }
         }
 
-        currentRating = 0;
+        currentRating = existingReview ? Math.max(0, Math.min(5, Number(existingReview.rating) || 0)) : 0;
         const reviewTextarea = document.getElementById("reviewTextarea");
-        if (reviewTextarea) reviewTextarea.value = "";
-        document.querySelectorAll("#starRating .star").forEach((star) => star.classList.remove("text-[#f5b342]"));
+        if (reviewTextarea) reviewTextarea.value = existingReview && existingReview.comment ? existingReview.comment : "";
+        document.querySelectorAll("#starRating .star").forEach((star, index) => {
+            if (index < currentRating) {
+                star.classList.add("text-[#f5b342]");
+            } else {
+                star.classList.remove("text-[#f5b342]");
+            }
+        });
         openModal(reviewModal);
     }
 
@@ -1244,14 +1362,28 @@ const optionSets = {
         const paymentId = currentReviewPaymentId || getPendingReviewPaymentId() || "";
 
         const reviews = getAllReviews();
-        reviews.push({
+        const reviewPayload = {
             rating: currentRating || 0,
             comment: reviewText,
             time: now,
             table: getCurrentTableNumber() || "-",
             userId: getCurrentSessionId() || "",
             paymentId: paymentId || null
-        });
+        };
+        const existingReviewIndex = paymentId
+            ? reviews.findIndex((review) =>
+                String(review.paymentId || "") === String(paymentId) &&
+                matchesCurrentSession(review)
+            )
+            : -1;
+        if (existingReviewIndex >= 0) {
+            reviews[existingReviewIndex] = {
+                ...reviews[existingReviewIndex],
+                ...reviewPayload
+            };
+        } else {
+            reviews.push(reviewPayload);
+        }
         saveAllReviews(reviews);
 
         if (paymentId) {
@@ -1312,6 +1444,7 @@ const optionSets = {
     const itemQtyValue = document.getElementById("itemQtyValue");
     const itemAddBtn = document.getElementById("itemAddBtn");
     const tableDisplay = document.getElementById("tableDisplay");
+    const logoutBtn = document.getElementById("logoutBtn");
     const submitReviewBtn = document.getElementById("submitReviewBtn");
 
     function openModal(modalEl) {
@@ -1340,9 +1473,28 @@ const optionSets = {
         }
     }
 
+    function openPaymentHistoryModalNow() {
+        renderPaymentHistory();
+        if (paymentHistoryModal) {
+            openModal(paymentHistoryModal);
+            return;
+        }
+        showToast("Payment history modal is unavailable");
+    }
+
     window.openOrderStatusModal = openOrderStatusModal;
+    window.openPaymentHistoryModalNow = openPaymentHistoryModalNow;
+    window.openReviewForPayment = function openReviewForPayment(paymentId) {
+        const payment = findPaymentById(paymentId);
+        if (!payment) {
+            showToast("Payment not found for this session");
+            return;
+        }
+        openReviewModal(payment);
+    };
     window.__openPaymentNow = openPaymentPageTrigger;
 
+    seedPresetMenusToSharedStorage();
     syncCartWithSession();
 
     if (tableDisplay) {
@@ -1384,10 +1536,11 @@ const optionSets = {
     }
 
     if (openPaymentHistoryBtn) {
-        openPaymentHistoryBtn.addEventListener("click", () => {
-            renderPaymentHistory();
-            openModal(paymentHistoryModal);
-        });
+        openPaymentHistoryBtn.addEventListener("click", openPaymentHistoryModalNow);
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", logoutCustomer);
     }
 
     if (closePaymentHistoryBtn) {
