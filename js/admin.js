@@ -258,6 +258,18 @@ function isOrderStatusSelectFocused(){
   return Boolean(active && active.matches && active.matches("#orders select"));
 }
 
+function bindEnter(ids, handler){
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      handler();
+    });
+  });
+}
+
 setInterval(() => {
   const clockEl = document.getElementById("clock");
   if (clockEl) clockEl.innerText = new Date().toLocaleString();
@@ -353,6 +365,20 @@ function getRecordCustomerKey(record){
 function isServedOrderStatus(status){
   const normalized = String(status || "").toLowerCase();
   return ["serving", "served", "completed", "done"].includes(normalized);
+}
+
+function getOrderStatusClass(status){
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "serving" || normalized === "served" || normalized === "completed" || normalized === "done") {
+    return "bg-[#dff3e4] text-[#1f7a3d]";
+  }
+  if (normalized === "cooking" || normalized === "preparing") {
+    return "bg-[#e5f0ff] text-[#1b4d8f]";
+  }
+  if (normalized === "cancelled" || normalized === "canceled") {
+    return "bg-[#fde2e2] text-[#b42318]";
+  }
+  return "bg-[#fff1cc] text-[#9a6a00]";
 }
 
 /* ================= MODAL ================= */
@@ -828,11 +854,7 @@ function loadOrders(){
           Total: ${o.total} Baht<br>
           <div class="mt-2 flex items-center gap-3">
             <span class="text-sm font-semibold">Status</span>
-            <select class="select select-sm bg-[#fffaf5] border-[#e6d7c7]" onchange="setOrderStatus('${o.id}', this.value)">
-              <option value="pending" ${String(o.status).toLowerCase() === "pending" ? "selected" : ""}>Pending</option>
-              <option value="cooking" ${String(o.status).toLowerCase() === "cooking" ? "selected" : ""}>Cooking</option>
-              <option value="serving" ${String(o.status).toLowerCase() === "serving" ? "selected" : ""}>Serving</option>
-            </select>
+            <span class="px-3 py-1 rounded-full text-xs font-bold ${getOrderStatusClass(o.status)}">${String(o.status || "pending").toUpperCase()}</span>
           </div>
         </div>
       </div>
@@ -992,13 +1014,19 @@ function loadDashboard(){
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const adminUser = document.getElementById("adminUser");
-  const adminPass = document.getElementById("adminPass");
-  [adminUser, adminPass].forEach((el) => {
-    if (!el) return;
-    el.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") login();
-    });
+  bindEnter(["adminUser", "adminPass"], login);
+  bindEnter(["cookName", "cookId", "cookPass"], addCook);
+  bindEnter(["editCookName", "editCookPass"], updateCook);
+  bindEnter(["menuName", "menuPrice", "menuDesc"], addMenu);
+  bindEnter(["editMenuName", "editMenuPrice", "editMenuDesc"], updateMenu);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    if (!e.target || !e.target.id) return;
+    if (e.target.id === "dashboardStartDate" || e.target.id === "dashboardEndDate") {
+      e.preventDefault();
+      applyDashboardDateFilter();
+    }
   });
 
   const loginPage = document.getElementById("loginPage");
@@ -1006,7 +1034,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const userType = localStorage.getItem("user_type");
   const adminLoggedIn = localStorage.getItem("admin_logged_in") === "true";
 
-  if (adminLoggedIn || userType === "cook" || userType === "admin") {
+  if (userType === "cook") {
+    window.location.href = "cook.html";
+    return;
+  }
+
+  if (adminLoggedIn || userType === "admin") {
     loginPage.classList.add("hidden");
     app.classList.remove("hidden");
     loginPage.style.display = "none";

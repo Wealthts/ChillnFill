@@ -76,6 +76,37 @@ function bindClick(id, handler) {
     }
 }
 
+function bindEnter(ids, handler) {
+    ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            handler();
+        });
+    });
+}
+
+function normalizeCookId(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function isCookEnabledInLocalStorage(cookId) {
+    const targetId = normalizeCookId(cookId);
+    if (!targetId) return true;
+
+    const cooks = JSON.parse(localStorage.getItem('cooks') || '[]');
+    const matched = cooks.find((cook) => normalizeCookId(cook.id) === targetId);
+    if (!matched) return true;
+
+    if (typeof matched.active === 'boolean') return matched.active;
+    if ('cooking' in matched || 'serving' in matched) {
+        return Boolean(matched.cooking || matched.serving);
+    }
+    return true;
+}
+
 function hideAllForms() {
     const forms = document.querySelectorAll('.login-form');
     forms.forEach((form) => form.classList.add('hidden'));
@@ -146,6 +177,11 @@ function initUiHandlers() {
 
     bindClick('btn-admin-login', adminLogin);
     bindClick('btn-admin-back', hideAllForms);
+
+    bindEnter(['table-number'], customerLogin);
+    bindEnter(['cook-id', 'cook-password'], cookLogin);
+    bindEnter(['register-cook-id', 'register-password', 'register-fullname'], cookRegister);
+    bindEnter(['admin-username', 'admin-password'], adminLogin);
 }
 
 async function customerLogin() {
@@ -235,6 +271,11 @@ async function cookLogin() {
         return;
     }
 
+    if (!isCookEnabledInLocalStorage(cookId)) {
+        showMessage('This cook account is disabled. Please contact admin.', 'error');
+        return;
+    }
+
     try {
         const response = await fetch(`${API_BASE}cook_login.php`, {
             method: 'POST',
@@ -248,8 +289,14 @@ async function cookLogin() {
         const data = await parseJsonResponse(response);
 
         if (data.success) {
+            const resolvedCookId = data.cook_id || cookId;
+            if (!isCookEnabledInLocalStorage(resolvedCookId)) {
+                showMessage('This cook account is disabled. Please contact admin.', 'error');
+                return;
+            }
+
             showMessage(data.message, 'success');
-            localStorage.setItem('cook_id', data.cook_id);
+            localStorage.setItem('cook_id', resolvedCookId);
             localStorage.setItem('cook_name', data.full_name);
             localStorage.setItem('user_type', 'cook');
 

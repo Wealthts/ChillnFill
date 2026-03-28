@@ -64,6 +64,18 @@ function showMessage(text, type) {
     }
 }
 
+function bindEnter(ids, handler) {
+    ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            handler();
+        });
+    });
+}
+
 function clearCustomerSessionFlow(tableNumber, userId = '') {
     const table = String(tableNumber || '').trim();
     const uid = String(userId || '').trim();
@@ -125,4 +137,5 @@ async function customerLogin() {
     API_BASE = await findApiPath();
     const btn = document.getElementById('btn-customer-login');
     if (btn) btn.addEventListener('click', customerLogin);
+    bindEnter(['table-number'], customerLogin);
 })();

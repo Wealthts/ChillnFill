@@ -92,6 +92,15 @@ if (bookingCancelBtn) bookingCancelBtn.addEventListener("click", closeBooking);
 if (confirmYesBtn) confirmYesBtn.addEventListener("click", finalConfirm);
 if (confirmNoBtn) confirmNoBtn.addEventListener("click", closeConfirm);
 
+[nameInput, timeInput].forEach((el) => {
+  if (!el) return;
+  el.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    submitBooking();
+  });
+});
+
 window.addEventListener("click", (event) => {
   if (event.target === bookingModal) {
     closeBooking();
