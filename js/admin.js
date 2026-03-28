@@ -20,6 +20,7 @@ function getDefaultDashboardFilter(){
 
 let dashboardFilter = getDefaultDashboardFilter();
 const MENU_CATALOG_SEED_KEY = "menus_seeded_from_catalog_v1";
+const MENUS_BACKUP_KEY = "menus_backup_latest";
 const defaultMenuCatalog = [
   {
     id: 1,
@@ -170,10 +171,38 @@ function menuSeedKeyOf(item){
   return `${String(item.name || "").trim().toLowerCase()}|${String(item.category || "single").trim().toLowerCase()}`;
 }
 
+function safeParseJson(value, fallback){
+  try {
+    return JSON.parse(value);
+  } catch (err) {
+    return fallback;
+  }
+}
+
+function readMenusFromStorage(){
+  const primary = safeParseJson(localStorage.getItem("menus"), null);
+  if (Array.isArray(primary) && primary.length) return primary;
+
+  const backup = safeParseJson(localStorage.getItem(MENUS_BACKUP_KEY), []);
+  if (Array.isArray(backup) && backup.length) {
+    localStorage.setItem("menus", JSON.stringify(backup));
+    return backup;
+  }
+
+  return Array.isArray(primary) ? primary : [];
+}
+
+function saveMenusToStorage(menus){
+  const safeMenus = Array.isArray(menus) ? menus : [];
+  const payload = JSON.stringify(safeMenus);
+  localStorage.setItem(MENUS_BACKUP_KEY, payload);
+  localStorage.setItem("menus", payload);
+}
+
 function seedMenuCatalogIfNeeded(){
   if (localStorage.getItem(MENU_CATALOG_SEED_KEY) === "1") return;
 
-  const storedMenus = JSON.parse(localStorage.getItem("menus")) || [];
+  const storedMenus = readMenusFromStorage();
   const existingByKey = new Set(storedMenus.map(menuSeedKeyOf));
   const mergedMenus = [...storedMenus];
 
@@ -187,7 +216,7 @@ function seedMenuCatalogIfNeeded(){
     }
   });
 
-  localStorage.setItem("menus", JSON.stringify(mergedMenus));
+  saveMenusToStorage(mergedMenus);
   localStorage.setItem(MENU_CATALOG_SEED_KEY, "1");
 }
 
@@ -539,7 +568,7 @@ function updateCook(){
 
 /* ================= MENU ================= */
 function loadMenu(){
-  let menus = JSON.parse(localStorage.getItem("menus")) || [];
+  let menus = readMenusFromStorage();
   let div = document.getElementById("menu");
 
   div.innerHTML = `
@@ -597,7 +626,7 @@ function addMenu(){
     return;
   }
 
-  let menus = JSON.parse(localStorage.getItem("menus")) || [];
+  let menus = readMenusFromStorage();
 
   const isEdit = editMenuIndex !== null && editMenuIndex !== undefined;
   const existing = isEdit ? menus[editMenuIndex] : null;
@@ -623,7 +652,7 @@ function addMenu(){
     else menus.push(newItem);
 
     try {
-      localStorage.setItem("menus", JSON.stringify(menus));
+      saveMenusToStorage(menus);
     } catch (e) {
       if (newItem.img) {
         if (isEdit) menus[editMenuIndex] = { ...newItem, img: "" };
@@ -631,7 +660,7 @@ function addMenu(){
         newItem.img = "";
         if (!isEdit) menus.push(newItem);
         try {
-          localStorage.setItem("menus", JSON.stringify(menus));
+          saveMenusToStorage(menus);
         } catch (e2) {
           alert("Storage is full. Remove old items and try again.");
           return;
@@ -707,7 +736,7 @@ function addMenu(){
 }
 
 function editMenu(i){
-  let menus = JSON.parse(localStorage.getItem("menus")) || [];
+  let menus = readMenusFromStorage();
 
   const editMenuName = document.getElementById("editMenuName");
   const editMenuPrice = document.getElementById("editMenuPrice");
@@ -739,7 +768,7 @@ function updateMenu(){
     return;
   }
 
-  let menus = JSON.parse(localStorage.getItem("menus")) || [];
+  let menus = readMenusFromStorage();
   menus[editMenuIndex] = {
     ...menus[editMenuIndex],
     name: editMenuName.value,
@@ -750,25 +779,25 @@ function updateMenu(){
     hasOptions: editMenuOptionKeys.length > 0
   };
 
-  localStorage.setItem("menus", JSON.stringify(menus));
+  saveMenusToStorage(menus);
   editMenuIndex = null;
   closeModal(editMenuModal);
   loadMenu();
 }
 
 function deleteMenu(i){
-  let menus = JSON.parse(localStorage.getItem("menus")) || [];
+  let menus = readMenusFromStorage();
   if(confirm("Delete this menu?")){
     menus.splice(i,1);
-    localStorage.setItem("menus", JSON.stringify(menus));
+    saveMenusToStorage(menus);
     loadMenu();
   }
 }
 
 function toggleMenu(i){
-  let menus = JSON.parse(localStorage.getItem("menus")) || [];
+  let menus = readMenusFromStorage();
   menus[i].available = !menus[i].available;
-  localStorage.setItem("menus", JSON.stringify(menus));
+  saveMenusToStorage(menus);
   loadMenu();
 }
 

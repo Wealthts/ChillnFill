@@ -64,6 +64,19 @@ function showMessage(text, type) {
     }
 }
 
+function clearCustomerSessionFlow(tableNumber, userId = '') {
+    const table = String(tableNumber || '').trim();
+    const uid = String(userId || '').trim();
+    if (table) {
+        localStorage.removeItem(`ordering_locked_after_review_table_${table}`);
+        localStorage.removeItem(`pending_review_payment_table_${table}`);
+    }
+    if (uid) {
+        localStorage.removeItem(`ordering_locked_after_review_${uid}`);
+        localStorage.removeItem(`pending_review_payment_${uid}`);
+    }
+}
+
 async function customerLogin() {
     const tableNumber = document.getElementById('table-number').value;
 
@@ -86,6 +99,7 @@ async function customerLogin() {
 
         if (data.success) {
             showMessage(data.message, 'success');
+            clearCustomerSessionFlow(data.table_number, data.user_id);
             localStorage.setItem('user_id', data.user_id);
             localStorage.setItem('table_number', data.table_number);
             localStorage.setItem('user_type', 'customer');
@@ -98,7 +112,9 @@ async function customerLogin() {
         }
     } catch (error) {
         // Fallback to local session for static usage
-        localStorage.setItem('user_id', String(Date.now()));
+        const fallbackUserId = String(Date.now());
+        clearCustomerSessionFlow(tableNumber, fallbackUserId);
+        localStorage.setItem('user_id', fallbackUserId);
         localStorage.setItem('table_number', tableNumber);
         localStorage.setItem('user_type', 'customer');
         window.location.href = 'menu.html';

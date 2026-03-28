@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="color-scheme" content="light">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Chill n Fill – Payment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#f3eadf] text-[#5f4028] font-['Sarabun'] p-4">
+<div class="mx-auto w-full max-w-[620px] space-y-4">
+    <div class="rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
+        <div class="mb-4 flex items-center justify-between">
+            <div>
+                <div class="text-2xl font-extrabold text-[#5f4028]">Payment</div>
+                <div id="paymentTableText" class="text-sm text-[#a97a52]"></div>
+            </div>
+            <a href="menu.html" class="btn btn-ghost btn-sm text-2xl" aria-label="Back">&times;</a>
+        </div>
+
+        <div id="paymentNotice" class="mb-4 hidden rounded-[20px] border border-[#d7b58f] bg-[#fff4e8] px-4 py-3 text-sm font-medium text-[#7a4e2f]"></div>
+        <div id="paymentSummary" class="space-y-3"></div>
+
+        <div class="mt-5">
+            <div class="text-sm font-semibold text-[#7a4e2f]">Select payment method</div>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <button type="button" class="payment-method-btn rounded-[24px] border border-[#e6d7c7] bg-[#fffaf5] p-4 text-left transition hover:border-[#a97a52] hover:bg-[#fff4e8]" data-method="Cash">
+                    <div class="text-base font-bold text-[#5f4028]">Cash</div>
+                    <div class="mt-1 text-sm text-[#a97a52]">Pay directly at the table</div>
+                </button>
+                <button type="button" class="payment-method-btn rounded-[24px] border border-[#e6d7c7] bg-[#fffaf5] p-4 text-left transition hover:border-[#a97a52] hover:bg-[#fff4e8]" data-method="QR Code">
+                    <div class="text-base font-bold text-[#5f4028]">QR Code</div>
+                    <div class="mt-1 text-sm text-[#a97a52]">Scan to transfer payment</div>
+                </button>
+            </div>
+        </div>
+
+        <button id="confirmPaymentBtn" class="btn btn-sm mt-5 w-full rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">Confirm Payment</button>
+        <a href="menu.html" class="btn btn-sm mt-3 w-full rounded-full bg-[#efe4d8] text-[#5f4028] border-none hover:bg-[#f3eadf]">Back to Menu</a>
+    </div>
+
+    <div id="reviewCard" class="hidden rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
+        <div class="text-xl font-extrabold text-[#5f4028] mb-2">Leave a Review</div>
+        <div id="reviewSummaryText" class="text-sm text-[#a97a52] mb-4">Tell us about your experience after payment.</div>
+
+        <div class="flex gap-2 mb-4" id="starRating">
+            <span class="star text-3xl cursor-pointer text-[#d4c2ae] transition" data-value="1">★</span>
+            <span class="star text-3xl cursor-pointer text-[#d4c2ae] transition" data-value="2">★</span>
+            <span class="star text-3xl cursor-pointer text-[#d4c2ae] transition" data-value="3">★</span>
+            <span class="star text-3xl cursor-pointer text-[#d4c2ae] transition" data-value="4">★</span>
+            <span class="star text-3xl cursor-pointer text-[#d4c2ae] transition" data-value="5">★</span>
+        </div>
+
+        <textarea id="reviewTextarea" class="textarea textarea-bordered w-full bg-[#fffaf5] border-[#e6d7c7] rounded-3xl text-sm" rows="4" placeholder="Share your experience..."></textarea>
+        <button id="submitReviewBtn" class="btn btn-sm w-full mt-4 rounded-full bg-[#a97a52] text-white border-none hover:bg-[#7a4e2f]">Submit Review</button>
+    </div>
+</div>
+
+<script src="../js/payment.js?v=20260328_1"></script>
+</body>
+</html>

@@ -208,6 +208,8 @@ const optionSets = {
     let currentRating = 0;
     let currentPaymentMethod = "";
     let currentPaymentContext = null;
+    let paymentActionAllowed = false;
+    let paymentBlockingMessage = "";
     let currentReviewPaymentId = "";
     let currentMenuItem = null;
     let currentQty = 1;
@@ -223,6 +225,16 @@ const optionSets = {
             toast.classList.remove("opacity-100");
             toast.classList.add("opacity-0");
         }, 1800);
+    }
+
+    function showActionFeedback(msg) {
+        showToast(msg);
+
+        const banner = document.getElementById("sessionStateBanner");
+        if (!banner) return;
+
+        banner.innerText = msg;
+        banner.classList.remove("hidden");
     }
 
     function safeParseJSON(value, fallback) {
@@ -258,8 +270,31 @@ const optionSets = {
 
     function getRuntimeMenuDatabase() {
         const storedMenus = safeParseJSON(localStorage.getItem("menus"), []);
-        const normalizedMenus = normalizeAdminMenus(storedMenus);
-        return normalizedMenus.length ? normalizedMenus : menuDatabase;
+        const backupMenus = safeParseJSON(localStorage.getItem("menus_backup_latest"), []);
+        const sourceMenus = Array.isArray(storedMenus) && storedMenus.length
+            ? storedMenus
+            : (Array.isArray(backupMenus) ? backupMenus : []);
+        const normalizedMenus = normalizeAdminMenus(sourceMenus);
+
+        if (!normalizedMenus.length) {
+            return menuDatabase;
+        }
+
+        const keyOf = (item) => `${String(item.name || "").trim().toLowerCase()}|${String(item.category || "single").trim().toLowerCase()}`;
+        const mergedByKey = new Map(menuDatabase.map((item) => [keyOf(item), { ...item }]));
+
+        normalizedMenus.forEach((item) => {
+            const key = keyOf(item);
+            const base = mergedByKey.get(key) || {};
+            mergedByKey.set(key, {
+                ...base,
+                ...item,
+                thaiName: item.thaiName || base.thaiName || "",
+                image: item.image || base.image || defaultMenuImage
+            });
+        });
+
+        return Array.from(mergedByKey.values());
     }
 
     function getStatusClass(status) {
@@ -277,8 +312,16 @@ const optionSets = {
         return localStorage.getItem("table_number") || "";
     }
 
+    function isCustomerSession() {
+        return String(localStorage.getItem("user_type") || "").toLowerCase() === "customer";
+    }
+
     function getScopedStorageKey(prefix) {
-        return `${prefix}${getCurrentSessionId() || getCurrentTableNumber() || "guest"}`;
+        const tableNumber = getCurrentTableNumber();
+        if (isCustomerSession() && tableNumber) {
+            return `${prefix}table_${tableNumber}`;
+        }
+        return `${prefix}${getCurrentSessionId() || tableNumber || "guest"}`;
     }
 
     function getOrderingLockKey() {
@@ -369,6 +412,12 @@ const optionSets = {
 
         const sessionId = getCurrentSessionId();
         const tableNumber = getCurrentTableNumber();
+        const customerSession = isCustomerSession();
+
+        if (customerSession && tableNumber) {
+            // Customer login creates a fresh user_id each time; table is the stable session boundary.
+            if (String(record.table || "") === String(tableNumber)) return true;
+        }
 
         if (sessionId && record.userId) {
             return String(record.userId) === String(sessionId);
@@ -917,6 +966,16 @@ const optionSets = {
         `;
     }
 
+    function renderPaymentBlocked(message) {
+        const container = document.getElementById("paymentSummaryContainer");
+        if (!container) return;
+        container.innerHTML = `
+            <div class="rounded-[24px] border border-[#d7b58f] bg-[#fff4e8] p-4">
+                <div class="text-sm font-semibold text-[#7a4e2f]">${message}</div>
+            </div>
+        `;
+    }
+
     function updatePaymentMethodUI() {
         const qrCodePanel = document.getElementById("qrCodePanel");
         const confirmPaymentBtn = document.getElementById("confirmPaymentBtn");
@@ -934,15 +993,21 @@ const optionSets = {
         }
 
         if (confirmPaymentBtn) {
-            confirmPaymentBtn.innerText = currentPaymentMethod
+            const actionText = currentPaymentMethod
                 ? `Confirm ${currentPaymentMethod} Payment`
                 : "Confirm Payment";
+            confirmPaymentBtn.innerText = paymentActionAllowed ? actionText : "Payment Not Available";
+            confirmPaymentBtn.disabled = !paymentActionAllowed;
+            confirmPaymentBtn.classList.toggle("opacity-60", !paymentActionAllowed);
+            confirmPaymentBtn.classList.toggle("cursor-not-allowed", !paymentActionAllowed);
         }
     }
 
     function resetPaymentFlowState() {
         currentPaymentMethod = "";
         currentPaymentContext = null;
+        paymentActionAllowed = false;
+        paymentBlockingMessage = "";
         renderPaymentSummary(null);
         updatePaymentMethodUI();
     }
@@ -996,7 +1061,7 @@ const optionSets = {
         }
 
         if (openPaymentBtn) {
-            openPaymentBtn.disabled = locked;
+            openPaymentBtn.disabled = false;
             openPaymentBtn.classList.toggle("opacity-60", locked);
             openPaymentBtn.classList.toggle("cursor-not-allowed", locked);
         }
@@ -1051,38 +1116,65 @@ const optionSets = {
     }
 
     function openPaymentSelectionModal() {
+        currentPaymentMethod = "";
+        currentPaymentContext = null;
+        paymentActionAllowed = false;
+        paymentBlockingMessage = "";
+
         if (isOrderingLocked()) {
-            showToast("Ordering is closed after review");
+            paymentBlockingMessage = "Ordering is closed after review";
+            renderPaymentBlocked(paymentBlockingMessage);
+            showActionFeedback(paymentBlockingMessage);
+            updatePaymentMethodUI();
+            openModal(paymentModal);
             return;
         }
 
         const pendingReviewId = getPendingReviewPaymentId();
         if (pendingReviewId) {
             openReviewModal();
+            showActionFeedback("Please submit review before another payment/order");
             return;
         }
 
         const outstandingOrders = getOutstandingOrders();
         if (!outstandingOrders.length) {
-            showToast("No unpaid orders for this session");
+            paymentBlockingMessage = "No unpaid orders for this session";
+            renderPaymentBlocked(paymentBlockingMessage);
+            showActionFeedback(paymentBlockingMessage);
+            updatePaymentMethodUI();
+            openModal(paymentModal);
             return;
         }
 
         if (!areOrdersReadyForPayment(outstandingOrders)) {
-            showToast("Payment is available after all food is served");
+            paymentBlockingMessage = "Payment is available after all food is served";
+            renderPaymentBlocked(paymentBlockingMessage);
+            showActionFeedback(paymentBlockingMessage);
+            updatePaymentMethodUI();
+            openModal(paymentModal);
             return;
         }
 
         currentPaymentContext = buildPaymentContext(outstandingOrders);
-        currentPaymentMethod = "";
+        paymentActionAllowed = true;
         renderPaymentSummary(currentPaymentContext);
         updatePaymentMethodUI();
         openModal(paymentModal);
     }
 
+    function openPaymentPageTrigger() {
+        window.location.href = "payment.html";
+    }
+
     function confirmPaymentSelection() {
+        if (!paymentActionAllowed) {
+            showActionFeedback(paymentBlockingMessage || "Payment is not available right now");
+            return;
+        }
+
         if (!currentPaymentContext || !currentPaymentContext.orders.length) {
-            closeModal(paymentModal);
+            showActionFeedback("No unpaid orders for this session");
             return;
         }
 
@@ -1249,6 +1341,7 @@ const optionSets = {
     }
 
     window.openOrderStatusModal = openOrderStatusModal;
+    window.__openPaymentNow = openPaymentPageTrigger;
 
     syncCartWithSession();
 
@@ -1304,8 +1397,19 @@ const optionSets = {
     }
 
     if (openPaymentBtn) {
-        openPaymentBtn.addEventListener("click", openPaymentSelectionModal);
+        openPaymentBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            openPaymentPageTrigger();
+        });
     }
+
+    // Fallback: delegated handler keeps payment button responsive even if direct binding is disrupted.
+    document.addEventListener("click", (event) => {
+        const button = event.target && event.target.closest ? event.target.closest("#openPaymentBtn") : null;
+        if (!button) return;
+        event.preventDefault();
+        openPaymentPageTrigger();
+    });
 
     if (closePaymentBtn) {
         closePaymentBtn.addEventListener("click", () => {
@@ -1464,6 +1568,18 @@ const optionSets = {
     if (shouldOpenStatus === "1") {
         localStorage.removeItem("open_order_status");
         openOrderStatusModal();
+    }
+
+    const shouldOpenPaymentModal = localStorage.getItem("open_payment_modal");
+    if (shouldOpenPaymentModal === "1") {
+        localStorage.removeItem("open_payment_modal");
+        openPaymentPageTrigger();
+    }
+
+    const shouldOpenReviewModal = localStorage.getItem("open_review_modal");
+    if (shouldOpenReviewModal === "1") {
+        localStorage.removeItem("open_review_modal");
+        openPaymentPageTrigger();
     }
 
     renderMenu();
