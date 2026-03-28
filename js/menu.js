@@ -263,6 +263,21 @@ const optionSets = {
         }
     }
 
+    function escapeText(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function formatDateTime(value) {
+        const date = new Date(value || 0);
+        if (Number.isNaN(date.getTime())) return "-";
+        return date.toLocaleString();
+    }
+
     function saveMenusToStorage(menus) {
         const safeMenus = Array.isArray(menus) ? menus : [];
         const payload = JSON.stringify(safeMenus);
@@ -616,13 +631,14 @@ const optionSets = {
         const container = document.getElementById("paymentHistoryContainer");
         if (!container) return;
 
-        const payments = getCurrentSessionPayments().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+        const payments = (Array.isArray(getCurrentSessionPayments()) ? getCurrentSessionPayments() : [])
+            .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
 
         if (!payments.length) {
             container.innerHTML = `
                 <div class="text-center py-5 text-[#a97a52]">
-                    No payment history for this session
-                    <div class="text-xs mt-1">Table: ${getCurrentTableNumber() || "-"} | User: ${getCurrentSessionId() || "-"}</div>
+                    No payment/review history for this session
+                    <div class="text-xs mt-1">Table: ${escapeText(getCurrentTableNumber() || "-")} | User: ${escapeText(getCurrentSessionId() || "-")}</div>
                 </div>
             `;
             return;
@@ -637,30 +653,30 @@ const optionSets = {
                 : "-";
             const review = getReviewByPaymentId(payment.id);
             const hasReview = Boolean(review || payment.reviewSubmitted);
-            const reviewTime = review && review.time ? new Date(review.time).toLocaleString() : "-";
+            const reviewTime = review ? formatDateTime(review.time) : "-";
             const reviewText = review && review.comment ? review.comment : "-";
             const reviewRating = review ? renderStars(review.rating) : "Not rated";
 
             return `
                 <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                        <div class="font-bold text-[#5f4028]">Table ${payment.table || "-"}</div>
+                        <div class="font-bold text-[#5f4028]">Table ${escapeText(payment.table || "-")}</div>
                         <div class="px-3 py-1 rounded-full text-xs font-bold ${getStatusClass(payment.status || "paid")}">
-                            ${paymentStatusLabels[payment.status] || "Paid"}
+                            ${escapeText(paymentStatusLabels[payment.status] || "Paid")}
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
-                        <div class="text-sm text-[#a97a52]">Order: ${orderLabel}</div>
-                        <div class="text-lg font-extrabold text-[#7a4e2f]">${payment.amount} Baht</div>
+                        <div class="text-sm text-[#a97a52]">Order: ${escapeText(orderLabel)}</div>
+                        <div class="text-lg font-extrabold text-[#7a4e2f]">${escapeText(payment.amount)} Baht</div>
                     </div>
-                    <div class="text-sm text-[#a97a52] mt-1">Date: ${payment.time ? new Date(payment.time).toLocaleString() : "-"}</div>
-                    <div class="text-sm text-[#a97a52] mt-1">Method: ${payment.method || "Cash"}</div>
-                    <div class="text-sm text-[#a97a52] mt-1">Items: ${itemsText}</div>
+                    <div class="text-sm text-[#a97a52] mt-1">Date: ${escapeText(formatDateTime(payment.time))}</div>
+                    <div class="text-sm text-[#a97a52] mt-1">Method: ${escapeText(payment.method || "Cash")}</div>
+                    <div class="text-sm text-[#a97a52] mt-1">Items: ${escapeText(itemsText)}</div>
                     <div class="mt-3 rounded-xl border border-[#e6d7c7] bg-[#fbf5ee] px-3 py-2">
                         <div class="text-xs font-semibold text-[#7a4e2f] mb-1">Your Review</div>
-                        <div class="text-sm text-[#a97a52]">Rating: ${reviewRating}</div>
-                        <div class="text-sm text-[#a97a52] mt-1">Comment: ${reviewText}</div>
-                        <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${reviewTime}</div>
+                        <div class="text-sm text-[#a97a52]">Rating: ${escapeText(reviewRating)}</div>
+                        <div class="text-sm text-[#a97a52] mt-1">Comment: ${escapeText(reviewText)}</div>
+                        <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${escapeText(reviewTime)}</div>
                         <button class="btn btn-xs mt-2 rounded-full bg-[#a97a52] text-white border-none hover:bg-[#7a4e2f]" onclick="openReviewForPayment('${payment.id}')">${hasReview ? "Edit Review" : "Rate & Review"}</button>
                     </div>
                 </div>
@@ -1281,10 +1297,6 @@ const optionSets = {
         openModal(paymentModal);
     }
 
-    function openPaymentPageTrigger() {
-        window.location.href = "payment.html";
-    }
-
     function confirmPaymentSelection() {
         if (!paymentActionAllowed) {
             showActionFeedback(paymentBlockingMessage || "Payment is not available right now");
@@ -1451,12 +1463,14 @@ const optionSets = {
         if (!modalEl) return;
         modalEl.classList.remove("hidden");
         modalEl.classList.add("flex");
+        modalEl.classList.add("modal-open");
     }
 
     function closeModal(modalEl) {
         if (!modalEl) return;
         modalEl.classList.add("hidden");
         modalEl.classList.remove("flex");
+        modalEl.classList.remove("modal-open");
     }
 
     function openOrderStatusModal() {
@@ -1474,16 +1488,32 @@ const optionSets = {
     }
 
     function openPaymentHistoryModalNow() {
-        renderPaymentHistory();
-        if (paymentHistoryModal) {
-            openModal(paymentHistoryModal);
+        if (!paymentHistoryModal) {
+            showToast("Payment history modal is unavailable");
             return;
         }
-        showToast("Payment history modal is unavailable");
+
+        openModal(paymentHistoryModal);
+
+        try {
+            renderPaymentHistory();
+        } catch (error) {
+            console.error("Unable to render payment history", error);
+            const container = document.getElementById("paymentHistoryContainer");
+            if (container) {
+                container.innerHTML = `
+                    <div class="text-center py-5 text-[#a97a52]">
+                        Unable to load payment/review history right now.
+                    </div>
+                `;
+            }
+            showToast("Unable to load payment history");
+        }
     }
 
     window.openOrderStatusModal = openOrderStatusModal;
     window.openPaymentHistoryModalNow = openPaymentHistoryModalNow;
+    window.openMenuPaymentModal = openPaymentSelectionModal;
     window.openReviewForPayment = function openReviewForPayment(paymentId) {
         const payment = findPaymentById(paymentId);
         if (!payment) {
@@ -1492,8 +1522,6 @@ const optionSets = {
         }
         openReviewModal(payment);
     };
-    window.__openPaymentNow = openPaymentPageTrigger;
-
     seedPresetMenusToSharedStorage();
     syncCartWithSession();
 
@@ -1549,20 +1577,12 @@ const optionSets = {
         });
     }
 
-if (openPaymentBtn) {
-    openPaymentBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        openPaymentSelectionModal();
-    });
-}
-
-    // Fallback: delegated handler keeps payment button responsive even if direct binding is disrupted.
-    document.addEventListener("click", (event) => {
-        const button = event.target && event.target.closest ? event.target.closest("#openPaymentBtn") : null;
-        if (!button) return;
-        event.preventDefault();
-        openPaymentPageTrigger();
-    });
+    if (openPaymentBtn) {
+        openPaymentBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            openPaymentSelectionModal();
+        });
+    }
 
     if (closePaymentBtn) {
         closePaymentBtn.addEventListener("click", () => {
@@ -1726,13 +1746,13 @@ if (openPaymentBtn) {
     const shouldOpenPaymentModal = localStorage.getItem("open_payment_modal");
     if (shouldOpenPaymentModal === "1") {
         localStorage.removeItem("open_payment_modal");
-        openPaymentPageTrigger();
+        openPaymentSelectionModal();
     }
 
     const shouldOpenReviewModal = localStorage.getItem("open_review_modal");
     if (shouldOpenReviewModal === "1") {
         localStorage.removeItem("open_review_modal");
-        openPaymentPageTrigger();
+        openReviewModal();
     }
 
     renderMenu();

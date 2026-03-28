@@ -19,14 +19,15 @@
     </div>
 
     <div class="flex flex-wrap gap-3 mb-4">
-        <button id="openPaymentHistoryBtn"
+        <button id="openPaymentHistoryBtn" type="button"
+            onclick="if (window.openPaymentHistoryModalNow) { window.openPaymentHistoryModalNow(); } return false;"
             class="btn btn-sm rounded-full bg-[#a97a52] text-[#fbf5ee] border-none hover:bg-[#7a4e2f]">
             View My Payment & Reviews
         </button>
         <a id="openOrderStatusBtn" href="order_status.html" class="btn btn-sm rounded-full bg-[#5f4028] text-[#fbf5ee] border-none hover:bg-[#4b2f1d]">
             View Order Status
         </a>
-        <a id="openPaymentBtn" href="payment.html" class="btn btn-sm rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">
+        <a id="openPaymentBtn" href="payment.html" onclick="if (window.openMenuPaymentModal) { window.openMenuPaymentModal(); return false; }" class="btn btn-sm rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">
             Make Payment
         </a>
         <button id="logoutBtn" class="btn btn-sm rounded-full bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]">
@@ -118,7 +119,7 @@
 <div id="paymentHistoryModal" class="modal fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
     <div class="modal-card w-full max-w-[520px] max-h-[80vh] overflow-y-auto rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
         <div class="flex items-center justify-between text-xl font-extrabold text-[#5f4028] mb-4">
-            <span>Payment History</span>
+            <span>Payment/Review History</span>
             <button class="btn btn-ghost btn-sm text-2xl" id="closePaymentHistoryBtn">&times;</button>
         </div>
         <div id="paymentHistoryContainer"></div>
@@ -207,6 +208,6 @@
 
 <div id="toastMsg" class="fixed bottom-24 left-4 right-4 z-50 rounded-full bg-[#5f4028] px-4 py-2 text-center text-sm font-medium text-white opacity-0 transition pointer-events-none">Added to cart</div>
 
-<script src="../js/menu.js?v=20260328_1520"></script>
+<script src="../js/menu.js?v=20260328_1822"></script>
 </body>
 </html>

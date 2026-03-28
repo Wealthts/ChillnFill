@@ -98,6 +98,42 @@ function renderStars(rating) {
     return `${filled}${empty}`;
 }
 
+function escapeText(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatDateTime(value) {
+    const parsed = new Date(value || 0);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleString();
+}
+
+function getCurrentTableNumber() {
+    const stored = localStorage.getItem('table_number');
+    if (stored) return stored;
+    const tableInput = document.getElementById('table-number');
+    return tableInput ? tableInput.value.trim() : '';
+}
+
+function getPaymentStatusClass(status) {
+    const normalized = String(status || 'paid').toLowerCase();
+    if (normalized === 'paid') return 'bg-[#e8f7ee] text-[#2f7a4f]';
+    if (normalized === 'pending') return 'bg-[#fff4e8] text-[#a96a2a]';
+    return 'bg-[#efe4d8] text-[#7a4e2f]';
+}
+
+function getPaymentStatusLabel(status) {
+    const normalized = String(status || 'paid').toLowerCase();
+    if (normalized === 'pending') return 'Pending';
+    if (normalized === 'paid') return 'Paid';
+    return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Paid';
+}
+
 function getAllPayments() {
     return safeParseJSON(localStorage.getItem('payments'), []) || [];
 }
@@ -118,11 +154,12 @@ function renderHistoryForTable(tableNumber) {
     const container = document.getElementById('historyContainer');
     if (!container) return;
 
-    const normalizedTable = normalizeTableKey(tableNumber);
+    const resolvedTable = String(tableNumber || getCurrentTableNumber() || '').trim();
+    const normalizedTable = normalizeTableKey(resolvedTable);
     if (!normalizedTable) {
         container.innerHTML = `
             <div class="text-center py-5 text-[#a97a52]">
-                Please enter a table number first.
+                Please enter your table number first.
             </div>
         `;
         return;
@@ -136,36 +173,45 @@ function renderHistoryForTable(tableNumber) {
     if (!payments.length) {
         container.innerHTML = `
             <div class="text-center py-5 text-[#a97a52]">
-                No payment history for table ${tableNumber}
+                No payment history for table ${escapeText(resolvedTable)}
             </div>
         `;
         return;
     }
 
     container.innerHTML = payments.map((payment) => {
+        const orderLabel = Array.isArray(payment.orderIds) && payment.orderIds.length
+            ? payment.orderIds.join(', ')
+            : (payment.orderId || '-');
         const itemsText = Array.isArray(payment.items) && payment.items.length
             ? payment.items.map((item) => `${item.name} x${item.qty}`).join(', ')
             : '-';
         const paymentReviews = getReviewsByPaymentId(payment.id, reviews);
         const latestReview = paymentReviews[0] || null;
-        const reviewTime = latestReview && latestReview.time ? new Date(latestReview.time).toLocaleString() : '-';
+        const reviewTime = latestReview ? formatDateTime(latestReview.time) : '-';
         const reviewText = latestReview && latestReview.comment ? latestReview.comment : 'No review yet';
         const reviewRating = latestReview ? renderStars(latestReview.rating) : 'Not rated';
 
         return `
             <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                    <div class="font-bold text-[#5f4028]">Payment #${payment.id}</div>
-                    <div class="text-sm font-semibold text-[#7a4e2f]">${payment.amount} Baht</div>
+                    <div class="font-bold text-[#5f4028]">Table ${escapeText(payment.table || resolvedTable || '-')}</div>
+                    <div class="px-3 py-1 rounded-full text-xs font-bold ${getPaymentStatusClass(payment.status)}">
+                        ${escapeText(getPaymentStatusLabel(payment.status))}
+                    </div>
                 </div>
-                <div class="text-sm text-[#a97a52]">Date: ${payment.time ? new Date(payment.time).toLocaleString() : '-'}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Method: ${payment.method || 'Cash'}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Items: ${itemsText}</div>
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
+                    <div class="text-sm text-[#a97a52]">Order: ${escapeText(orderLabel)}</div>
+                    <div class="text-lg font-extrabold text-[#7a4e2f]">${escapeText(payment.amount)} Baht</div>
+                </div>
+                <div class="text-sm text-[#a97a52]">Date: ${escapeText(formatDateTime(payment.time))}</div>
+                <div class="text-sm text-[#a97a52] mt-1">Method: ${escapeText(payment.method || 'Cash')}</div>
+                <div class="text-sm text-[#a97a52] mt-1">Items: ${escapeText(itemsText)}</div>
                 <div class="mt-3 rounded-xl border border-[#e6d7c7] bg-[#fbf5ee] px-3 py-2">
                     <div class="text-xs font-semibold text-[#7a4e2f] mb-1">Your Review</div>
-                    <div class="text-sm text-[#a97a52]">Rating: ${reviewRating}</div>
-                    <div class="text-sm text-[#a97a52] mt-1">Comment: ${reviewText}</div>
-                    <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${reviewTime}</div>
+                    <div class="text-sm text-[#a97a52]">Rating: ${escapeText(reviewRating)}</div>
+                    <div class="text-sm text-[#a97a52] mt-1">Comment: ${escapeText(reviewText)}</div>
+                    <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${escapeText(reviewTime)}</div>
                 </div>
             </div>
         `;
@@ -178,11 +224,10 @@ function openHistoryModal() {
         alert('History modal not found on this page.');
         return;
     }
-    const tableInput = document.getElementById('table-number');
-    const tableNumber = tableInput ? tableInput.value : '';
-    renderHistoryForTable(tableNumber);
+    renderHistoryForTable(getCurrentTableNumber());
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.classList.add('modal-open');
 }
 
 function closeHistoryModal() {
@@ -190,6 +235,7 @@ function closeHistoryModal() {
     if (!modal) return;
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.classList.remove('modal-open');
 }
 
 function clearCustomerSessionFlow(tableNumber, userId = '') {
