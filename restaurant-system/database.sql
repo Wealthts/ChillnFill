@@ -73,6 +73,13 @@ CREATE TABLE IF NOT EXISTS admin (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS app_state (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    state_key VARCHAR(50) UNIQUE NOT NULL,
+    state_value LONGTEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 -- เพิ่มข้อมูลตัวอย่างในเมนู
 INSERT INTO menu (name, category, price, description) VALUES
 ('ข้าวผัดกระเพรา', 'จานเดียว', 65, 'ข้าวผัดกระเพราไก่กรอบ ไข่ดาว'),
