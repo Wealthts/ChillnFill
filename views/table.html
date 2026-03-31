@@ -32,8 +32,10 @@
       <div class="bg-[#fbf5ee] w-[min(420px,calc(100%-32px))] p-7 rounded-[24px] border border-[#e6d7c7] shadow-[0_15px_35px_rgba(94,59,36,0.18)] text-center">
         <h3 class="mb-4 text-[20px] text-[#5f4028] font-semibold">Reserve Table <span id="tableNum"></span></h3>
 
-        <input class="w-full p-2.5 my-2 rounded-[12px] border border-[#e6d7c7] bg-[#fffaf5]" type="text" id="name" placeholder="Your name" />
-        <input class="w-full p-2.5 my-2 rounded-[12px] border border-[#e6d7c7] bg-[#fffaf5]" type="time" id="time" />
+        <label for="name" class="sr-only">Your name</label>
+        <input class="w-full p-2.5 my-2 rounded-[12px] border border-[#e6d7c7] bg-[#fffaf5]" type="text" id="name" placeholder="Your name" aria-label="Your name" />
+        <label for="time" class="sr-only">Reservation time</label>
+        <input class="w-full p-2.5 my-2 rounded-[12px] border border-[#e6d7c7] bg-[#fffaf5]" type="time" id="time" aria-label="Reservation time" />
 
         <div class="flex justify-center gap-4 mt-3">
           <button class="bg-[#7a4e2f] text-[#f3eadf] border-0 px-7 py-2.5 rounded-full font-bold cursor-pointer transition hover:bg-[#5f4028]" id="btn-booking-confirm">Confirm</button>

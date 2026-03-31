@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// ตั้งค่าการเชื่อมต่อฐานข้อมูล
+// Database connection settings
 $host = 'localhost';
 $dbname = 'restaurant_system';
 $username = 'root';
@@ -23,7 +23,7 @@ try {
     die(json_encode(['success' => false, 'message' => 'Connection failed: ' . $e->getMessage()]));
 }
 
-// เริ่ม session
+// Start session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -46,7 +46,7 @@ function readJsonInput() {
     return is_array($data) ? $data : [];
 }
 
-// ฟังก์ชันสร้าง order number
+// Generate order number function
 function generateOrderNumber() {
     return 'ORD' . date('Ymd') . rand(1000, 9999);
 }

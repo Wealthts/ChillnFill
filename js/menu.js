@@ -63,41 +63,170 @@ const mediaImageByMenuName = {
     "som tam thai": "../media/somtamthai.jpg",
     "korean bbq beef": "../media/koreanbbq.jpg",
     "beef basil": "../media/beefbasil.jpg",
-    "lime juice": "../media/limejuice.jpg"
+    "lime juice": "../media/limejuice.jpg",
+    "green tea": "../media/greentea.jpg",
+    "ice cream": "../media/Icecream.jpg",
+    "crispy pork basil": "../media/crispyporkbasil.jpg",
+    "seafood tom yum": "../media/seafoodtomyum.jpg",
+    "soda": "../media/soda.jpg"
 };
 
 function resolveMenuImage(menuName, fallbackImage) {
-    let key = "";
-    if (menuName !== undefined && menuName !== null) {
-        key = String(menuName).trim().toLowerCase();
-    }
-
-    if (mediaImageByMenuName[key] !== undefined) {
-        return mediaImageByMenuName[key];
-    }
-    if (fallbackImage !== undefined && fallbackImage !== null && fallbackImage !== "") {
-        return fallbackImage;
-    }
-    return defaultMenuImage;
+    const key = String(menuName || "").trim().toLowerCase();
+    return mediaImageByMenuName[key] || fallbackImage || defaultMenuImage;
 }
 
 const menuDatabase = [
-    { id: 1, name: "Basil Fried Rice", thaiName: "ข้าวผัดกระเพรา", price: 65, category: "single", desc: "Crispy chicken basil rice with fried egg", hasOptions: true, optionKeys: ["spice"], image: resolveMenuImage("Basil Fried Rice") },
-    { id: 2, name: "Tom Yum Goong", thaiName: "ต้มยำกุ้ง", price: 120, category: "tomyum", desc: "Clear spicy shrimp tom yum soup", hasOptions: true, optionKeys: ["spice"], image: resolveMenuImage("Tom Yum Goong") },
-    { id: 3, name: "Pad Thai", thaiName: "ผัดไทย", price: 70, category: "single", desc: "Thai stir‑fried noodles with shrimp", hasOptions: true, optionKeys: ["spice"], image: resolveMenuImage("Pad Thai") },
-    { id: 4, name: "Hainanese Chicken Rice", thaiName: "ข้าวมันไก่", price: 60, category: "single", desc: "Steamed chicken rice with special sauce", hasOptions: false, optionKeys: [], image: resolveMenuImage("Hainanese Chicken Rice") },
-    { id: 5, name: "Som Tam Thai", thaiName: "ส้มตำไทย", price: 55, category: "salad", desc: "Spicy green papaya salad", hasOptions: true, optionKeys: ["spice"], image: resolveMenuImage("Som Tam Thai") },
-    { id: 6, name: "Korean BBQ Beef", thaiName: "เนื้อย่างเกาหลี", price: 180, category: "main", desc: "Korean‑style marinated grilled beef", hasOptions: true, optionKeys: ["doneness"], image: resolveMenuImage("Korean BBQ Beef") },
-    { id: 7, name: "Beef Basil", thaiName: "กระเพราเนื้อ", price: 85, category: "single", desc: "Minced beef basil with fried egg", hasOptions: true, optionKeys: ["spice"], image: resolveMenuImage("Beef Basil") },
-    { id: 8, name: "Lime Juice", thaiName: "น้ำมะนาว", price: 25, category: "drink", desc: "Fresh lime juice", hasOptions: true, optionKeys: ["sweet", "ice"], image: resolveMenuImage("Lime Juice") },
-    { id: 9, name: "Green Tea", thaiName: "ชาเขียว", price: 30, category: "drink", desc: "Iced green tea", hasOptions: true, optionKeys: ["sweet", "ice"], image: resolveMenuImage("Green Tea") },
-    { id: 10, name: "Ice Cream", thaiName: "ไอศครีม", price: 35, category: "dessert", desc: "Vanilla ice cream", hasOptions: true, optionKeys: ["size"], image: resolveMenuImage("Ice Cream") },
-    { id: 11, name: "Crispy Pork Basil", thaiName: "กระเพราหมูกรอบ", price: 70, category: "single", desc: "Crispy pork basil rice", hasOptions: true, optionKeys: ["spice"], image: resolveMenuImage("Crispy Pork Basil") },
-    { id: 12, name: "Seafood Tom Yum", thaiName: "ต้มยำทะเล", price: 150, category: "tomyum", desc: "Mixed seafood tom yum soup", hasOptions: true, optionKeys: ["spice"], image: resolveMenuImage("Seafood Tom Yum") },
-    { id: 13, name: "Soda", thaiName: "น้ำอัดลม", price: 20, category: "drink", desc: "Soda, Coke, Sprite", hasOptions: true, optionKeys: ["sweet", "ice"], image: resolveMenuImage("Soda") }
+    {
+        id: 1,
+        name: "Basil Fried Rice",
+        thaiName: "ข้าวผัดกระเพรา",
+        price: 65,
+        category: "single",
+        desc: "Crispy chicken basil rice with fried egg",
+        hasOptions: true,
+        optionKeys: ["spice"],
+        image: resolveMenuImage("Basil Fried Rice")
+    },
+    {
+        id: 2,
+        name: "Tom Yum Goong",
+        thaiName: "ต้มยำกุ้ง",
+        price: 120,
+        category: "tomyum",
+        desc: "Clear spicy shrimp tom yum soup",
+        hasOptions: true,
+        optionKeys: ["spice"],
+        image: resolveMenuImage("Tom Yum Goong")
+    },
+    {
+        id: 3,
+        name: "Pad Thai",
+        thaiName: "ผัดไทย",
+        price: 70,
+        category: "single",
+        desc: "Thai stir‑fried noodles with shrimp",
+        hasOptions: true,
+        optionKeys: ["spice"],
+        image: resolveMenuImage("Pad Thai")
+    },
+    {
+        id: 4,
+        name: "Hainanese Chicken Rice",
+        thaiName: "ข้าวมันไก่",
+        price: 60,
+        category: "single",
+        desc: "Steamed chicken rice with special sauce",
+        hasOptions: false,
+        optionKeys: [],
+        image: resolveMenuImage("Hainanese Chicken Rice")
+    },
+    {
+        id: 5,
+        name: "Som Tam Thai",
+        thaiName: "ส้มตำไทย",
+        price: 55,
+        category: "salad",
+        desc: "Spicy green papaya salad",
+        hasOptions: true,
+        optionKeys: ["spice"],
+        image: resolveMenuImage("Som Tam Thai")
+    },
+    {
+        id: 6,
+        name: "Korean BBQ Beef",
+        thaiName: "เนื้อย่างเกาหลี",
+        price: 180,
+        category: "main",
+        desc: "Korean‑style marinated grilled beef",
+        hasOptions: true,
+        optionKeys: ["doneness"],
+        image: resolveMenuImage("Korean BBQ Beef")
+    },
+    {
+        id: 7,
+        name: "Beef Basil",
+        thaiName: "กระเพราเนื้อ",
+        price: 85,
+        category: "single",
+        desc: "Minced beef basil with fried egg",
+        hasOptions: true,
+        optionKeys: ["spice"],
+        image: resolveMenuImage("Beef Basil")
+    },
+    {
+        id: 8,
+        name: "Lime Juice",
+        thaiName: "น้ำมะนาว",
+        price: 25,
+        category: "drink",
+        desc: "Fresh lime juice",
+        hasOptions: true,
+        optionKeys: ["sweet", "ice"],
+        image: resolveMenuImage("Lime Juice")
+    },
+    {
+        id: 9,
+        name: "Green Tea",
+        thaiName: "ชาเขียว",
+        price: 30,
+        category: "drink",
+        desc: "Iced green tea",
+        hasOptions: true,
+        optionKeys: ["sweet", "ice"],
+        image: resolveMenuImage("Green Tea")
+    },
+    {
+        id: 10,
+        name: "Ice Cream",
+        thaiName: "ไอศครีม",
+        price: 35,
+        category: "dessert",
+        desc: "Vanilla ice cream",
+        hasOptions: true,
+        optionKeys: ["size"],
+        image: resolveMenuImage("Ice Cream")
+    },
+    {
+        id: 11,
+        name: "Crispy Pork Basil",
+        thaiName: "กระเพราหมูกรอบ",
+        price: 70,
+        category: "single",
+        desc: "Crispy pork basil rice",
+        hasOptions: true,
+        optionKeys: ["spice"],
+        image: resolveMenuImage("Crispy Pork Basil")
+    },
+    {
+        id: 12,
+        name: "Seafood Tom Yum",
+        thaiName: "ต้มยำทะเล",
+        price: 150,
+        category: "tomyum",
+        desc: "Mixed seafood tom yum soup",
+        hasOptions: true,
+        optionKeys: ["spice"],
+        image: resolveMenuImage("Seafood Tom Yum")
+    },
+    {
+        id: 13,
+        name: "Soda",
+        thaiName: "น้ำอัดลม",
+        price: 20,
+        category: "drink",
+        desc: "Soda, Coke, Sprite",
+        hasOptions: true,
+        optionKeys: ["sweet", "ice"],
+        image: resolveMenuImage("Soda")
+    }
 ];
 
-const paymentStatusLabels = { paid: "Paid", pending: "Pending", failed: "Failed" };
+const paymentStatusLabels = {
+    paid: "Paid",
+    pending: "Pending",
+    failed: "Failed"
+};
 
 // ==========================================
 // 2. STATE VARIABLES
@@ -118,147 +247,250 @@ let currentSelections = [];
 // ==========================================
 // 3. CORE UTILITIES
 // ==========================================
+function showToast(msg) {
+    const toast = document.getElementById("toastMsg");
+    if (!toast) return;
+    toast.innerText = msg;
+    toast.classList.add("opacity-100");
+    toast.classList.remove("opacity-0");
+    setTimeout(() => {
+        toast.classList.remove("opacity-100");
+        toast.classList.add("opacity-0");
+    }, 1800);
+}
+
+function showActionFeedback(msg) {
+    showToast(msg);
+    const banner = document.getElementById("sessionStateBanner");
+    if (!banner) return;
+    banner.innerText = msg;
+    banner.classList.remove("hidden");
+}
+
 function safeParseJSON(value, fallback) {
     try {
-        let parsed = JSON.parse(value);
-        if (parsed === null) return fallback;
-        return parsed;
+        return JSON.parse(value);
     } catch (err) {
         return fallback;
     }
 }
 
 function escapeText(value) {
-    if (!value) return "";
-    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
-function showToast(msg) {
-    const toast = document.getElementById("toastMsg");
-    if (toast !== null) {
-        toast.innerText = msg;
-        toast.classList.add("opacity-100");
-        toast.classList.remove("opacity-0");
-        setTimeout(function () {
-            toast.classList.remove("opacity-100");
-            toast.classList.add("opacity-0");
-        }, 1800);
-    }
-}
-
-function showActionFeedback(msg) {
-    showToast(msg);
-    const banner = document.getElementById("sessionStateBanner");
-    if (banner !== null) {
-        banner.innerText = msg;
-        banner.classList.remove("hidden");
-    }
-}
-
-function openModal(modalEl) {
-    if (modalEl !== null) {
-        modalEl.classList.remove("hidden");
-        modalEl.classList.add("flex");
-        modalEl.classList.add("modal-open");
-    }
-}
-
-function closeModal(modalEl) {
-    if (modalEl !== null) {
-        modalEl.classList.add("hidden");
-        modalEl.classList.remove("flex");
-        modalEl.classList.remove("modal-open");
-    }
+function formatDateTime(value) {
+    const date = new Date(value || 0);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleString();
 }
 
 // ==========================================
 // 4. SESSION & LOCAL STORAGE LOGIC
 // ==========================================
-function getCurrentSessionId() { return localStorage.getItem("user_id") || ""; }
-function getCurrentTableNumber() { return localStorage.getItem("table_number") || ""; }
-function isCustomerSession() { return String(localStorage.getItem("user_type")).toLowerCase() === "customer"; }
+function saveMenusToStorage(menus) {
+    const safeMenus = Array.isArray(menus) ? menus : [];
+    const payload = JSON.stringify(safeMenus);
+    localStorage.setItem("menus", payload);
+    localStorage.setItem(MENUS_BACKUP_KEY, payload);
+}
 
-function getScopedStorageKey(prefix) {
-    const tableNumber = getCurrentTableNumber();
-    if (isCustomerSession() === true && tableNumber !== "") {
-        return prefix + "table_" + tableNumber;
+function seedPresetMenusToSharedStorage() {
+    const storedMenus = safeParseJSON(localStorage.getItem("menus"), []);
+    const backupMenus = safeParseJSON(localStorage.getItem(MENUS_BACKUP_KEY), []);
+    const hasStoredMenus = Array.isArray(storedMenus) && storedMenus.length > 0;
+    const hasBackupMenus = Array.isArray(backupMenus) && backupMenus.length > 0;
+
+    if (hasStoredMenus) return;
+    if (hasBackupMenus) {
+        localStorage.setItem("menus", JSON.stringify(backupMenus));
+        return;
     }
-    let fallback = getCurrentSessionId();
-    if (fallback === "") fallback = tableNumber;
-    if (fallback === "") fallback = "guest";
-    return prefix + fallback;
+
+    const presetMenus = menuDatabase.map((item) => ({
+        ...item,
+        img: resolveMenuImage(item.name, item.image),
+        image: resolveMenuImage(item.name, item.image),
+        available: true
+    }));
+    saveMenusToStorage(presetMenus);
 }
 
-function getOrderingLockKey() { return getScopedStorageKey("ordering_locked_after_review_"); }
-function getPendingReviewKey() { return getScopedStorageKey("pending_review_payment_"); }
-
-function isOrderingLocked() { return localStorage.getItem(getOrderingLockKey()) === "1"; }
-function getPendingReviewPaymentId() { return localStorage.getItem(getPendingReviewKey()) || ""; }
-
-function isOrderCreationDisabled() {
-    if (isOrderingLocked() === true) return true;
-    if (getPendingReviewPaymentId() !== "") return true;
-    return false;
+function normalizeMenuPrice(value) {
+    const price = Number(value);
+    return Number.isFinite(price) ? price : 0;
 }
 
-function getOrderingDisabledMessage() {
-    if (isOrderingLocked() === true) return "Ordering is closed after review";
-    return "Please submit the review before making another order";
+function normalizeAdminMenus(rawMenus) {
+    if (!Array.isArray(rawMenus)) return [];
+
+    return rawMenus
+        .filter((item) => item && item.available !== false)
+        .map((item, index) => ({
+            id: item.id || Date.now() + index,
+            name: item.name || "Unnamed Menu",
+            thaiName: item.thaiName || "",
+            price: normalizeMenuPrice(item.price),
+            category: item.category || "single",
+            desc: item.desc || "",
+            hasOptions: Array.isArray(item.optionKeys) && item.optionKeys.length > 0,
+            optionKeys: Array.isArray(item.optionKeys) ? item.optionKeys : [],
+            image: resolveMenuImage(item.name, item.img || item.image)
+        }));
 }
 
-function setOrderingLocked(locked) {
-    if (locked === true) {
-        localStorage.setItem(getOrderingLockKey(), "1");
-    } else {
-        localStorage.removeItem(getOrderingLockKey());
-    }
-}
-
-// Ensure the menu pulls from the admin's database if it exists
 function getRuntimeMenuDatabase() {
-    let storedMenus = safeParseJSON(localStorage.getItem("menus"), []);
-    let backupMenus = safeParseJSON(localStorage.getItem(MENUS_BACKUP_KEY), []);
+    const storedMenus = safeParseJSON(localStorage.getItem("menus"), []);
+    const backupMenus = safeParseJSON(localStorage.getItem(MENUS_BACKUP_KEY), []);
+    const sourceMenus = Array.isArray(storedMenus) && storedMenus.length
+        ? storedMenus
+        : (Array.isArray(backupMenus) ? backupMenus : []);
+    const normalizedMenus = normalizeAdminMenus(sourceMenus);
 
-    let sourceMenus = [];
-    if (Array.isArray(storedMenus) && storedMenus.length > 0) {
-        sourceMenus = storedMenus;
-    } else if (Array.isArray(backupMenus) && backupMenus.length > 0) {
-        sourceMenus = backupMenus;
+    if (!normalizedMenus.length) {
+        return menuDatabase;
     }
-
-    if (sourceMenus.length === 0) {
-        return menuDatabase; // Use default if nothing in storage
-    }
-
-    let normalizedMenus = [];
-    sourceMenus.forEach(function (item) {
-        if (item.available !== false) {
-            let optionKeysArr = [];
-            if (Array.isArray(item.optionKeys)) optionKeysArr = item.optionKeys;
-
-            normalizedMenus.push({
-                id: item.id,
-                name: item.name || "Unnamed Menu",
-                thaiName: item.thaiName || "",
-                price: Number(item.price) || 0,
-                category: item.category || "single",
-                desc: item.desc || "",
-                hasOptions: optionKeysArr.length > 0,
-                optionKeys: optionKeysArr,
-                image: resolveMenuImage(item.name, item.img || item.image)
-            });
-        }
-    });
-
     return normalizedMenus;
+}
+
+function getStatusClass(status) {
+    if (status === "paid") return "bg-[#dff3e4] text-[#1f7a3d]";
+    if (status === "pending") return "bg-[#fff1cc] text-[#9a6a00]";
+    if (status === "failed") return "bg-[#fde2e2] text-[#b42318]";
+    return "bg-[#efe4d8] text-[#7a4e2f]";
+}
+
+function getCurrentSessionId() {
+    return localStorage.getItem("user_id") || "";
+}
+
+function getCurrentTableNumber() {
+    return localStorage.getItem("table_number") || "";
 }
 
 function normalizeTableKey(value) {
     const raw = String(value || "").trim();
-    if (raw === "") return "";
+    if (!raw) return "";
     const digitsOnly = raw.replace(/\D+/g, "");
-    if (digitsOnly !== "") return digitsOnly;
-    return raw.toLowerCase();
+    return digitsOnly || raw.toLowerCase();
+}
+
+function isCustomerSession() {
+    return String(localStorage.getItem("user_type") || "").toLowerCase() === "customer";
+}
+
+function getScopedStorageKey(prefix) {
+    const tableNumber = getCurrentTableNumber();
+    if (isCustomerSession() && tableNumber) {
+        return `${prefix}table_${tableNumber}`;
+    }
+    return `${prefix}${getCurrentSessionId() || tableNumber || "guest"}`;
+}
+
+function getOrderingLockKey() {
+    return getScopedStorageKey("ordering_locked_after_review_");
+}
+
+function getPendingReviewKey() {
+    return getScopedStorageKey("pending_review_payment_");
+}
+
+function isOrderingLocked() {
+    return localStorage.getItem(getOrderingLockKey()) === "1";
+}
+
+function isOrderCreationDisabled() {
+    return isOrderingLocked() || Boolean(getPendingReviewPaymentId());
+}
+
+function getOrderingDisabledMessage() {
+    return isOrderingLocked()
+        ? "Ordering is closed after review"
+        : "Please submit the review before making another order";
+}
+
+function setOrderingLocked(locked) {
+    if (locked) {
+        localStorage.setItem(getOrderingLockKey(), "1");
+        return;
+    }
+    localStorage.removeItem(getOrderingLockKey());
+}
+
+function getPendingReviewPaymentId() {
+    return localStorage.getItem(getPendingReviewKey()) || "";
+}
+
+function setPendingReviewPaymentId(paymentId) {
+    localStorage.setItem(getPendingReviewKey(), String(paymentId));
+}
+
+function clearPendingReviewPaymentId() {
+    localStorage.removeItem(getPendingReviewKey());
+}
+
+function logoutCustomer() {
+    const lockKey = getOrderingLockKey();
+    const pendingKey = getPendingReviewKey();
+
+    localStorage.removeItem(lockKey);
+    localStorage.removeItem(pendingKey);
+    localStorage.removeItem("open_order_status");
+    localStorage.removeItem("open_payment_modal");
+    localStorage.removeItem("open_review_modal");
+    localStorage.removeItem("cart");
+    localStorage.removeItem("cart_owner_id");
+    localStorage.removeItem("user_type");
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("table_number");
+
+    window.location.href = "index.html";
+}
+
+function syncCartWithSession() {
+    const sessionOwner = getCurrentSessionId() || getCurrentTableNumber() || "";
+    const storedCart = safeParseJSON(localStorage.getItem("cart"), []);
+    const cartOwner = localStorage.getItem("cart_owner_id") || "";
+
+    if (sessionOwner && cartOwner && cartOwner !== sessionOwner) {
+        cart = [];
+        localStorage.setItem("cart", JSON.stringify(cart));
+    } else {
+        cart = Array.isArray(storedCart) ? storedCart : [];
+    }
+
+    if (sessionOwner) {
+        localStorage.setItem("cart_owner_id", sessionOwner);
+    }
+}
+
+function getAllOrders() {
+    return safeParseJSON(localStorage.getItem("orders"), []) || [];
+}
+
+function saveAllOrders(orders) {
+    localStorage.setItem("orders", JSON.stringify(orders));
+}
+
+function getAllPayments() {
+    return safeParseJSON(localStorage.getItem("payments"), []) || [];
+}
+
+function saveAllPayments(payments) {
+    localStorage.setItem("payments", JSON.stringify(payments));
+}
+
+function getAllReviews() {
+    return safeParseJSON(localStorage.getItem("reviews"), []) || [];
+}
+
+function saveAllReviews(reviews) {
+    localStorage.setItem("reviews", JSON.stringify(reviews));
 }
 
 function matchesCurrentSession(record) {
@@ -269,582 +501,212 @@ function matchesCurrentSession(record) {
     const normalizedTable = normalizeTableKey(tableNumber);
     const recordTable = normalizeTableKey(record.table);
 
-    if (isCustomerSession() === true && tableNumber !== "") {
-        if (recordTable !== "" && normalizedTable !== "" && recordTable === normalizedTable) return true;
-    }
-    if (sessionId !== "" && record.userId) {
+    if (sessionId && record.userId) {
         return String(record.userId) === String(sessionId);
     }
-    if (sessionId !== "" && !record.userId && tableNumber !== "") {
-        if (recordTable !== "" && normalizedTable !== "") return recordTable === normalizedTable;
-        return String(record.table) === String(tableNumber);
+
+    if (sessionId && !record.userId) {
+        return false;
     }
-    if (tableNumber !== "") {
-        if (recordTable !== "" && normalizedTable !== "") return recordTable === normalizedTable;
-        return String(record.table) === String(tableNumber);
+
+    if (tableNumber) {
+        return recordTable && normalizedTable ? recordTable === normalizedTable : String(record.table) === String(tableNumber);
     }
+
     return true;
 }
 
-// Database Getters & Setters
-function getAllOrders() { return safeParseJSON(localStorage.getItem("orders"), []); }
-function saveAllOrders(orders) { localStorage.setItem("orders", JSON.stringify(orders)); }
-function getAllPayments() { return safeParseJSON(localStorage.getItem("payments"), []); }
-function saveAllPayments(payments) { localStorage.setItem("payments", JSON.stringify(payments)); }
-function getAllReviews() { return safeParseJSON(localStorage.getItem("reviews"), []); }
-function saveAllReviews(reviews) { localStorage.setItem("reviews", JSON.stringify(reviews)); }
-
 function getCurrentSessionOrders() {
-    let allOrders = getAllOrders();
-    let sessionOrders = [];
-    allOrders.forEach(function (order) {
-        if (matchesCurrentSession(order) === true) {
-            sessionOrders.push(order);
-        }
-    });
-    return sessionOrders;
+    return getAllOrders().filter(matchesCurrentSession);
 }
 
 function getCurrentSessionPayments() {
-    let allPayments = getAllPayments();
-    let sessionPayments = [];
-    allPayments.forEach(function (payment) {
-        if (matchesCurrentSession(payment) === true) {
-            sessionPayments.push(payment);
-        }
-    });
-    return sessionPayments;
+    const payments = getAllPayments();
+    const scoped = payments.filter(matchesCurrentSession);
+    if (scoped.length > 0) return scoped;
+
+    const normalizedTable = normalizeTableKey(getCurrentTableNumber());
+    if (!normalizedTable) return scoped;
+
+    return payments.filter((payment) => normalizeTableKey(payment.table) === normalizedTable);
 }
 
 function getCurrentSessionReviews() {
-    let allReviews = getAllReviews();
-    let sessionReviews = [];
-    allReviews.forEach(function (review) {
-        if (matchesCurrentSession(review) === true) {
-            sessionReviews.push(review);
-        }
-    });
+    const reviews = getAllReviews();
+    const scoped = reviews.filter(matchesCurrentSession);
+    if (scoped.length > 0) return scoped;
 
-    if (sessionReviews.length > 0) return sessionReviews;
+    const paymentIdSet = new Set(getCurrentSessionPayments().map((payment) => String(payment.id)));
+    if (!paymentIdSet.size) return scoped;
 
-    // Fallback: Check if review matches a payment ID from this session
-    let validPaymentIds = [];
-    getCurrentSessionPayments().forEach(function (p) { validPaymentIds.push(String(p.id)); });
-
-    let fallbackReviews = [];
-    allReviews.forEach(function (review) {
-        let reviewPayId = String(review.paymentId || "");
-        if (validPaymentIds.indexOf(reviewPayId) !== -1) {
-            fallbackReviews.push(review);
-        }
-    });
-    return fallbackReviews;
+    return reviews.filter((review) => paymentIdSet.has(String(review.paymentId || "")));
 }
 
-function syncCartWithSession() {
-    let sessionOwner = getCurrentSessionId();
-    if (sessionOwner === "") sessionOwner = getCurrentTableNumber();
-
-    const storedCart = safeParseJSON(localStorage.getItem("cart"), []);
-    const cartOwner = localStorage.getItem("cart_owner_id") || "";
-
-    if (sessionOwner !== "" && cartOwner !== "" && cartOwner !== sessionOwner) {
-        cart = [];
-        localStorage.setItem("cart", JSON.stringify(cart));
-    } else {
-        if (Array.isArray(storedCart)) {
-            cart = storedCart;
-        } else {
-            cart = [];
-        }
-    }
-
-    if (sessionOwner !== "") {
-        localStorage.setItem("cart_owner_id", sessionOwner);
-    }
+function getReviewByPaymentId(paymentId) {
+    if (!paymentId) return null;
+    const reviews = getCurrentSessionReviews();
+    const target = String(paymentId);
+    const matched = reviews
+        .filter((review) => String(review.paymentId || "") === target)
+        .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+    return matched[0] || null;
 }
 
 // ==========================================
 // 5. UI UPDATES & RENDERERS
 // ==========================================
-function applyOrderingState() {
-    const locked = isOrderingLocked();
-    const orderCreationDisabled = isOrderCreationDisabled();
-    const pendingReviewId = getPendingReviewPaymentId();
-
-    const banner = document.getElementById("sessionStateBanner");
-    const cartBar = document.getElementById("cartBar");
-    const previewCard = document.getElementById("cartPreviewCard");
-
-    if (banner !== null) {
-        if (locked === true) {
-            banner.innerText = "Payment and review are complete for this session. New orders are disabled.";
-            banner.classList.remove("hidden");
-        } else if (pendingReviewId !== "") {
-            banner.innerText = "Payment is already completed. Please submit the review to finish this session.";
-            banner.classList.remove("hidden");
-        } else {
-            banner.innerText = "";
-            banner.classList.add("hidden");
-        }
-    }
-
-    const openPaymentBtn = document.getElementById("openPaymentBtn");
-    if (openPaymentBtn !== null) {
-        openPaymentBtn.disabled = false;
-        if (locked === true) {
-            openPaymentBtn.classList.add("opacity-60", "cursor-not-allowed");
-        } else {
-            openPaymentBtn.classList.remove("opacity-60", "cursor-not-allowed");
-        }
-    }
-
-    // Disable all ordering buttons if disabled
-    const buttonsToDisable = ["openCartModal", "openCartInlineBtn", "clearCartBtn", "fakeOrderBtn", "itemAddBtn"];
-    buttonsToDisable.forEach(function (btnId) {
-        let btn = document.getElementById(btnId);
-        if (btn !== null) {
-            btn.disabled = orderCreationDisabled;
-            if (orderCreationDisabled === true) {
-                btn.classList.add("opacity-60", "cursor-not-allowed");
-            } else {
-                btn.classList.remove("opacity-60", "cursor-not-allowed");
-            }
-        }
-    });
-
-    if (cartBar !== null) {
-        if (orderCreationDisabled === true) cartBar.classList.add("opacity-75");
-        else cartBar.classList.remove("opacity-75");
-    }
-
-    if (previewCard !== null && orderCreationDisabled === true) {
-        previewCard.classList.add("hidden");
-    }
-
-    if (orderCreationDisabled === true) {
-        closeModal(document.getElementById("itemModal"));
-    }
-
-    renderMenu();
-    updateCartUI();
+function renderStars(rating) {
+    const value = Math.max(0, Math.min(5, Number(rating) || 0));
+    const filled = "★".repeat(value);
+    const empty = "☆".repeat(5 - value);
+    return `${filled}${empty}`;
 }
 
-function renderMenu() {
-    const grid = document.getElementById("menuGrid");
-    if (grid === null) return;
-
-    let allMenus = getRuntimeMenuDatabase();
-    let filteredMenus = [];
-
-    // Filter by Category and Keyword
-    allMenus.forEach(function (menu) {
-        let matchCat = false;
-        if (currentCategory === "all" || menu.category === currentCategory) matchCat = true;
-
-        let matchSearch = false;
-        let searchLower = searchKeyword.trim().toLowerCase();
-        let nameLower = String(menu.name).toLowerCase();
-        let thaiLower = String(menu.thaiName).toLowerCase();
-        let descLower = String(menu.desc).toLowerCase();
-
-        if (searchLower === "") {
-            matchSearch = true;
-        } else if (nameLower.includes(searchLower) || thaiLower.includes(searchLower) || descLower.includes(searchLower)) {
-            matchSearch = true;
-        }
-
-        if (matchCat === true && matchSearch === true) {
-            filteredMenus.push(menu);
-        }
-    });
-
-    // Update Result Text
-    const resultText = document.getElementById("searchResultText");
-    if (resultText !== null) {
-        if (searchKeyword.trim() === "") {
-            if (currentCategory === "all") resultText.innerText = "";
-            else resultText.innerText = "Category: " + currentCategory + " • " + filteredMenus.length + " items";
-        } else {
-            resultText.innerText = 'Results for "' + searchKeyword + '" • ' + filteredMenus.length + " items";
-        }
-    }
-
-    grid.innerHTML = "";
-    if (filteredMenus.length === 0) {
-        grid.innerHTML = '<div class="text-center p-7 bg-[#fbf5ee] border border-dashed border-[#e6d7c7] rounded-3xl text-[#a97a52] md:col-span-2 xl:col-span-3">No menu items found<br>Try another keyword</div>';
-        return;
-    }
-
-    const orderingLocked = isOrderCreationDisabled();
-
-    // Render HTML manually for each menu
-    let menuHTML = "";
-    filteredMenus.forEach(function (menu) {
-        let cardClass = "menu-card group rounded-[30px] border border-[#e6d7c7] bg-[#fbf5ee] p-4 shadow-[0_10px_30px_rgba(95,64,40,0.08)] flex flex-col gap-4 ";
-        if (orderingLocked === true) {
-            cardClass += "opacity-90";
-        } else {
-            cardClass += "cursor-pointer transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(95,64,40,0.14)]";
-        }
-
-        // We use window.openItemModalById to safely pass data from HTML string
-        let onClickAction = orderingLocked ? "" : `onclick="window.openItemModalById(${menu.id})"`;
-
-        menuHTML += `
-            <div class="${cardClass}" ${onClickAction} tabindex="0" role="button">
-                <div class="overflow-hidden rounded-[22px] border border-[#e6d7c7] bg-[#efe4d8]">
-                    <img src="${resolveMenuImage(menu.name, menu.image)}" class="menu-image h-48 w-full object-cover transition duration-300 group-hover:scale-[1.03]">
-                </div>
-                <div class="menu-row flex items-center justify-between gap-4 px-1">
-                    <div class="min-w-0">
-                        <h3 class="truncate text-xl font-bold text-[#5f4028] sm:text-2xl">${menu.name}</h3>
-                    </div>
-                    <div class="shrink-0 text-right text-xl font-extrabold text-[#7a4e2f] sm:text-2xl">${menu.price} Baht</div>
-                </div>
-            </div>
-        `;
-    });
-
-    grid.innerHTML = menuHTML;
-}
-
-window.openItemModalById = function (id) {
-    if (isOrderingLocked() === true) {
-        showToast("Ordering is closed after review");
-        return;
-    }
-
-    let allMenus = getRuntimeMenuDatabase();
-    currentMenuItem = null;
-    allMenus.forEach(function (menu) {
-        if (String(menu.id) === String(id)) {
-            currentMenuItem = menu;
-        }
-    });
-
-    if (currentMenuItem === null) return;
-
-    currentQty = 1;
-    currentSelections = [];
-
-    let titleHTML = currentMenuItem.name;
-    if (currentMenuItem.thaiName !== undefined && currentMenuItem.thaiName !== "") {
-        titleHTML += ' <span class="text-xs text-[#a97a52] font-medium ml-1">(' + currentMenuItem.thaiName + ')</span>';
-    }
-
-    document.getElementById("itemModalTitle").innerHTML = titleHTML;
-
-    let priceEl = document.getElementById("itemModalPrice");
-    if (priceEl !== null) priceEl.innerText = currentMenuItem.price + " Baht";
-
-    let descEl = document.getElementById("itemModalDesc");
-    if (descEl !== null) {
-        if (currentMenuItem.desc) descEl.innerText = currentMenuItem.desc;
-        else descEl.innerText = "Special from the Chill n Fill kitchen";
-    }
-
-    document.getElementById("itemModalImage").src = resolveMenuImage(currentMenuItem.name, currentMenuItem.image);
-    document.getElementById("itemModalNote").value = "";
-    document.getElementById("itemQtyValue").innerText = "1";
-
-    renderItemOptions(currentMenuItem);
-    openModal(document.getElementById("itemModal"));
-};
-
-function renderItemOptions(menu) {
-    const wrapper = document.getElementById("itemOptionsWrapper");
-    const container = document.getElementById("itemOptionsContainer");
-    if (wrapper === null || container === null) return;
-
-    container.innerHTML = "";
-    currentSelections = [];
-
-    let keys = menu.optionKeys || [];
-    if (keys.length === 0) {
-        wrapper.classList.add("hidden");
-        return;
-    }
-
-    wrapper.classList.remove("hidden");
-    let optionsHTML = "";
-
-    keys.forEach(function (key) {
-        let set = optionSets[key];
-        if (set !== undefined && set.choices !== undefined && set.choices.length > 0) {
-
-            let defaultValue = set.default || set.choices[0].value;
-            currentSelections.push({ key: key, label: set.label, value: defaultValue });
-
-            optionsHTML += `
-                <div class="p-1">
-                    <div class="text-sm font-semibold text-[#5f4028]">${set.label}</div>
-                    <div class="mt-2 flex flex-wrap gap-2">
-            `;
-
-            set.choices.forEach(function (choice) {
-                let isSelected = (choice.value === defaultValue);
-                let btnClass = "opt-btn px-3 py-1 rounded-full border text-xs font-semibold transition ";
-
-                if (isSelected === true) {
-                    btnClass += "bg-[#7a4e2f] text-white border-[#7a4e2f] ring-2 ring-[#7a4e2f]/30";
-                } else {
-                    btnClass += "bg-[#fbf5ee] text-[#5f4028] border-[#e6d7c7] hover:bg-[#efe4d8]";
-                }
-
-                let btnText = choice.value;
-                if (choice.th !== undefined) btnText += " (" + choice.th + ")";
-
-                optionsHTML += `
-                    <button type="button" class="${btnClass}" data-key="${key}" onclick="window.selectFoodOption(this, '${key}', '${choice.value}')">
-                        ${btnText}
-                    </button>
-                `;
-            });
-            optionsHTML += `</div></div>`;
-        }
-    });
-
-    container.innerHTML = optionsHTML;
-}
-
-window.selectFoodOption = function (clickedBtn, key, val) {
-    let groupButtons = document.querySelectorAll('.opt-btn[data-key="' + key + '"]');
-    groupButtons.forEach(function (btn) {
-        btn.classList.remove("bg-[#7a4e2f]", "text-white", "border-[#7a4e2f]", "ring-2", "ring-[#7a4e2f]/30");
-        btn.classList.add("bg-[#fbf5ee]", "text-[#5f4028]", "border-[#e6d7c7]");
-    });
-
-    clickedBtn.classList.remove("bg-[#fbf5ee]", "text-[#5f4028]", "border-[#e6d7c7]");
-    clickedBtn.classList.add("bg-[#7a4e2f]", "text-white", "border-[#7a4e2f]", "ring-2", "ring-[#7a4e2f]/30");
-
-    currentSelections.forEach(function (opt) {
-        if (opt.key === key) opt.value = val;
-    });
-};
-
-function updateCartUI() {
-    let totalItems = 0;
-    let total = 0;
-
-    cart.forEach(function (item) {
-        totalItems += item.quantity;
-        total += (item.price * item.quantity);
-    });
-
-    let countSpan = document.getElementById("cartCount");
-    let totalSpan = document.getElementById("cartTotalPrice");
-    let modalTotalSpan = document.getElementById("modalTotalPrice");
-    let modalContainer = document.getElementById("cartItemsContainer");
-    let preview = document.getElementById("cartPreview");
-    let previewCard = document.getElementById("cartPreviewCard");
-
-    if (countSpan !== null) countSpan.innerText = String(totalItems);
-    if (totalSpan !== null) totalSpan.innerText = total + " Baht";
-    if (modalTotalSpan !== null) modalTotalSpan.innerText = total + " Baht";
-
-    // Build Cart Modal HTML
-    if (modalContainer !== null) {
-        if (cart.length === 0) {
-            modalContainer.innerHTML = '<div class="text-center text-[#7a4e2f] py-5">No items yet. Please add a menu item.</div>';
-        } else {
-            let html = "";
-            cart.forEach(function (item) {
-                let thaiDisplay = "";
-                if (item.thaiName !== undefined && item.thaiName !== "") {
-                    thaiDisplay = '<span class="ml-1 text-[0.7rem] text-[#a97a52]">(' + item.thaiName + ')</span>';
-                }
-
-                let optDisplay = item.optionsText || "Standard";
-                let noteDisplay = "";
-                if (item.customerNote !== undefined && item.customerNote !== "") {
-                    noteDisplay = '<br><span class="text-[0.75rem] text-[#7a4e2f]">Note: ' + escapeText(item.customerNote) + '</span>';
-                }
-
-                html += `
-                    <div class="flex justify-between gap-3 py-2 border-b border-[#e6d7c7] text-sm">
-                        <div>
-                            <strong>${item.name}</strong> ${thaiDisplay} x${item.quantity}<br>
-                            <span class="text-[0.7rem] text-[#a97a52]">${optDisplay}</span>
-                            ${noteDisplay}
-                        </div>
-                        <div>${item.price * item.quantity} Baht</div>
-                    </div>
-                `;
-            });
-            modalContainer.innerHTML = html;
-        }
-    }
-
-    // Build Preview Bottom Bar
-    if (preview !== null && previewCard !== null) {
-        if (isOrderCreationDisabled() === true) {
-            previewCard.classList.add("hidden");
-        } else if (cart.length === 0) {
-            preview.innerHTML = '<div class="text-[#a97a52]">No items in cart.</div>';
-            previewCard.classList.add("hidden");
-        } else {
-            previewCard.classList.remove("hidden");
-            let phtml = "";
-            cart.forEach(function (item) {
-                let thaiDisplay = "";
-                if (item.thaiName !== undefined && item.thaiName !== "") thaiDisplay = '<span class="ml-1 text-xs font-medium text-[#a97a52]">(' + item.thaiName + ')</span>';
-
-                phtml += `
-                    <div class="flex items-center justify-between border-b border-[#e6d7c7] py-2">
-                        <div>
-                            <div class="font-semibold">${item.name} ${thaiDisplay}</div>
-                            <div class="text-xs text-[#a97a52]">x${item.quantity}</div>
-                        </div>
-                        <div class="font-semibold">${item.price * item.quantity} Baht</div>
-                    </div>
-                `;
-            });
-            preview.innerHTML = phtml;
-        }
-    }
-
-    let sessionOwner = getCurrentSessionId();
-    if (sessionOwner === "") sessionOwner = getCurrentTableNumber();
-    if (sessionOwner !== "") localStorage.setItem("cart_owner_id", sessionOwner);
-
-    localStorage.setItem("cart", JSON.stringify(cart));
-}
-
-function addToCart() {
-    if (isOrderCreationDisabled() === true) {
-        showToast(getOrderingDisabledMessage());
-        return;
-    }
-    if (currentMenuItem === null) return;
-
-    // Format options text
-    let optionsStrings = [];
-    currentSelections.forEach(function (opt) {
-        let cleanLabel = opt.label.replace(/^[^A-Za-z0-9]+\s*/g, ""); // removes emojis
-        optionsStrings.push(cleanLabel + ": " + opt.value);
-    });
-    let optionsDisplay = optionsStrings.join(" • ");
-    if (optionsDisplay === "") optionsDisplay = "Standard";
-
-    let noteText = document.getElementById("itemModalNote").value.trim();
-
-    cart.push({
-        id: currentMenuItem.id,
-        name: currentMenuItem.name,
-        thaiName: currentMenuItem.thaiName || "",
-        price: currentMenuItem.price,
-        quantity: currentQty,
-        optionsText: optionsDisplay,
-        customerNote: noteText,
-        timestamp: Date.now()
-    });
-
-    updateCartUI();
-    showToast("Added " + currentMenuItem.name + " x" + currentQty);
-    closeModal(document.getElementById("itemModal"));
-}
-
-// ==========================================
-// 6. ORDER SUBMISSION
-// ==========================================
-function placeOrder() {
-    if (cart.length === 0) return false;
-    if (isOrderCreationDisabled() === true) {
-        showToast(getOrderingDisabledMessage());
-        return false;
-    }
-
-    let tableNumber = getCurrentTableNumber();
-    if (tableNumber === "") tableNumber = "-";
-
-    let sessionId = getCurrentSessionId();
-
-    let total = 0;
-    cart.forEach(function (item) { total += (item.price * item.quantity); });
-
-    let orders = getAllOrders();
-
-    let formattedItems = [];
-    cart.forEach(function (c) {
-        formattedItems.push({
-            name: c.name,
-            qty: c.quantity,
-            price: c.price,
-            optionsText: c.optionsText || "",
-            customerNote: c.customerNote || ""
-        });
-    });
-
-    orders.push({
-        id: Date.now(),
-        table: tableNumber,
-        userId: sessionId,
-        items: formattedItems,
-        total: total,
-        time: new Date().toISOString(),
-        status: "pending"
-    });
-
-    saveAllOrders(orders);
-
-    cart = [];
-    updateCartUI();
-
-    const orderModal = document.getElementById("orderStatusModal");
-    if (orderModal !== null) {
-        openModal(orderModal);
-        renderOrderStatus();
-    }
-    showToast("Order sent to kitchen");
-    return true;
-}
-
-// ==========================================
-// 7. ORDER STATUS & PAYMENT HISTORY
-// ==========================================
 function getOrderStatusClass(status) {
-    let norm = String(status || "").toLowerCase();
-    if (norm === "completed" || norm === "served" || norm === "serving" || norm === "done") return "bg-[#dff3e4] text-[#1f7a3d]";
-    if (norm === "cooking" || norm === "preparing") return "bg-[#e5f0ff] text-[#1b4d8f]";
-    if (norm === "ready") return "bg-[#eaf7ff] text-[#0f5d7f]";
-    if (norm === "cancelled" || norm === "canceled") return "bg-[#fde2e2] text-[#b42318]";
+    const normalized = String(status || "").toLowerCase();
+    if (normalized === "completed" || normalized === "served" || normalized === "serving" || normalized === "done") {
+        return "bg-[#dff3e4] text-[#1f7a3d]";
+    }
+    if (normalized === "cooking" || normalized === "preparing") return "bg-[#e5f0ff] text-[#1b4d8f]";
+    if (normalized === "ready") return "bg-[#eaf7ff] text-[#0f5d7f]";
+    if (normalized === "cancelled" || normalized === "canceled") return "bg-[#fde2e2] text-[#b42318]";
     return "bg-[#fff1cc] text-[#9a6a00]";
+}
+
+function isServedStatus(status) {
+    const normalized = String(status || "").toLowerCase();
+    return normalized === "serving" || normalized === "served" || normalized === "completed" || normalized === "done";
+}
+
+function isCancelledStatus(status) {
+    const normalized = String(status || "").toLowerCase();
+    return normalized === "cancelled" || normalized === "canceled";
+}
+
+function isPaidOrder(order) {
+    return Boolean(order && (order.paymentId || order.paidAt || String(order.paymentStatus || "").toLowerCase() === "paid"));
+}
+
+function formatOrderTime(isoString) {
+    if (!isoString) return "-";
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return isoString;
+    return date.toLocaleString();
+}
+
+function getOrderItemsText(order) {
+    const itemsArray = Array.isArray(order.items) ? order.items : [];
+    if (itemsArray.length) {
+        return itemsArray.map((item) => `${item.name} x${item.qty}`).join(", ");
+    }
+    return typeof order.items === "string" ? order.items : "-";
+}
+
+function getOrderPaymentText(order) {
+    if (isCancelledStatus(order.status)) return "Not required";
+    if (isPaidOrder(order)) return `Paid (${order.paymentMethod || "Cash"})`;
+    return "Waiting for payment";
+}
+
+function getOutstandingOrders() {
+    return getCurrentSessionOrders().filter((order) => !isPaidOrder(order) && !isCancelledStatus(order.status));
+}
+
+function areOrdersReadyForPayment(orders) {
+    return orders.length > 0 && orders.every((order) => isServedStatus(order.status));
+}
+
+function buildPaymentContext(orders) {
+    const normalizedOrders = [...orders].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+    const items = normalizedOrders.flatMap((order) => {
+        const sourceItems = Array.isArray(order.items) ? order.items : [];
+        return sourceItems.map((item) => ({
+            name: item.name,
+            qty: item.qty,
+            price: item.price || 0,
+            orderId: order.id,
+            optionsText: item.optionsText || "",
+            customerNote: item.customerNote || ""
+        }));
+    });
+
+    return {
+        orders: normalizedOrders,
+        items,
+        orderIds: normalizedOrders.map((order) => order.id),
+        total: normalizedOrders.reduce((sum, order) => sum + Number(order.total || 0), 0)
+    };
+}
+
+function renderPaymentHistory() {
+    const container = document.getElementById("paymentHistoryContainer");
+    if (!container) return;
+
+    const payments = (Array.isArray(getCurrentSessionPayments()) ? getCurrentSessionPayments() : [])
+        .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+
+    if (!payments.length) {
+        container.innerHTML = `
+                <div class="text-center py-5 text-[#a97a52]">
+                    No payment/review history for this session
+                    <div class="text-xs mt-1">Table: ${escapeText(getCurrentTableNumber() || "-")} | User: ${escapeText(getCurrentSessionId() || "-")}</div>
+                </div>
+            `;
+        return;
+    }
+
+    container.innerHTML = payments.map((payment) => {
+        const orderLabel = Array.isArray(payment.orderIds) && payment.orderIds.length
+            ? payment.orderIds.join(", ")
+            : (payment.orderId || "-");
+        const itemsText = Array.isArray(payment.items) && payment.items.length
+            ? payment.items.map((item) => `${item.name} x${item.qty}`).join(", ")
+            : "-";
+        const review = getReviewByPaymentId(payment.id);
+        const hasReview = Boolean(review || payment.reviewSubmitted);
+        const reviewTime = review ? formatDateTime(review.time) : "-";
+        const reviewText = review && review.comment ? review.comment : "-";
+        const reviewRating = review ? renderStars(review.rating) : "Not rated";
+
+        return `
+                <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                        <div class="font-bold text-[#5f4028]">Table ${escapeText(payment.table || "-")}</div>
+                        <div class="px-3 py-1 rounded-full text-xs font-bold ${getStatusClass(payment.status || "paid")}">
+                            ${escapeText(paymentStatusLabels[payment.status] || "Paid")}
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
+                        <div class="text-sm text-[#a97a52]">Order: ${escapeText(orderLabel)}</div>
+                        <div class="text-lg font-extrabold text-[#7a4e2f]">${escapeText(payment.amount)} Baht</div>
+                    </div>
+                    <div class="text-sm text-[#a97a52] mt-1">Date: ${escapeText(formatDateTime(payment.time))}</div>
+                    <div class="text-sm text-[#a97a52] mt-1">Method: ${escapeText(payment.method || "Cash")}</div>
+                    <div class="text-sm text-[#a97a52] mt-1">Items: ${escapeText(itemsText)}</div>
+                    <div class="mt-3 rounded-xl border border-[#e6d7c7] bg-[#fbf5ee] px-3 py-2">
+                        <div class="text-xs font-semibold text-[#7a4e2f] mb-1">Your Review</div>
+                        <div class="text-sm text-[#a97a52]">Rating: ${escapeText(reviewRating)}</div>
+                        <div class="text-sm text-[#a97a52] mt-1">Comment: ${escapeText(reviewText)}</div>
+                        <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${escapeText(reviewTime)}</div>
+                        <button class="btn btn-xs mt-2 rounded-full bg-[#a97a52] text-white border-none hover:bg-[#7a4e2f]" onclick="openReviewForPayment('${payment.id}')">${hasReview ? "Edit Review" : "Rate & Review"}</button>
+                    </div>
+                </div>
+            `;
+    }).join("");
 }
 
 function renderOrderStatus() {
     const container = document.getElementById("orderStatusContainer");
-    if (container === null) return;
+    if (!container) return;
 
-    let orders = getCurrentSessionOrders();
-    orders.sort(function (a, b) { return new Date(b.time || 0) - new Date(a.time || 0); });
+    const orders = getCurrentSessionOrders().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
 
-    if (orders.length === 0) {
-        container.innerHTML = '<div class="text-center py-5 text-[#a97a52]">No orders found</div>';
+    if (!orders.length) {
+        container.innerHTML = `<div class="text-center py-5 text-[#a97a52]">No orders found</div>`;
         return;
     }
 
-    let html = "";
-    orders.forEach(function (order) {
-        let itemsArr = [];
-        if (Array.isArray(order.items)) {
-            order.items.forEach(function (it) { itemsArr.push(it.name + " x" + it.qty); });
-        }
-        let itemsText = itemsArr.join(", ");
-        if (itemsText === "" && typeof order.items === "string") itemsText = order.items;
-        if (itemsText === "") itemsText = "-";
-
-        let payText = "Waiting for payment";
-        let stat = String(order.status || "").toLowerCase();
-        let isPaid = (order.paymentId !== undefined || order.paidAt !== undefined || String(order.paymentStatus).toLowerCase() === "paid");
-
-        if (stat === "cancelled" || stat === "canceled") payText = "Not required";
-        else if (isPaid === true) payText = "Paid (" + (order.paymentMethod || "Cash") + ")";
-
-        let dDate = new Date(order.time);
-        let timeStr = isNaN(dDate.getTime()) ? order.time : dDate.toLocaleString();
-
-        html += `
+    container.innerHTML = orders.map((order) => `
             <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                     <div class="font-bold text-[#5f4028]">Order #${order.id}</div>
@@ -853,430 +715,693 @@ function renderOrderStatus() {
                     </div>
                 </div>
                 <div class="text-sm text-[#a97a52]">Table: ${order.table || "-"}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Time: ${timeStr}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Items: ${itemsText}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Payment: ${payText}</div>
+                <div class="text-sm text-[#a97a52] mt-1">Time: ${formatOrderTime(order.time)}</div>
+                <div class="text-sm text-[#a97a52] mt-1">Items: ${getOrderItemsText(order)}</div>
+                <div class="text-sm text-[#a97a52] mt-1">Payment: ${getOrderPaymentText(order)}</div>
                 <div class="text-sm font-semibold text-[#7a4e2f] mt-2">Total: ${order.total || 0} Baht</div>
             </div>
-        `;
-    });
-    container.innerHTML = html;
+        `).join("");
 }
 
-function renderPaymentHistory() {
-    const container = document.getElementById("paymentHistoryContainer");
-    if (container === null) return;
+function renderCartPreview() {
+    const preview = document.getElementById("cartPreview");
+    const previewCard = document.getElementById("cartPreviewCard");
+    if (!preview || !previewCard) return;
 
-    let payments = getCurrentSessionPayments();
-    payments.sort(function (a, b) { return new Date(b.time || 0) - new Date(a.time || 0); });
-
-    if (payments.length === 0) {
-        let tNum = getCurrentTableNumber() || "-";
-        let uId = getCurrentSessionId() || "-";
-        container.innerHTML = `
-            <div class="text-center py-5 text-[#a97a52]">
-                No payment/review history for this session
-                <div class="text-xs mt-1">Table: ${escapeText(tNum)} | User: ${escapeText(uId)}</div>
-            </div>
-        `;
+    if (isOrderCreationDisabled()) {
+        previewCard.classList.add("hidden");
         return;
     }
 
-    let allReviews = getCurrentSessionReviews();
+    if (cart.length === 0) {
+        preview.innerHTML = `<div class="text-[#a97a52]">No items in cart.</div>`;
+        previewCard.classList.add("hidden");
+        return;
+    }
 
-    let html = "";
-    payments.forEach(function (pay) {
-        let orderLabel = pay.orderId || "-";
-        if (Array.isArray(pay.orderIds) && pay.orderIds.length > 0) orderLabel = pay.orderIds.join(", ");
+    previewCard.classList.remove("hidden");
+    preview.innerHTML = cart.map((item) => `
+            <div class="flex items-center justify-between border-b border-[#e6d7c7] py-2">
+                <div>
+                    <div class="font-semibold">
+                        ${item.name}
+                        ${item.thaiName ? `<span class="ml-1 text-xs font-medium text-[#a97a52]">(${item.thaiName})</span>` : ""}
+                    </div>
+                    <div class="text-xs text-[#a97a52]">x${item.quantity}</div>
+                </div>
+                <div class="font-semibold">${item.price * item.quantity} Baht</div>
+            </div>
+        `).join("");
+}
 
-        let itemsText = "-";
-        if (Array.isArray(pay.items) && pay.items.length > 0) {
-            let iArr = [];
-            pay.items.forEach(function (i) { iArr.push(i.name + " x" + i.qty); });
-            itemsText = iArr.join(", ");
+function updateCartUI() {
+    const cartCountSpan = document.getElementById("cartCount");
+    const cartTotalSpan = document.getElementById("cartTotalPrice");
+    const modalContainer = document.getElementById("cartItemsContainer");
+    const modalTotalSpan = document.getElementById("modalTotalPrice");
+
+    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    if (cartCountSpan) cartCountSpan.innerText = String(totalItems);
+    if (cartTotalSpan) cartTotalSpan.innerText = `${total} Baht`;
+
+    if (modalContainer) {
+        if (cart.length === 0) {
+            modalContainer.innerHTML = '<div class="text-center text-[#7a4e2f] py-5">No items yet. Please add a menu item.</div>';
+        } else {
+            modalContainer.innerHTML = cart.map((item) => `
+                    <div class="flex justify-between gap-3 py-2 border-b border-[#e6d7c7] text-sm">
+                        <div>
+                            <strong>${item.name}</strong>
+                            ${item.thaiName ? `<span class="ml-1 text-[0.7rem] text-[#a97a52]">(${item.thaiName})</span>` : ""}
+                            x${item.quantity}<br>
+                            <span class="text-[0.7rem] text-[#a97a52]">${item.optionsText || "Standard"}</span>
+                            ${item.customerNote ? `<br><span class="text-[0.75rem] text-[#7a4e2f]">Note: ${item.customerNote}</span>` : ""}
+                        </div>
+                        <div>${item.price * item.quantity} Baht</div>
+                    </div>
+                `).join("");
         }
+    }
 
-        // Find review
-        let myReview = null;
-        allReviews.forEach(function (r) {
-            if (String(r.paymentId || "") === String(pay.id)) myReview = r;
+    if (modalTotalSpan) {
+        modalTotalSpan.innerText = `${total} Baht`;
+    }
+
+    const sessionOwner = getCurrentSessionId() || getCurrentTableNumber() || "";
+    if (sessionOwner) {
+        localStorage.setItem("cart_owner_id", sessionOwner);
+    }
+    localStorage.setItem("cart", JSON.stringify(cart));
+    renderCartPreview();
+}
+
+function addToCart(menuItem, selectedOptions = null, quantity = 1, customerNote = "") {
+    if (isOrderCreationDisabled()) {
+        showToast(getOrderingDisabledMessage());
+        return;
+    }
+
+    const optionsDisplay = formatOptionsText(selectedOptions);
+
+    cart.push({
+        id: menuItem.id,
+        name: menuItem.name,
+        thaiName: menuItem.thaiName || "",
+        price: menuItem.price,
+        quantity,
+        optionsText: optionsDisplay || "Standard",
+        customerNote: customerNote || "",
+        timestamp: Date.now()
+    });
+
+    updateCartUI();
+    showToast(`Added ${menuItem.name} x${quantity}`);
+}
+
+function getFilteredMenus() {
+    let filtered = [...getRuntimeMenuDatabase()];
+
+    if (currentCategory !== "all") {
+        filtered = filtered.filter((menu) => menu.category === currentCategory);
+    }
+
+    if (searchKeyword.trim() !== "") {
+        const keyword = searchKeyword.trim().toLowerCase();
+        filtered = filtered.filter((menu) =>
+            menu.name.toLowerCase().includes(keyword) ||
+            (menu.thaiName && menu.thaiName.toLowerCase().includes(keyword)) ||
+            (menu.desc && menu.desc.toLowerCase().includes(keyword)) ||
+            (menu.category && menu.category.toLowerCase().includes(keyword))
+        );
+    }
+
+    return filtered;
+}
+
+function updateSearchResultText(total) {
+    const resultText = document.getElementById("searchResultText");
+    if (!resultText) return;
+
+    if (searchKeyword.trim() === "") {
+        if (currentCategory === "all") {
+            resultText.innerText = "";
+        } else {
+            resultText.innerText = `Category: ${currentCategory} • ${total} items`;
+        }
+        return;
+    }
+
+    resultText.innerText = `Results for "${searchKeyword}" • ${total} items`;
+}
+
+function formatOptionsText(selectedOptions) {
+    if (!Array.isArray(selectedOptions) || selectedOptions.length === 0) return "";
+    return selectedOptions
+        .map((option) => `${option.label.replace(/^[^A-Za-z0-9]+\s*/g, "")}: ${option.value}`)
+        .join(" • ");
+}
+
+function renderItemOptions(menu) {
+    const wrapper = document.getElementById("itemOptionsWrapper");
+    const container = document.getElementById("itemOptionsContainer");
+    if (!wrapper || !container) return;
+
+    container.innerHTML = "";
+    currentSelections = [];
+
+    const keys = menu.optionKeys || [];
+    if (!keys.length) {
+        wrapper.classList.add("hidden");
+        return;
+    }
+
+    wrapper.classList.remove("hidden");
+
+    keys.forEach((key) => {
+        const set = optionSets[key];
+        if (!set || !set.choices || set.choices.length === 0) return;
+
+        const defaultValue = set.default || set.choices[0].value;
+        currentSelections.push({ key, label: set.label, value: defaultValue });
+
+        const group = document.createElement("div");
+        group.className = "p-1";
+
+        const label = document.createElement("div");
+        label.className = "text-sm font-semibold text-[#5f4028]";
+        label.textContent = set.label;
+
+        const buttons = document.createElement("div");
+        buttons.className = "mt-2 flex flex-wrap gap-2";
+
+        set.choices.forEach((choice) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.dataset.optionKey = key;
+            btn.dataset.optionValue = choice.value;
+            const isSelected = choice.value === defaultValue;
+
+            btn.className = [
+                "px-3",
+                "py-1",
+                "rounded-full",
+                "border",
+                "text-xs",
+                "font-semibold",
+                "transition"
+            ].join(" ");
+
+            if (isSelected) {
+                btn.classList.add("bg-[#7a4e2f]", "text-white", "border-[#7a4e2f]", "ring-2", "ring-[#7a4e2f]/30");
+            } else {
+                btn.classList.add("bg-[#fbf5ee]", "text-[#5f4028]", "border-[#e6d7c7]", "hover:bg-[#efe4d8]");
+            }
+
+            btn.textContent = choice.th ? `${choice.value} (${choice.th})` : choice.value;
+
+            btn.addEventListener("click", () => {
+                const groupButtons = buttons.querySelectorAll("button[data-option-key]");
+                groupButtons.forEach((button) => {
+                    button.classList.remove("bg-[#7a4e2f]", "text-white", "border-[#7a4e2f]", "ring-2", "ring-[#7a4e2f]/30");
+                    button.classList.add("bg-[#fbf5ee]", "text-[#5f4028]", "border-[#e6d7c7]");
+                });
+
+                btn.classList.remove("bg-[#fbf5ee]", "text-[#5f4028]", "border-[#e6d7c7]");
+                btn.classList.add("bg-[#7a4e2f]", "text-white", "border-[#7a4e2f]", "ring-2", "ring-[#7a4e2f]/30");
+
+                const target = currentSelections.find((option) => option.key === key);
+                if (target) target.value = choice.value;
+            });
+
+            buttons.appendChild(btn);
         });
 
-        let hasReview = (myReview !== null || pay.reviewSubmitted === true);
-        let revTime = "-";
-        let revText = "-";
-        let revRating = "Not rated";
+        group.appendChild(label);
+        group.appendChild(buttons);
+        container.appendChild(group);
+    });
+}
 
-        if (myReview !== null) {
-            let rd = new Date(myReview.time);
-            revTime = isNaN(rd.getTime()) ? myReview.time : rd.toLocaleString();
-            if (myReview.comment) revText = myReview.comment;
+function openItemModal(menu) {
+    if (isOrderingLocked()) {
+        showToast("Ordering is closed after review");
+        return;
+    }
 
-            let val = Math.max(0, Math.min(5, Number(myReview.rating) || 0));
-            revRating = "★".repeat(val) + "☆".repeat(5 - val);
-        }
+    currentMenuItem = menu;
+    currentQty = 1;
+    currentSelections = [];
 
-        let dDate = new Date(pay.time);
-        let payTimeStr = isNaN(dDate.getTime()) ? pay.time : dDate.toLocaleString();
+    const thaiLabel = menu.thaiName
+        ? `<span class="text-xs text-[#a97a52] font-medium ml-1">(${menu.thaiName})</span>`
+        : "";
 
-        let statColor = "bg-[#efe4d8] text-[#7a4e2f]"; // default
-        if (pay.status === "paid") statColor = "bg-[#dff3e4] text-[#1f7a3d]";
-        if (pay.status === "pending") statColor = "bg-[#fff1cc] text-[#9a6a00]";
-        if (pay.status === "failed") statColor = "bg-[#fde2e2] text-[#b42318]";
+    document.getElementById("itemModalTitle").innerHTML = `${menu.name} ${thaiLabel}`;
+    const itemModalPrice = document.getElementById("itemModalPrice");
+    if (itemModalPrice) itemModalPrice.innerText = `${menu.price} Baht`;
+    document.getElementById("itemModalDesc").innerText = menu.desc || "Special from the Chill n Fill kitchen";
+    document.getElementById("itemModalImage").src = resolveMenuImage(menu.name, menu.image);
+    document.getElementById("itemModalNote").value = "";
+    document.getElementById("itemQtyValue").innerText = "1";
 
-        let statLabel = paymentStatusLabels[pay.status] || "Paid";
+    renderItemOptions(menu);
+    const itemModal = document.getElementById("itemModal");
+    if (itemModal) {
+        itemModal.classList.remove("hidden");
+        itemModal.classList.add("flex");
+    }
+}
 
-        html += `
-            <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                    <div class="font-bold text-[#5f4028]">Table ${escapeText(pay.table || "-")}</div>
-                    <div class="px-3 py-1 rounded-full text-xs font-bold ${statColor}">
-                        ${escapeText(statLabel)}
+function closeItemModal() {
+    const itemModal = document.getElementById("itemModal");
+    if (!itemModal) return;
+    itemModal.classList.add("hidden");
+    itemModal.classList.remove("flex");
+}
+
+function renderMenu() {
+    const grid = document.getElementById("menuGrid");
+    if (!grid) return;
+
+    const filtered = getFilteredMenus();
+    const orderingLocked = isOrderCreationDisabled();
+
+    grid.innerHTML = "";
+    updateSearchResultText(filtered.length);
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+                <div class="text-center p-7 bg-[#fbf5ee] border border-dashed border-[#e6d7c7] rounded-3xl text-[#a97a52] md:col-span-2 xl:col-span-3">
+                    No menu items found<br>
+                    Try another keyword
+                </div>
+            `;
+        return;
+    }
+
+    filtered.forEach((menu) => {
+        const card = document.createElement("div");
+        card.className = [
+            "menu-card",
+            "group",
+            "rounded-[30px]",
+            "border",
+            "border-[#e6d7c7]",
+            "bg-[#fbf5ee]",
+            "p-4",
+            "shadow-[0_10px_30px_rgba(95,64,40,0.08)]",
+            "flex",
+            "flex-col",
+            "gap-4",
+            orderingLocked ? "opacity-90" : "cursor-pointer transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(95,64,40,0.14)]"
+        ].join(" ").trim();
+        card.innerHTML = `
+                <div class="overflow-hidden rounded-[22px] border border-[#e6d7c7] bg-[#efe4d8]">
+                    <img src="${resolveMenuImage(menu.name, menu.image)}" alt="${menu.name}" class="menu-image h-48 w-full object-cover transition duration-300 group-hover:scale-[1.03]">
+                </div>
+                <div class="menu-row flex items-center justify-between gap-4 px-1">
+                    <div class="min-w-0">
+                        <h3 class="truncate text-xl font-bold text-[#5f4028] sm:text-2xl">
+                            ${menu.name}
+                        </h3>
+                    </div>
+                    <div class="shrink-0 text-right text-xl font-extrabold text-[#7a4e2f] sm:text-2xl">
+                        ${menu.price} Baht
                     </div>
                 </div>
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
-                    <div class="text-sm text-[#a97a52]">Order: ${escapeText(orderLabel)}</div>
-                    <div class="text-lg font-extrabold text-[#7a4e2f]">${escapeText(pay.amount)} Baht</div>
-                </div>
-                <div class="text-sm text-[#a97a52] mt-1">Date: ${escapeText(payTimeStr)}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Method: ${escapeText(pay.method || "Cash")}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Items: ${escapeText(itemsText)}</div>
-                <div class="mt-3 rounded-xl border border-[#e6d7c7] bg-[#fbf5ee] px-3 py-2">
-                    <div class="text-xs font-semibold text-[#7a4e2f] mb-1">Your Review</div>
-                    <div class="text-sm text-[#a97a52]">Rating: ${escapeText(revRating)}</div>
-                    <div class="text-sm text-[#a97a52] mt-1">Comment: ${escapeText(revText)}</div>
-                    <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${escapeText(revTime)}</div>
-                    <button class="btn btn-xs mt-2 rounded-full bg-[#a97a52] text-white border-none hover:bg-[#7a4e2f]" onclick="window.openReviewForPayment('${pay.id}')">
-                        ${hasReview ? "Edit Review" : "Rate & Review"}
-                    </button>
+            `;
+
+        grid.appendChild(card);
+
+        if (orderingLocked) {
+            return;
+        }
+
+        card.addEventListener("click", () => {
+            openItemModal(menu);
+        });
+
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `Open ${menu.name}`);
+        card.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            openItemModal(menu);
+        });
+    });
+}
+
+function persistOrderToLocal() {
+    if (!cart.length) return false;
+    if (isOrderCreationDisabled()) {
+        showToast(getOrderingDisabledMessage());
+        return false;
+    }
+
+    const tableNumber = getCurrentTableNumber() || "-";
+    const sessionId = getCurrentSessionId() || "";
+    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const orders = getAllOrders();
+
+    orders.push({
+        id: Date.now(),
+        table: tableNumber,
+        userId: sessionId,
+        items: cart.map((item) => ({
+            name: item.name,
+            qty: item.quantity,
+            price: item.price,
+            optionsText: item.optionsText || "",
+            customerNote: item.customerNote || ""
+        })),
+        total,
+        time: new Date().toISOString(),
+        status: "pending"
+    });
+
+    saveAllOrders(orders);
+    return true;
+}
+
+function renderPaymentSummary(context) {
+    const container = document.getElementById("paymentSummaryContainer");
+    if (!container) return;
+
+    if (!context || !context.orders || !context.orders.length) {
+        container.innerHTML = "";
+        return;
+    }
+
+    container.innerHTML = `
+            <div class="rounded-[24px] border border-[#e6d7c7] bg-[#fffaf5] p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <div class="text-sm text-[#a97a52]">Orders ready for payment</div>
+                        <div class="text-lg font-extrabold text-[#5f4028]">${context.orders.length} order${context.orders.length > 1 ? "s" : ""}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-[#a97a52]">Total</div>
+                        <div class="text-2xl font-extrabold text-[#7a4e2f]">${context.total} Baht</div>
+                    </div>
                 </div>
             </div>
+            ${context.orders.map((order) => `
+                <div class="rounded-[24px] border border-[#e6d7c7] bg-[#fffaf5] p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                        <div class="font-bold text-[#5f4028]">Order #${order.id}</div>
+                        <div class="text-sm font-semibold text-[#7a4e2f]">${order.total || 0} Baht</div>
+                    </div>
+                    <div class="text-sm text-[#a97a52]">${getOrderItemsText(order)}</div>
+                </div>
+            `).join("")}
         `;
-    });
-    container.innerHTML = html;
 }
 
-window.openOrderStatusModal = function () {
-    openModal(document.getElementById("orderStatusModal"));
-    renderOrderStatus();
-};
+function renderPaymentBlocked(message) {
+    const container = document.getElementById("paymentSummaryContainer");
+    if (!container) return;
+    container.innerHTML = `
+            <div class="rounded-[24px] border border-[#d7b58f] bg-[#fff4e8] p-4">
+                <div class="text-sm font-semibold text-[#7a4e2f]">${message}</div>
+            </div>
+        `;
+}
 
-window.openPaymentHistoryModalNow = function () {
-    openModal(document.getElementById("paymentHistoryModal"));
-    renderPaymentHistory();
-};
-
-// ==========================================
-// 8. PAYMENT CHECKOUT LOGIC
-// ==========================================
 function updatePaymentMethodUI() {
-    let qrCodePanel = document.getElementById("qrCodePanel");
-    let confirmBtn = document.getElementById("confirmPaymentBtn");
+    const qrCodePanel = document.getElementById("qrCodePanel");
+    const confirmPaymentBtn = document.getElementById("confirmPaymentBtn");
 
-    document.querySelectorAll(".payment-method-btn").forEach(function (button) {
-        let isSelected = (button.dataset.method === currentPaymentMethod);
-        if (isSelected === true) {
-            button.classList.add("border-[#7a4e2f]", "bg-[#fff4e8]", "ring-2", "ring-[#7a4e2f]/20");
-        } else {
-            button.classList.remove("border-[#7a4e2f]", "bg-[#fff4e8]", "ring-2", "ring-[#7a4e2f]/20");
-        }
+    document.querySelectorAll(".payment-method-btn").forEach((button) => {
+        const isSelected = button.dataset.method === currentPaymentMethod;
+        button.classList.toggle("border-[#7a4e2f]", isSelected);
+        button.classList.toggle("bg-[#fff4e8]", isSelected);
+        button.classList.toggle("ring-2", isSelected);
+        button.classList.toggle("ring-[#7a4e2f]/20", isSelected);
     });
 
-    if (qrCodePanel !== null) {
-        if (currentPaymentMethod === "QR Code") qrCodePanel.classList.remove("hidden");
-        else qrCodePanel.classList.add("hidden");
+    if (qrCodePanel) {
+        qrCodePanel.classList.toggle("hidden", currentPaymentMethod !== "QR Code");
     }
 
-    if (confirmBtn !== null) {
-        let actionText = "Confirm Payment";
-        if (currentPaymentMethod !== "") actionText = "Confirm " + currentPaymentMethod + " Payment";
-
-        confirmBtn.innerText = (paymentActionAllowed === true) ? actionText : "Payment Not Available";
-        confirmBtn.disabled = !paymentActionAllowed;
-
-        if (paymentActionAllowed === true) {
-            confirmBtn.classList.remove("opacity-60", "cursor-not-allowed");
-        } else {
-            confirmBtn.classList.add("opacity-60", "cursor-not-allowed");
-        }
+    if (confirmPaymentBtn) {
+        const actionText = currentPaymentMethod
+            ? `Confirm ${currentPaymentMethod} Payment`
+            : "Confirm Payment";
+        confirmPaymentBtn.innerText = paymentActionAllowed ? actionText : "Payment Not Available";
+        confirmPaymentBtn.disabled = !paymentActionAllowed;
+        confirmPaymentBtn.classList.toggle("opacity-60", !paymentActionAllowed);
+        confirmPaymentBtn.classList.toggle("cursor-not-allowed", !paymentActionAllowed);
     }
 }
 
-window.openMenuPaymentModal = function () {
+function resetPaymentFlowState() {
+    currentPaymentMethod = "";
+    currentPaymentContext = null;
+    paymentActionAllowed = false;
+    paymentBlockingMessage = "";
+    renderPaymentSummary(null);
+    updatePaymentMethodUI();
+}
+
+function findPaymentById(paymentId) {
+    return getAllPayments().find((payment) => String(payment.id) === String(paymentId)) || null;
+}
+
+function openReviewModal(payment = null) {
+    const reviewModal = document.getElementById("reviewModal");
+    const reviewSummaryText = document.getElementById("reviewSummaryText");
+    if (!reviewModal) return;
+
+    const resolvedPayment = payment || findPaymentById(getPendingReviewPaymentId());
+    currentReviewPaymentId = resolvedPayment ? String(resolvedPayment.id) : "";
+    const existingReview = currentReviewPaymentId ? getReviewByPaymentId(currentReviewPaymentId) : null;
+
+    if (reviewSummaryText) {
+        if (resolvedPayment) {
+            reviewSummaryText.innerText = `Payment received: ${resolvedPayment.amount} Baht via ${resolvedPayment.method || "Cash"}. Please leave a review to finish this session.`;
+        } else {
+            reviewSummaryText.innerText = "Tell us about your experience after payment.";
+        }
+    }
+
+    currentRating = existingReview ? Math.max(0, Math.min(5, Number(existingReview.rating) || 0)) : 0;
+    const reviewTextarea = document.getElementById("reviewTextarea");
+    if (reviewTextarea) reviewTextarea.value = existingReview && existingReview.comment ? existingReview.comment : "";
+    document.querySelectorAll("#starRating .star").forEach((star, index) => {
+        if (index < currentRating) {
+            star.classList.add("text-[#f5b342]");
+        } else {
+            star.classList.remove("text-[#f5b342]");
+        }
+    });
+    openModal(reviewModal);
+}
+
+function applyOrderingState() {
+    const locked = isOrderingLocked();
+    const orderCreationDisabled = isOrderCreationDisabled();
+    const pendingReviewId = getPendingReviewPaymentId();
+    const banner = document.getElementById("sessionStateBanner");
+    const cartBar = document.getElementById("cartBar");
+    const previewCard = document.getElementById("cartPreviewCard");
+
+    if (banner) {
+        if (locked) {
+            banner.innerText = "Payment and review are complete for this session. New orders are disabled.";
+            banner.classList.remove("hidden");
+        } else if (pendingReviewId) {
+            banner.innerText = "Payment is already completed. Please submit the review to finish this session.";
+            banner.classList.remove("hidden");
+        } else {
+            banner.innerText = "";
+            banner.classList.add("hidden");
+        }
+    }
+
+    if (openPaymentBtn) {
+        openPaymentBtn.disabled = false;
+        openPaymentBtn.classList.toggle("opacity-60", locked);
+        openPaymentBtn.classList.toggle("cursor-not-allowed", locked);
+    }
+
+    if (openCartBtn) {
+        openCartBtn.disabled = orderCreationDisabled;
+        openCartBtn.innerText = locked ? "Session Closed" : (orderCreationDisabled ? "Leave Review First" : "View Cart");
+        openCartBtn.classList.toggle("opacity-60", orderCreationDisabled);
+        openCartBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
+    }
+
+    if (openCartInlineBtn) {
+        openCartInlineBtn.disabled = orderCreationDisabled;
+        openCartInlineBtn.innerText = locked ? "Session Closed" : (orderCreationDisabled ? "Leave Review First" : "View Cart");
+        openCartInlineBtn.classList.toggle("opacity-60", orderCreationDisabled);
+        openCartInlineBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
+    }
+
+    if (clearCartBtn) {
+        clearCartBtn.disabled = orderCreationDisabled;
+        clearCartBtn.classList.toggle("opacity-60", orderCreationDisabled);
+        clearCartBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
+    }
+
+    if (fakeOrderBtn) {
+        fakeOrderBtn.disabled = orderCreationDisabled;
+        fakeOrderBtn.classList.toggle("opacity-60", orderCreationDisabled);
+        fakeOrderBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
+    }
+
+    if (itemAddBtn) {
+        itemAddBtn.disabled = orderCreationDisabled;
+        itemAddBtn.innerText = locked ? "Ordering Closed" : (orderCreationDisabled ? "Leave Review First" : "Add to Cart");
+        itemAddBtn.classList.toggle("opacity-60", orderCreationDisabled);
+        itemAddBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
+    }
+
+    if (cartBar) {
+        cartBar.classList.toggle("opacity-75", orderCreationDisabled);
+    }
+
+    if (previewCard && orderCreationDisabled) {
+        previewCard.classList.add("hidden");
+    }
+
+    if (orderCreationDisabled) {
+        closeItemModal();
+    }
+
+    renderMenu();
+    updateCartUI();
+}
+
+function openPaymentSelectionModal() {
     currentPaymentMethod = "";
     currentPaymentContext = null;
     paymentActionAllowed = false;
     paymentBlockingMessage = "";
 
-    const paymentModal = document.getElementById("paymentModal");
-    const summaryContainer = document.getElementById("paymentSummaryContainer");
-
-    if (isOrderingLocked() === true) {
+    if (isOrderingLocked()) {
         paymentBlockingMessage = "Ordering is closed after review";
-        if (summaryContainer !== null) summaryContainer.innerHTML = '<div class="rounded-[24px] border border-[#d7b58f] bg-[#fff4e8] p-4"><div class="text-sm font-semibold text-[#7a4e2f]">' + paymentBlockingMessage + '</div></div>';
+        renderPaymentBlocked(paymentBlockingMessage);
         showActionFeedback(paymentBlockingMessage);
         updatePaymentMethodUI();
         openModal(paymentModal);
         return;
     }
 
-    if (getPendingReviewPaymentId() !== "") {
-        window.openReviewModal();
+    const pendingReviewId = getPendingReviewPaymentId();
+    if (pendingReviewId) {
+        openReviewModal();
         showActionFeedback("Please submit review before another payment/order");
         return;
     }
 
-    let allOrders = getCurrentSessionOrders();
-    let outstandingOrders = [];
-    allOrders.forEach(function (o) {
-        let stat = String(o.status || "").toLowerCase();
-        let isCancelled = (stat === "cancelled" || stat === "canceled");
-        let isPaid = (o.paymentId !== undefined || o.paidAt !== undefined || String(o.paymentStatus).toLowerCase() === "paid");
-        if (isPaid === false && isCancelled === false) {
-            outstandingOrders.push(o);
-        }
-    });
-
-    if (outstandingOrders.length === 0) {
+    const outstandingOrders = getOutstandingOrders();
+    if (!outstandingOrders.length) {
         paymentBlockingMessage = "No unpaid orders for this session";
-        if (summaryContainer !== null) summaryContainer.innerHTML = '<div class="rounded-[24px] border border-[#d7b58f] bg-[#fff4e8] p-4"><div class="text-sm font-semibold text-[#7a4e2f]">' + paymentBlockingMessage + '</div></div>';
+        renderPaymentBlocked(paymentBlockingMessage);
         showActionFeedback(paymentBlockingMessage);
         updatePaymentMethodUI();
         openModal(paymentModal);
         return;
     }
 
-    let allServed = true;
-    outstandingOrders.forEach(function (o) {
-        let stat = String(o.status || "").toLowerCase();
-        let served = (stat === "serving" || stat === "served" || stat === "completed" || stat === "done");
-        if (served === false) allServed = false;
-    });
-
-    if (allServed === false) {
+    if (!areOrdersReadyForPayment(outstandingOrders)) {
         paymentBlockingMessage = "Payment is available after all food is served";
-        if (summaryContainer !== null) summaryContainer.innerHTML = '<div class="rounded-[24px] border border-[#d7b58f] bg-[#fff4e8] p-4"><div class="text-sm font-semibold text-[#7a4e2f]">' + paymentBlockingMessage + '</div></div>';
+        renderPaymentBlocked(paymentBlockingMessage);
         showActionFeedback(paymentBlockingMessage);
         updatePaymentMethodUI();
         openModal(paymentModal);
         return;
     }
 
-    // Build context
-    let total = 0;
-    let orderIds = [];
-    let allItems = [];
-
-    outstandingOrders.sort(function (a, b) { return new Date(a.time || 0) - new Date(b.time || 0); });
-
-    outstandingOrders.forEach(function (o) {
-        total += Number(o.total || 0);
-        orderIds.push(o.id);
-        if (Array.isArray(o.items)) {
-            o.items.forEach(function (it) {
-                allItems.push({ name: it.name, qty: it.qty, price: it.price || 0, orderId: o.id });
-            });
-        }
-    });
-
-    currentPaymentContext = { orders: outstandingOrders, items: allItems, orderIds: orderIds, total: total };
+    currentPaymentContext = buildPaymentContext(outstandingOrders);
     paymentActionAllowed = true;
-
-    // Render Summary
-    if (summaryContainer !== null) {
-        let html = `
-            <div class="rounded-[24px] border border-[#e6d7c7] bg-[#fffaf5] p-4">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <div class="text-sm text-[#a97a52]">Orders ready for payment</div>
-                        <div class="text-lg font-extrabold text-[#5f4028]">${outstandingOrders.length} order${outstandingOrders.length > 1 ? "s" : ""}</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-sm text-[#a97a52]">Total</div>
-                        <div class="text-2xl font-extrabold text-[#7a4e2f]">${total} Baht</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        outstandingOrders.forEach(function (o) {
-            let itemsArr = [];
-            if (Array.isArray(o.items)) o.items.forEach(function (it) { itemsArr.push(it.name + " x" + it.qty); });
-            html += `
-                <div class="rounded-[24px] border border-[#e6d7c7] bg-[#fffaf5] p-4 mt-2">
-                    <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                        <div class="font-bold text-[#5f4028]">Order #${o.id}</div>
-                        <div class="text-sm font-semibold text-[#7a4e2f]">${o.total || 0} Baht</div>
-                    </div>
-                    <div class="text-sm text-[#a97a52]">${itemsArr.join(", ")}</div>
-                </div>
-            `;
-        });
-        summaryContainer.innerHTML = html;
-    }
-
+    renderPaymentSummary(currentPaymentContext);
     updatePaymentMethodUI();
     openModal(paymentModal);
-};
+}
 
 function confirmPaymentSelection() {
-    if (paymentActionAllowed === false) {
+    if (!paymentActionAllowed) {
         showActionFeedback(paymentBlockingMessage || "Payment is not available right now");
         return;
     }
-    if (currentPaymentContext === null || currentPaymentContext.orders.length === 0) {
+
+    if (!currentPaymentContext || !currentPaymentContext.orders.length) {
         showActionFeedback("No unpaid orders for this session");
         return;
     }
-    if (currentPaymentMethod === "") {
+
+    if (!currentPaymentMethod) {
         showToast("Please choose a payment method");
         return;
     }
 
-    let paymentId = Date.now();
-    let now = new Date().toISOString();
+    const paymentId = Date.now();
+    const now = new Date().toISOString();
+    const orderIdSet = new Set(currentPaymentContext.orderIds.map((orderId) => String(orderId)));
 
-    let paymentRecord = {
+    const paymentRecord = {
         id: paymentId,
         orderId: currentPaymentContext.orderIds.join(", "),
-        orderIds: currentPaymentContext.orderIds.slice(), // copy array
+        orderIds: [...currentPaymentContext.orderIds],
         table: getCurrentTableNumber() || "-",
         userId: getCurrentSessionId() || "",
-        items: currentPaymentContext.items,
+        items: currentPaymentContext.items.map((item) => ({
+            name: item.name,
+            qty: item.qty,
+            price: item.price || 0,
+            orderId: item.orderId
+        })),
         amount: currentPaymentContext.total,
         time: now,
         method: currentPaymentMethod,
         status: "paid"
     };
 
-    let payments = getAllPayments();
+    const payments = getAllPayments();
     payments.push(paymentRecord);
     saveAllPayments(payments);
 
-    let orders = getAllOrders();
-    orders.forEach(function (o) {
-        if (currentPaymentContext.orderIds.indexOf(o.id) !== -1) {
-            o.paymentId = paymentId;
-            o.paymentStatus = "paid";
-            o.paymentMethod = currentPaymentMethod;
-            o.paidAt = now;
-        }
+    const updatedOrders = getAllOrders().map((order) => {
+        if (!orderIdSet.has(String(order.id))) return order;
+        return {
+            ...order,
+            paymentId,
+            paymentStatus: "paid",
+            paymentMethod: currentPaymentMethod,
+            paidAt: now
+        };
     });
-    saveAllOrders(orders);
 
-    localStorage.setItem(getPendingReviewKey(), String(paymentId));
-
+    saveAllOrders(updatedOrders);
+    setPendingReviewPaymentId(paymentId);
     renderPaymentHistory();
     renderOrderStatus();
-
-    closeModal(document.getElementById("paymentModal"));
-
-    currentPaymentMethod = "";
-    currentPaymentContext = null;
-    paymentActionAllowed = false;
-
-    window.openReviewModal(paymentRecord);
+    closeModal(paymentModal);
+    resetPaymentFlowState();
+    openReviewModal(paymentRecord);
     applyOrderingState();
     showToast("Payment recorded");
 }
 
-// ==========================================
-// 9. REVIEW LOGIC
-// ==========================================
-window.openReviewModal = function (paymentRecordParam) {
-    let reviewModal = document.getElementById("reviewModal");
-    let summaryText = document.getElementById("reviewSummaryText");
-    if (reviewModal === null) return;
-
-    let targetPayment = null;
-
-    // Resolve payment record
-    if (paymentRecordParam !== undefined && paymentRecordParam !== null) {
-        targetPayment = paymentRecordParam;
-    } else {
-        let pendingId = getPendingReviewPaymentId();
-        let allPayments = getAllPayments();
-        allPayments.forEach(function (p) {
-            if (String(p.id) === String(pendingId)) targetPayment = p;
-        });
-    }
-
-    currentReviewPaymentId = targetPayment !== null ? String(targetPayment.id) : "";
-
-    // Load existing review if editing
-    let existingReview = null;
-    if (currentReviewPaymentId !== "") {
-        let allReviews = getCurrentSessionReviews();
-        allReviews.forEach(function (r) {
-            if (String(r.paymentId || "") === currentReviewPaymentId) existingReview = r;
-        });
-    }
-
-    if (summaryText !== null) {
-        if (targetPayment !== null) {
-            summaryText.innerText = "Payment received: " + targetPayment.amount + " Baht via " + (targetPayment.method || "Cash") + ". Please leave a review to finish this session.";
-        } else {
-            summaryText.innerText = "Tell us about your experience after payment.";
-        }
-    }
-
-    currentRating = 0;
-    if (existingReview !== null && existingReview.rating !== undefined) {
-        currentRating = Math.max(0, Math.min(5, Number(existingReview.rating)));
-    }
-
-    let reviewTextarea = document.getElementById("reviewTextarea");
-    if (reviewTextarea !== null) {
-        if (existingReview !== null && existingReview.comment !== undefined) reviewTextarea.value = existingReview.comment;
-        else reviewTextarea.value = "";
-    }
-
-    document.querySelectorAll("#starRating .star").forEach(function (star, index) {
-        if (index < currentRating) star.classList.add("text-[#f5b342]");
-        else star.classList.remove("text-[#f5b342]");
-    });
-
-    openModal(reviewModal);
-};
-
-window.openReviewForPayment = function (paymentId) {
-    let allPayments = getAllPayments();
-    let target = null;
-    allPayments.forEach(function (p) { if (String(p.id) === String(paymentId)) target = p; });
-    if (target === null) {
-        showToast("Payment not found for this session");
-        return;
-    }
-    window.openReviewModal(target);
-};
-
 function submitReview() {
-    let reviewTextarea = document.getElementById("reviewTextarea");
-    let reviewText = "";
-    if (reviewTextarea !== null) reviewText = reviewTextarea.value.trim();
+    const reviewTextarea = document.getElementById("reviewTextarea");
+    const reviewText = reviewTextarea ? reviewTextarea.value.trim() : "";
 
-    if (reviewText === "" && currentRating === 0) {
+    if (!reviewText && currentRating === 0) {
         showToast("Please add a rating or review before submitting");
         return;
     }
 
-    let now = new Date().toISOString();
-    let paymentId = currentReviewPaymentId;
-    if (paymentId === "") paymentId = getPendingReviewPaymentId();
+    const now = new Date().toISOString();
+    const paymentId = currentReviewPaymentId || getPendingReviewPaymentId() || "";
 
-    let reviews = getAllReviews();
-
-    // Check if we are updating an existing review
-    let existingIndex = -1;
-    if (paymentId !== "") {
-        for (let i = 0; i < reviews.length; i++) {
-            if (String(reviews[i].paymentId || "") === String(paymentId) && matchesCurrentSession(reviews[i]) === true) {
-                existingIndex = i;
-                break;
-            }
-        }
-    }
-
-    let reviewPayload = {
+    const reviews = getAllReviews();
+    const reviewPayload = {
         rating: currentRating || 0,
         comment: reviewText,
         time: now,
@@ -1284,274 +1409,400 @@ function submitReview() {
         userId: getCurrentSessionId() || "",
         paymentId: paymentId || null
     };
-
-    if (existingIndex >= 0) {
-        // Update existing
-        reviews[existingIndex].rating = reviewPayload.rating;
-        reviews[existingIndex].comment = reviewPayload.comment;
-        reviews[existingIndex].time = reviewPayload.time;
+    const existingReviewIndex = paymentId
+        ? reviews.findIndex((review) =>
+            String(review.paymentId || "") === String(paymentId) &&
+            matchesCurrentSession(review)
+        )
+        : -1;
+    if (existingReviewIndex >= 0) {
+        reviews[existingReviewIndex] = {
+            ...reviews[existingReviewIndex],
+            ...reviewPayload
+        };
     } else {
-        // Create new
         reviews.push(reviewPayload);
     }
     saveAllReviews(reviews);
 
-    if (paymentId !== "") {
-        let payments = getAllPayments();
-        payments.forEach(function (p) {
-            if (String(p.id) === String(paymentId)) {
-                p.reviewSubmitted = true;
-                p.reviewSubmittedAt = now;
-            }
+    if (paymentId) {
+        const updatedPayments = getAllPayments().map((payment) => {
+            if (String(payment.id) !== String(paymentId)) return payment;
+            return {
+                ...payment,
+                reviewSubmitted: true,
+                reviewSubmittedAt: now
+            };
         });
-        saveAllPayments(payments);
+        saveAllPayments(updatedPayments);
 
-        let orders = getAllOrders();
-        orders.forEach(function (o) {
-            if (String(o.paymentId) === String(paymentId)) o.reviewSubmittedAt = now;
+        const updatedOrders = getAllOrders().map((order) => {
+            if (String(order.paymentId) !== String(paymentId)) return order;
+            return {
+                ...order,
+                reviewSubmittedAt: now
+            };
         });
-        saveAllOrders(orders);
+        saveAllOrders(updatedOrders);
     }
 
     setOrderingLocked(true);
-    localStorage.removeItem(getPendingReviewKey());
+    clearPendingReviewPaymentId();
     currentReviewPaymentId = "";
-
     cart = [];
     updateCartUI();
-
-    closeModal(document.getElementById("reviewModal"));
+    closeModal(reviewModal);
     renderPaymentHistory();
     renderOrderStatus();
     applyOrderingState();
     showToast("Thanks for your review");
 }
 
-function logoutCustomer() {
-    localStorage.removeItem(getOrderingLockKey());
-    localStorage.removeItem(getPendingReviewKey());
-    localStorage.removeItem("open_order_status");
-    localStorage.removeItem("open_payment_modal");
-    localStorage.removeItem("open_review_modal");
-    localStorage.removeItem("cart");
-    localStorage.removeItem("cart_owner_id");
-    localStorage.removeItem("user_type");
-    localStorage.removeItem("user_id");
-    localStorage.removeItem("table_number");
-    window.location.href = "index.html";
-}
-
-
 // ==========================================
 // 10. INITIALIZATION & EVENT LISTENERS
 // ==========================================
-document.addEventListener("DOMContentLoaded", function () {
-    syncCartWithSession();
+const cartModal = document.getElementById("cartModal");
+const paymentHistoryModal = document.getElementById("paymentHistoryModal");
+const paymentModal = document.getElementById("paymentModal");
+const reviewModal = document.getElementById("reviewModal");
+const orderStatusModal = document.getElementById("orderStatusModal");
 
-    let tableDisplay = document.getElementById("tableDisplay");
-    let tNum = getCurrentTableNumber();
-    if (tableDisplay !== null && tNum !== "") {
-        tableDisplay.textContent = "Table " + tNum;
+const openCartBtn = document.getElementById("openCartModal");
+const openCartInlineBtn = document.getElementById("openCartInlineBtn");
+const closeCartBtn = document.getElementById("closeModalBtn");
+const openPaymentHistoryBtn = document.getElementById("openPaymentHistoryBtn");
+const openOrderStatusBtn = document.getElementById("openOrderStatusBtn");
+const openPaymentBtn = document.getElementById("openPaymentBtn");
+const closePaymentHistoryBtn = document.getElementById("closePaymentHistoryBtn");
+const closePaymentBtn = document.getElementById("closePaymentBtn");
+const closeOrderStatusBtn = document.getElementById("closeOrderStatusBtn");
+const clearCartBtn = document.getElementById("clearCartBtn");
+const fakeOrderBtn = document.getElementById("fakeOrderBtn");
+const confirmPaymentBtn = document.getElementById("confirmPaymentBtn");
+const searchInput = document.getElementById("menuSearch");
+const catBtns = document.querySelectorAll(".cat-btn");
+const closeItemModalBtn = document.getElementById("closeItemModalBtn");
+const itemQtyMinus = document.getElementById("itemQtyMinus");
+const itemQtyPlus = document.getElementById("itemQtyPlus");
+const itemQtyValue = document.getElementById("itemQtyValue");
+const itemAddBtn = document.getElementById("itemAddBtn");
+const tableDisplay = document.getElementById("tableDisplay");
+const logoutBtn = document.getElementById("logoutBtn");
+const submitReviewBtn = document.getElementById("submitReviewBtn");
+
+function openModal(modalEl) {
+    if (!modalEl) return;
+    modalEl.classList.remove("hidden");
+    modalEl.classList.add("flex");
+    modalEl.classList.add("modal-open");
+}
+
+function closeModal(modalEl) {
+    if (!modalEl) return;
+    modalEl.classList.add("hidden");
+    modalEl.classList.remove("flex");
+    modalEl.classList.remove("modal-open");
+}
+
+function openOrderStatusModal() {
+    if (orderStatusModal) {
+        openModal(orderStatusModal);
+    }
+    try {
+        renderOrderStatus();
+    } catch (err) {
+        const container = document.getElementById("orderStatusContainer");
+        if (container) {
+            container.innerHTML = `<div class="text-center py-5 text-[#a97a52]">Unable to load order status</div>`;
+        }
+    }
+}
+
+function openPaymentHistoryModalNow() {
+    if (!paymentHistoryModal) {
+        showToast("Payment history modal is unavailable");
+        return;
+    }
+
+    openModal(paymentHistoryModal);
+
+    try {
+        renderPaymentHistory();
+    } catch (error) {
+        console.error("Unable to render payment history", error);
+        const container = document.getElementById("paymentHistoryContainer");
+        if (container) {
+            container.innerHTML = `
+                    <div class="text-center py-5 text-[#a97a52]">
+                        Unable to load payment/review history right now.
+                    </div>
+                `;
+        }
+        showToast("Unable to load payment history");
+    }
+}
+
+window.openOrderStatusModal = openOrderStatusModal;
+window.openPaymentHistoryModalNow = openPaymentHistoryModalNow;
+window.openMenuPaymentModal = openPaymentSelectionModal;
+window.openReviewForPayment = function openReviewForPayment(paymentId) {
+    const payment = findPaymentById(paymentId);
+    if (!payment) {
+        showToast("Payment not found for this session");
+        return;
+    }
+    openReviewModal(payment);
+};
+
+// Initial Setup
+seedPresetMenusToSharedStorage();
+syncCartWithSession();
+
+if (tableDisplay) {
+    const tableNumber = getCurrentTableNumber();
+    if (tableNumber) {
+        tableDisplay.textContent = `Table ${tableNumber}`;
         tableDisplay.classList.remove("hidden");
     }
+}
 
-    // Modal Triggers
-    const openCartBtn = document.getElementById("openCartModal");
-    if (openCartBtn !== null) openCartBtn.addEventListener("click", function () {
-        if (isOrderCreationDisabled() === true) { showToast(getOrderingDisabledMessage()); return; }
+// Attach Event Listeners
+if (openCartBtn) {
+    openCartBtn.addEventListener("click", () => {
+        if (isOrderCreationDisabled()) {
+            showToast(getOrderingDisabledMessage());
+            return;
+        }
         window.location.href = "cart.html";
     });
+}
 
-    const openCartInlineBtn = document.getElementById("openCartInlineBtn");
-    if (openCartInlineBtn !== null) openCartInlineBtn.addEventListener("click", function () {
-        if (isOrderCreationDisabled() === true) { showToast(getOrderingDisabledMessage()); return; }
+if (openCartInlineBtn) {
+    openCartInlineBtn.addEventListener("click", () => {
+        if (isOrderCreationDisabled()) {
+            showToast(getOrderingDisabledMessage());
+            return;
+        }
         window.location.href = "cart.html";
     });
+}
 
-    const closeCartBtn = document.getElementById("closeModalBtn");
-    if (closeCartBtn !== null) closeCartBtn.addEventListener("click", function () { closeModal(document.getElementById("cartModal")); });
-
-    const closeItemModalBtn = document.getElementById("closeItemModalBtn");
-    if (closeItemModalBtn !== null) closeItemModalBtn.addEventListener("click", function () { closeModal(document.getElementById("itemModal")); });
-
-    const openPaymentHistoryBtn = document.getElementById("openPaymentHistoryBtn");
-    if (openPaymentHistoryBtn !== null) openPaymentHistoryBtn.addEventListener("click", window.openPaymentHistoryModalNow);
-
-    const closePaymentHistoryBtn = document.getElementById("closePaymentHistoryBtn");
-    if (closePaymentHistoryBtn !== null) closePaymentHistoryBtn.addEventListener("click", function () { closeModal(document.getElementById("paymentHistoryModal")); });
-
-    const openOrderStatusBtn = document.getElementById("openOrderStatusBtn");
-    if (openOrderStatusBtn !== null) openOrderStatusBtn.addEventListener("click", function (e) { e.preventDefault(); window.openOrderStatusModal(); });
-
-    const closeOrderStatusBtn = document.getElementById("closeOrderStatusBtn");
-    if (closeOrderStatusBtn !== null) closeOrderStatusBtn.addEventListener("click", function () { closeModal(document.getElementById("orderStatusModal")); });
-
-    const openPaymentBtn = document.getElementById("openPaymentBtn");
-    if (openPaymentBtn !== null) openPaymentBtn.addEventListener("click", function (e) { e.preventDefault(); window.openMenuPaymentModal(); });
-
-    const closePaymentBtn = document.getElementById("closePaymentBtn");
-    if (closePaymentBtn !== null) closePaymentBtn.addEventListener("click", function () {
-        closeModal(document.getElementById("paymentModal"));
-        currentPaymentMethod = "";
-        currentPaymentContext = null;
-        paymentActionAllowed = false;
+if (closeCartBtn) {
+    closeCartBtn.addEventListener("click", () => {
+        closeModal(cartModal);
     });
+}
 
-    // Category Buttons
-    const catBtns = document.querySelectorAll(".cat-btn");
-    catBtns.forEach(function (btn) {
-        btn.addEventListener("click", function () {
-            catBtns.forEach(function (b) {
-                b.classList.remove("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-[#7a4e2f]");
-                b.classList.add("bg-[#fbf5ee]", "text-[#7a4e2f]", "border-[#e6d7c7]");
-            });
-            btn.classList.remove("bg-[#fbf5ee]", "text-[#7a4e2f]", "border-[#e6d7c7]");
-            btn.classList.add("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-[#7a4e2f]");
+if (closeItemModalBtn) {
+    closeItemModalBtn.addEventListener("click", closeItemModal);
+}
 
-            currentCategory = btn.getAttribute("data-cat");
-            renderMenu();
-        });
+if (openPaymentHistoryBtn) {
+    openPaymentHistoryBtn.addEventListener("click", openPaymentHistoryModalNow);
+}
+
+if (openOrderStatusBtn) {
+    openOrderStatusBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        openOrderStatusModal();
     });
+}
 
-    // Search
-    const searchInput = document.getElementById("menuSearch");
-    if (searchInput !== null) {
-        searchInput.addEventListener("input", function () {
-            searchKeyword = this.value;
-            renderMenu();
-        });
-    }
+if (logoutBtn) {
+    logoutBtn.addEventListener("click", logoutCustomer);
+}
 
-    // Item Adding
-    const itemQtyMinus = document.getElementById("itemQtyMinus");
-    const itemQtyValue = document.getElementById("itemQtyValue");
-    if (itemQtyMinus !== null) {
-        itemQtyMinus.addEventListener("click", function () {
-            if (currentQty > 1) {
-                currentQty = currentQty - 1;
-                itemQtyValue.innerText = String(currentQty);
-            }
-        });
-    }
+if (closePaymentHistoryBtn) {
+    closePaymentHistoryBtn.addEventListener("click", () => {
+        closeModal(paymentHistoryModal);
+    });
+}
 
-    const itemQtyPlus = document.getElementById("itemQtyPlus");
-    if (itemQtyPlus !== null) {
-        itemQtyPlus.addEventListener("click", function () {
-            currentQty = currentQty + 1;
+if (openPaymentBtn) {
+    openPaymentBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        openPaymentSelectionModal();
+    });
+}
+
+if (closePaymentBtn) {
+    closePaymentBtn.addEventListener("click", () => {
+        closeModal(paymentModal);
+        resetPaymentFlowState();
+    });
+}
+
+document.querySelectorAll(".payment-method-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+        currentPaymentMethod = button.dataset.method || "";
+        updatePaymentMethodUI();
+    });
+});
+
+if (confirmPaymentBtn) {
+    confirmPaymentBtn.addEventListener("click", confirmPaymentSelection);
+}
+
+if (closeOrderStatusBtn) {
+    closeOrderStatusBtn.addEventListener("click", () => {
+        closeModal(orderStatusModal);
+    });
+}
+
+if (itemQtyMinus) {
+    itemQtyMinus.addEventListener("click", () => {
+        if (currentQty > 1) {
+            currentQty -= 1;
             itemQtyValue.innerText = String(currentQty);
-        });
-    }
+        }
+    });
+}
 
-    const itemAddBtn = document.getElementById("itemAddBtn");
-    if (itemAddBtn !== null) itemAddBtn.addEventListener("click", addToCart);
+if (itemQtyPlus) {
+    itemQtyPlus.addEventListener("click", () => {
+        currentQty += 1;
+        itemQtyValue.innerText = String(currentQty);
+    });
+}
 
-    // Cart Management
-    const clearCartBtn = document.getElementById("clearCartBtn");
-    if (clearCartBtn !== null) {
-        clearCartBtn.addEventListener("click", function () {
-            if (isOrderCreationDisabled() === true) { showToast(getOrderingDisabledMessage()); return; }
-            if (cart.length > 0) {
-                cart = [];
-                updateCartUI();
-                showToast("Cleared all items");
+if (itemAddBtn) {
+    itemAddBtn.addEventListener("click", () => {
+        if (!currentMenuItem) return;
+        const note = document.getElementById("itemModalNote").value.trim();
+        const options = currentSelections.length ? currentSelections.map((option) => ({ ...option })) : null;
+        addToCart(currentMenuItem, options, currentQty, note);
+        if (!isOrderCreationDisabled()) {
+            closeItemModal();
+        }
+    });
+}
+
+if (clearCartBtn) {
+    clearCartBtn.addEventListener("click", () => {
+        if (isOrderCreationDisabled()) {
+            showToast(getOrderingDisabledMessage());
+            return;
+        }
+        if (cart.length > 0) {
+            cart = [];
+            updateCartUI();
+            showToast("Cleared all items");
+        } else {
+            showToast("Cart is already empty");
+        }
+    });
+}
+
+if (fakeOrderBtn) {
+    fakeOrderBtn.addEventListener("click", () => {
+        if (isOrderCreationDisabled()) {
+            showToast(getOrderingDisabledMessage());
+            return;
+        }
+        if (!cart.length) {
+            showToast("Please add items before ordering");
+            return;
+        }
+
+        const persisted = persistOrderToLocal();
+        if (!persisted) return;
+
+        cart = [];
+        updateCartUI();
+        openOrderStatusModal();
+        showToast("Order sent to kitchen");
+    });
+}
+
+document.querySelectorAll("#starRating .star").forEach((star) => {
+    star.addEventListener("click", () => {
+        currentRating = parseInt(star.dataset.value || "0", 10);
+        document.querySelectorAll("#starRating .star").forEach((item, index) => {
+            if (index < currentRating) {
+                item.classList.add("text-[#f5b342]");
             } else {
-                showToast("Cart is already empty");
+                item.classList.remove("text-[#f5b342]");
             }
         });
-    }
+    });
+});
 
-    const fakeOrderBtn = document.getElementById("fakeOrderBtn");
-    if (fakeOrderBtn !== null) {
-        fakeOrderBtn.addEventListener("click", placeOrder);
-    }
+if (submitReviewBtn) {
+    submitReviewBtn.addEventListener("click", submitReview);
+}
 
-    // Payment Selection
-    document.querySelectorAll(".payment-method-btn").forEach(function (button) {
-        button.addEventListener("click", function () {
-            currentPaymentMethod = button.dataset.method || "";
-            updatePaymentMethodUI();
+catBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+        catBtns.forEach((button) => {
+            button.classList.remove("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-[#7a4e2f]");
+            button.classList.add("bg-[#fbf5ee]", "text-[#7a4e2f]", "border-[#e6d7c7]");
         });
+        btn.classList.remove("bg-[#fbf5ee]", "text-[#7a4e2f]", "border-[#e6d7c7]");
+        btn.classList.add("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-[#7a4e2f]");
+        currentCategory = btn.getAttribute("data-cat");
+        renderMenu();
     });
+});
 
-    const confirmPaymentBtn = document.getElementById("confirmPaymentBtn");
-    if (confirmPaymentBtn !== null) confirmPaymentBtn.addEventListener("click", confirmPaymentSelection);
-
-    // Review Stars
-    document.querySelectorAll("#starRating .star").forEach(function (star) {
-        star.addEventListener("click", function () {
-            currentRating = parseInt(star.dataset.value || "0", 10);
-            document.querySelectorAll("#starRating .star").forEach(function (item, index) {
-                if (index < currentRating) item.classList.add("text-[#f5b342]");
-                else item.classList.remove("text-[#f5b342]");
-            });
-        });
+if (searchInput) {
+    searchInput.addEventListener("input", function () {
+        searchKeyword = this.value;
+        renderMenu();
     });
+}
 
-    const submitReviewBtn = document.getElementById("submitReviewBtn");
-    if (submitReviewBtn !== null) submitReviewBtn.addEventListener("click", submitReview);
-
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn !== null) logoutBtn.addEventListener("click", logoutCustomer);
-
-    // Global click listener to close modals
-    window.addEventListener("click", function (event) {
-        let cartModal = document.getElementById("cartModal");
-        let payHisModal = document.getElementById("paymentHistoryModal");
-        let payModal = document.getElementById("paymentModal");
-        let statModal = document.getElementById("orderStatusModal");
-        let itModal = document.getElementById("itemModal");
-
-        if (event.target === cartModal) closeModal(cartModal);
-        if (event.target === payHisModal) closeModal(payHisModal);
-        if (event.target === statModal) closeModal(statModal);
-        if (event.target === itModal) closeModal(itModal);
-        if (event.target === payModal) {
-            closeModal(payModal);
-            currentPaymentMethod = "";
-            currentPaymentContext = null;
-            paymentActionAllowed = false;
-        }
-    });
-
-    // Storage sync for multiple tabs
-    window.addEventListener("storage", function (event) {
-        let eventKey = event.key || "";
-        let validKeys = ["orders", "payments", "reviews", "cart", "cart_owner_id", "menus"];
-        let isValid = false;
-
-        validKeys.forEach(function (vk) { if (eventKey === vk) isValid = true; });
-        if (eventKey.indexOf("ordering_locked_after_review_") === 0) isValid = true;
-        if (eventKey.indexOf("pending_review_payment_") === 0) isValid = true;
-
-        if (isValid === true) {
-            syncCartWithSession();
-            renderPaymentHistory();
-            renderOrderStatus();
-            applyOrderingState();
-        }
-    });
-
-    // Check for open modal flags from other pages (like cart.html)
-    if (localStorage.getItem("open_order_status") === "1") {
-        localStorage.removeItem("open_order_status");
-        window.openOrderStatusModal();
+window.addEventListener("click", (event) => {
+    if (event.target === cartModal) closeModal(cartModal);
+    if (event.target === paymentHistoryModal) closeModal(paymentHistoryModal);
+    if (event.target === paymentModal) {
+        closeModal(paymentModal);
+        resetPaymentFlowState();
     }
-    if (localStorage.getItem("open_payment_modal") === "1") {
-        localStorage.removeItem("open_payment_modal");
-        window.openMenuPaymentModal();
-    }
-    if (localStorage.getItem("open_review_modal") === "1") {
-        localStorage.removeItem("open_review_modal");
-        window.openReviewModal();
+    if (event.target === orderStatusModal) closeModal(orderStatusModal);
+    if (event.target === document.getElementById("itemModal")) closeItemModal();
+});
+
+window.addEventListener("storage", (event) => {
+    const eventKey = event.key || "";
+    if (
+        !["orders", "payments", "reviews", "cart", "cart_owner_id", "menus"].includes(eventKey) &&
+        !eventKey.startsWith("ordering_locked_after_review_") &&
+        !eventKey.startsWith("pending_review_payment_")
+    ) {
+        return;
     }
 
-    renderMenu();
-    updateCartUI();
+    syncCartWithSession();
     renderPaymentHistory();
     renderOrderStatus();
     applyOrderingState();
-
-    if (getPendingReviewPaymentId() !== "" && isOrderingLocked() === false) {
-        window.openReviewModal();
-    }
 });
+
+// Final Setup Checks
+const shouldOpenStatus = localStorage.getItem("open_order_status");
+if (shouldOpenStatus === "1") {
+    localStorage.removeItem("open_order_status");
+    openOrderStatusModal();
+}
+
+const shouldOpenPaymentModal = localStorage.getItem("open_payment_modal");
+if (shouldOpenPaymentModal === "1") {
+    localStorage.removeItem("open_payment_modal");
+    openPaymentSelectionModal();
+}
+
+const shouldOpenReviewModal = localStorage.getItem("open_review_modal");
+if (shouldOpenReviewModal === "1") {
+    localStorage.removeItem("open_review_modal");
+    openReviewModal();
+}
+
+renderMenu();
+updateCartUI();
+renderPaymentHistory();
+renderOrderStatus();
+applyOrderingState();
+
+if (getPendingReviewPaymentId() && !isOrderingLocked()) {
+    openReviewModal();
+}

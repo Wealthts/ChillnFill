@@ -23,22 +23,17 @@ function matchesCurrentSession(record) {
 
     const sessionId = getCurrentSessionId();
     const tableNumber = getCurrentTableNumber();
-    const customerSession = isCustomerSession();
-
-    if (customerSession && tableNumber) {
-        if (String(record.table || "") === String(tableNumber)) return true;
-    }
 
     if (sessionId && record.userId) {
         return String(record.userId) === String(sessionId);
     }
 
-    if (sessionId && !record.userId && tableNumber) {
-        return String(record.table) === String(tableNumber);
+    if (sessionId && !record.userId) {
+        return false;
     }
 
     if (tableNumber) {
-        return String(record.table) === String(tableNumber);
+        return String(record.table || "") === String(tableNumber);
     }
 
     return true;

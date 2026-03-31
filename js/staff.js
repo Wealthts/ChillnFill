@@ -24,15 +24,25 @@ async function findApiPath() {
     }
 
     const possiblePaths = [
-        window.location.origin + '/restaurant-system/api/',
-        window.location.origin + '/restaurant-system/',
+        'http://localhost:3000/api/',
+        'http://127.0.0.1:3000/api/',
         'http://localhost/restaurant-system/api/',
-        'http://localhost/restaurant-system/'
+        'http://127.0.0.1/restaurant-system/api/'
     ];
 
     for (const path of possiblePaths) {
         try {
             const testUrl = path + 'get_session.php';
+            const healthUrl = path.endsWith('/api/') ? path.replace(/\/api\/$/, '/api/health') : '';
+
+            if (healthUrl) {
+                const healthResponse = await fetch(healthUrl, { method: 'GET' });
+                const healthType = healthResponse.headers.get('content-type') || '';
+                if (healthResponse.ok && healthType.includes('application/json')) {
+                    return normalizeBase(path);
+                }
+            }
+
             const response = await fetch(testUrl, { method: 'GET' });
             const contentType = response.headers.get('content-type') || '';
             if (response.ok && contentType.includes('application/json')) {
@@ -41,7 +51,7 @@ async function findApiPath() {
         } catch (e) {
         }
     }
-    return normalizeBase(window.location.origin + '/restaurant-system/api/');
+    return '';
 }
 
 async function parseJsonResponse(response) {
@@ -157,6 +167,7 @@ async function registerCookFromStaff() {
     }
 
     try {
+        if (!API_BASE) throw new Error('API unavailable');
         const response = await fetch(`${API_BASE}cook_register.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -213,6 +224,7 @@ async function staffLogin() {
     }
 
     try {
+        if (!API_BASE) throw new Error('API unavailable');
         const response = await fetch(`${API_BASE}staff_login.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -249,6 +261,7 @@ async function staffLogin() {
     } catch (error) {
         // Fallback: try cook login if unified endpoint is not available
         try {
+            if (!API_BASE) throw new Error('API unavailable');
             const response = await fetch(`${API_BASE}cook_login.php`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

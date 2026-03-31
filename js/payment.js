@@ -1,225 +1,128 @@
-function safeParseJSON(value, fallback) {
+const $ = (id) => document.getElementById(id);
+const paymentNotice = $("paymentNotice");
+const paymentSummary = $("paymentSummary");
+const confirmPaymentBtn = $("confirmPaymentBtn");
+const reviewCard = $("reviewCard");
+const reviewSummaryText = $("reviewSummaryText");
+const reviewTextarea = $("reviewTextarea");
+const submitReviewBtn = $("submitReviewBtn");
+const paymentTableText = $("paymentTableText");
+
+const sessionId = () => localStorage.getItem("user_id") || "";
+const tableNumber = () => localStorage.getItem("table_number") || "";
+const isCustomer = () => (localStorage.getItem("user_type") || "").toLowerCase() === "customer";
+const read = (key, fallback = []) => {
     try {
-        return JSON.parse(value);
-    } catch (err) {
+        return JSON.parse(localStorage.getItem(key)) ?? fallback;
+    } catch {
         return fallback;
     }
+};
+const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+const scopeKey = (prefix) => {
+    const table = tableNumber();
+    if (isCustomer() && table) return `${prefix}table_${table}`;
+    return `${prefix}${sessionId() || table || "guest"}`;
+};
+
+const state = {
+    context: null,
+    method: "",
+    paymentId: "",
+    rating: 0
+};
+
+function notice(message = "") {
+    if (!paymentNotice) return;
+    paymentNotice.innerText = message;
+    paymentNotice.classList.toggle("hidden", !message);
 }
 
-function getCurrentSessionId() {
-    return localStorage.getItem("user_id") || "";
-}
-
-function getCurrentTableNumber() {
-    return localStorage.getItem("table_number") || "";
-}
-
-function isCustomerSession() {
-    return String(localStorage.getItem("user_type") || "").toLowerCase() === "customer";
-}
-
-function getScopedStorageKey(prefix) {
-    const tableNumber = getCurrentTableNumber();
-    if (isCustomerSession() && tableNumber) {
-        return `${prefix}table_${tableNumber}`;
-    }
-    return `${prefix}${getCurrentSessionId() || tableNumber || "guest"}`;
-}
-
-function getOrderingLockKey() {
-    return getScopedStorageKey("ordering_locked_after_review_");
-}
-
-function getPendingReviewKey() {
-    return getScopedStorageKey("pending_review_payment_");
-}
-
-function isOrderingLocked() {
-    return localStorage.getItem(getOrderingLockKey()) === "1";
+function toggleButton(button, disabled) {
+    if (!button) return;
+    button.disabled = disabled;
+    button.classList.toggle("opacity-60", disabled);
+    button.classList.toggle("cursor-not-allowed", disabled);
 }
 
 function setOrderingLocked(locked) {
-    if (locked) {
-        localStorage.setItem(getOrderingLockKey(), "1");
-        return;
-    }
-    localStorage.removeItem(getOrderingLockKey());
+    const key = scopeKey("ordering_locked_after_review_");
+    if (locked) localStorage.setItem(key, "1");
+    else localStorage.removeItem(key);
+}
+
+function isOrderingLocked() {
+    return localStorage.getItem(scopeKey("ordering_locked_after_review_")) === "1";
 }
 
 function getPendingReviewPaymentId() {
-    return localStorage.getItem(getPendingReviewKey()) || "";
+    return localStorage.getItem(scopeKey("pending_review_payment_")) || "";
 }
 
-function setPendingReviewPaymentId(paymentId) {
-    localStorage.setItem(getPendingReviewKey(), String(paymentId));
+function setPendingReviewPaymentId(id) {
+    localStorage.setItem(scopeKey("pending_review_payment_"), String(id));
 }
 
 function clearPendingReviewPaymentId() {
-    localStorage.removeItem(getPendingReviewKey());
-}
-
-function getAllOrders() {
-    return safeParseJSON(localStorage.getItem("orders"), []) || [];
-}
-
-function saveAllOrders(orders) {
-    localStorage.setItem("orders", JSON.stringify(orders));
-}
-
-function getAllPayments() {
-    return safeParseJSON(localStorage.getItem("payments"), []) || [];
-}
-
-function saveAllPayments(payments) {
-    localStorage.setItem("payments", JSON.stringify(payments));
-}
-
-function getAllReviews() {
-    return safeParseJSON(localStorage.getItem("reviews"), []) || [];
-}
-
-function saveAllReviews(reviews) {
-    localStorage.setItem("reviews", JSON.stringify(reviews));
-}
-
-function getCurrentSessionPayments() {
-    const payments = getAllPayments();
-    const scoped = payments.filter(matchesCurrentSession);
-    if (scoped.length > 0) return scoped;
-
-    const tableNumber = getCurrentTableNumber();
-    if (!tableNumber) return scoped;
-    return payments.filter((payment) => String(payment.table || "") === String(tableNumber));
-}
-
-function getCurrentSessionReviews() {
-    const reviews = getAllReviews();
-    const scoped = reviews.filter(matchesCurrentSession);
-    if (scoped.length > 0) return scoped;
-
-    const paymentIdSet = new Set(getCurrentSessionPayments().map((payment) => String(payment.id)));
-    if (!paymentIdSet.size) return scoped;
-    return reviews.filter((review) => paymentIdSet.has(String(review.paymentId || "")));
-}
-
-function getReviewByPaymentId(paymentId) {
-    if (!paymentId) return null;
-    const target = String(paymentId);
-    const matched = getCurrentSessionReviews()
-        .filter((review) => String(review.paymentId || "") === target)
-        .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-    return matched[0] || null;
+    localStorage.removeItem(scopeKey("pending_review_payment_"));
 }
 
 function matchesCurrentSession(record) {
     if (!record) return false;
 
-    const sessionId = getCurrentSessionId();
-    const tableNumber = getCurrentTableNumber();
-    const customerSession = isCustomerSession();
-
-    if (customerSession && tableNumber) {
-        if (String(record.table || "") === String(tableNumber)) return true;
+    if (sessionId() && record.userId) {
+        return String(record.userId) === String(sessionId());
     }
 
-    if (sessionId && record.userId) {
-        return String(record.userId) === String(sessionId);
+    if (sessionId() && !record.userId) {
+        return false;
     }
 
-    if (sessionId && !record.userId && tableNumber) {
-        return String(record.table) === String(tableNumber);
-    }
-
-    if (tableNumber) {
-        return String(record.table) === String(tableNumber);
+    if (tableNumber()) {
+        return String(record.table || "") === String(tableNumber());
     }
 
     return true;
 }
 
-function renderStars(rating) {
-    const value = Math.max(0, Math.min(5, Number(rating) || 0));
-    const filled = "★".repeat(value);
-    const empty = "☆".repeat(5 - value);
-    return `${filled}${empty}`;
+function isPaid(order) {
+    return Boolean(order?.paymentId || order?.paidAt || String(order?.paymentStatus || "").toLowerCase() === "paid");
 }
 
-function isServedStatus(status) {
-    const normalized = String(status || "").toLowerCase();
-    return normalized === "serving" || normalized === "served" || normalized === "completed" || normalized === "done";
+function isCancelled(status) {
+    return ["cancelled", "canceled"].includes(String(status || "").toLowerCase());
 }
 
-function isCancelledStatus(status) {
-    const normalized = String(status || "").toLowerCase();
-    return normalized === "cancelled" || normalized === "canceled";
-}
-
-function isPaidOrder(order) {
-    return Boolean(order && (order.paymentId || order.paidAt || String(order.paymentStatus || "").toLowerCase() === "paid"));
+function isServed(status) {
+    return ["serving", "served", "completed", "done"].includes(String(status || "").toLowerCase());
 }
 
 function getOutstandingOrders() {
-    return getAllOrders().filter((order) => matchesCurrentSession(order) && !isPaidOrder(order) && !isCancelledStatus(order.status));
+    return read("orders").filter((order) => matchesCurrentSession(order) && !isPaid(order) && !isCancelled(order.status));
 }
 
-function areOrdersReadyForPayment(orders) {
-    return orders.length > 0 && orders.every((order) => isServedStatus(order.status));
-}
-
-function getOrderItemsText(order) {
-    const itemsArray = Array.isArray(order.items) ? order.items : [];
-    if (!itemsArray.length) return "-";
-    return itemsArray.map((item) => `${item.name} x${item.qty}`).join(", ");
-}
-
-function buildPaymentContext(orders) {
-    const normalizedOrders = [...orders].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
-    const items = normalizedOrders.flatMap((order) => {
-        const sourceItems = Array.isArray(order.items) ? order.items : [];
-        return sourceItems.map((item) => ({
+function buildContext(orders) {
+    const sorted = [...orders].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+    return {
+        orders: sorted,
+        orderIds: sorted.map((order) => order.id),
+        items: sorted.flatMap((order) => (order.items || []).map((item) => ({
             name: item.name,
             qty: item.qty,
             price: item.price || 0,
             orderId: order.id
-        }));
-    });
-
-    return {
-        orders: normalizedOrders,
-        items,
-        orderIds: normalizedOrders.map((order) => order.id),
-        total: normalizedOrders.reduce((sum, order) => sum + Number(order.total || 0), 0)
+        }))),
+        total: sorted.reduce((sum, order) => sum + Number(order.total || 0), 0)
     };
 }
 
-let currentPaymentContext = null;
-let currentPaymentMethod = "";
-let currentPaymentId = "";
-let currentRating = 0;
-
-const paymentNotice = document.getElementById("paymentNotice");
-const paymentSummary = document.getElementById("paymentSummary");
-const confirmPaymentBtn = document.getElementById("confirmPaymentBtn");
-const reviewCard = document.getElementById("reviewCard");
-const reviewSummaryText = document.getElementById("reviewSummaryText");
-const reviewTextarea = document.getElementById("reviewTextarea");
-const submitReviewBtn = document.getElementById("submitReviewBtn");
-const paymentTableText = document.getElementById("paymentTableText");
-
-function showNotice(message) {
-    if (!paymentNotice) return;
-    if (!message) {
-        paymentNotice.innerText = "";
-        paymentNotice.classList.add("hidden");
-        return;
-    }
-    paymentNotice.innerText = message;
-    paymentNotice.classList.remove("hidden");
+function itemText(order) {
+    return (order.items || []).map((item) => `${item.name} x${item.qty}`).join(", ") || "-";
 }
 
 function renderSummary(context) {
     if (!paymentSummary) return;
-    if (!context || !context.orders || !context.orders.length) {
+    if (!context?.orders?.length) {
         paymentSummary.innerHTML = "";
         return;
     }
@@ -243,192 +146,125 @@ function renderSummary(context) {
                     <div class="font-bold text-[#5f4028]">Order #${order.id}</div>
                     <div class="text-sm font-semibold text-[#7a4e2f]">${order.total || 0} Baht</div>
                 </div>
-                <div class="text-sm text-[#a97a52]">${getOrderItemsText(order)}</div>
+                <div class="text-sm text-[#a97a52]">${itemText(order)}</div>
             </div>
         `).join("")}
     `;
 }
 
 function showReviewCard(message) {
-    if (!reviewCard) return;
     if (reviewSummaryText) reviewSummaryText.innerText = message;
-    reviewCard.classList.remove("hidden");
+    reviewCard?.classList.remove("hidden");
 }
 
 function confirmPayment() {
-    if (!currentPaymentContext || !currentPaymentContext.orders.length) {
-        showNotice("No unpaid orders for this session");
-        return;
-    }
+    if (!state.context?.orders?.length) return notice("No unpaid orders for this session");
+    if (!state.method) return notice("Please choose a payment method");
 
-    if (!currentPaymentMethod) {
-        showNotice("Please choose a payment method");
-        return;
-    }
-
-    const paymentId = Date.now();
     const now = new Date().toISOString();
-    const orderIdSet = new Set(currentPaymentContext.orderIds.map((orderId) => String(orderId)));
-
-    const paymentRecord = {
+    const paymentId = Date.now();
+    const payment = {
         id: paymentId,
-        orderId: currentPaymentContext.orderIds.join(", "),
-        orderIds: [...currentPaymentContext.orderIds],
-        table: getCurrentTableNumber() || "-",
-        userId: getCurrentSessionId() || "",
-        items: currentPaymentContext.items.map((item) => ({
-            name: item.name,
-            qty: item.qty,
-            price: item.price || 0,
-            orderId: item.orderId
-        })),
-        amount: currentPaymentContext.total,
+        orderId: state.context.orderIds.join(", "),
+        orderIds: [...state.context.orderIds],
+        table: tableNumber() || "-",
+        userId: sessionId() || "",
+        items: state.context.items,
+        amount: state.context.total,
         time: now,
-        method: currentPaymentMethod,
+        method: state.method,
         status: "paid"
     };
 
-    const payments = getAllPayments();
-    payments.push(paymentRecord);
-    saveAllPayments(payments);
+    write("payments", [...read("payments"), payment]);
+    write("orders", read("orders").map((order) =>
+        state.context.orderIds.includes(order.id)
+            ? { ...order, paymentId, paymentStatus: "paid", paymentMethod: state.method, paidAt: now }
+            : order
+    ));
 
-    const updatedOrders = getAllOrders().map((order) => {
-        if (!orderIdSet.has(String(order.id))) return order;
-        return {
-            ...order,
-            paymentId,
-            paymentStatus: "paid",
-            paymentMethod: currentPaymentMethod,
-            paidAt: now
-        };
-    });
-    saveAllOrders(updatedOrders);
-
-    currentPaymentId = String(paymentId);
+    state.paymentId = String(paymentId);
     setPendingReviewPaymentId(paymentId);
-    showNotice("Payment completed. Please leave a review.");
-    showReviewCard(`Payment received: ${paymentRecord.amount} Baht via ${paymentRecord.method}. Please leave a review to finish this session.`);
-
-    if (confirmPaymentBtn) {
-        confirmPaymentBtn.disabled = true;
-        confirmPaymentBtn.classList.add("opacity-60", "cursor-not-allowed");
-    }
-
+    toggleButton(confirmPaymentBtn, true);
+    notice("Payment completed. Please leave a review.");
+    showReviewCard(`Payment received: ${payment.amount} Baht via ${payment.method}. Please leave a review to finish this session.`);
 }
 
 function submitReview() {
-    const reviewText = reviewTextarea ? reviewTextarea.value.trim() : "";
-
-    if (!reviewText && currentRating === 0) {
-        showNotice("Please add a rating or review before submitting");
-        return;
-    }
+    const comment = reviewTextarea?.value.trim() || "";
+    if (!comment && !state.rating) return notice("Please add a rating or review before submitting");
 
     const now = new Date().toISOString();
-    const paymentId = currentPaymentId || getPendingReviewPaymentId() || "";
-
-    const reviews = getAllReviews();
-    reviews.push({
-        rating: currentRating || 0,
-        comment: reviewText,
+    const paymentId = state.paymentId || getPendingReviewPaymentId();
+    const review = {
+        rating: state.rating || 0,
+        comment,
         time: now,
-        table: getCurrentTableNumber() || "-",
-        userId: getCurrentSessionId() || "",
+        table: tableNumber() || "-",
+        userId: sessionId() || "",
         paymentId: paymentId || null
-    });
-    saveAllReviews(reviews);
+    };
+
+    write("reviews", [...read("reviews"), review]);
 
     if (paymentId) {
-        const updatedPayments = getAllPayments().map((payment) => {
-            if (String(payment.id) !== String(paymentId)) return payment;
-            return {
-                ...payment,
-                reviewSubmitted: true,
-                reviewSubmittedAt: now
-            };
-        });
-        saveAllPayments(updatedPayments);
-
-        const updatedOrders = getAllOrders().map((order) => {
-            if (String(order.paymentId) !== String(paymentId)) return order;
-            return {
-                ...order,
-                reviewSubmittedAt: now
-            };
-        });
-        saveAllOrders(updatedOrders);
+        write("payments", read("payments").map((payment) =>
+            String(payment.id) === String(paymentId)
+                ? { ...payment, reviewSubmitted: true, reviewSubmittedAt: now }
+                : payment
+        ));
+        write("orders", read("orders").map((order) =>
+            String(order.paymentId) === String(paymentId)
+                ? { ...order, reviewSubmittedAt: now }
+                : order
+        ));
     }
 
     setOrderingLocked(true);
     clearPendingReviewPaymentId();
-    showNotice("Thanks for your review");
-
-    if (submitReviewBtn) {
-        submitReviewBtn.disabled = true;
-        submitReviewBtn.classList.add("opacity-60", "cursor-not-allowed");
-    }
-
+    toggleButton(submitReviewBtn, true);
+    notice("Thanks for your review");
 }
 
-function initPaymentPage() {
-    const table = getCurrentTableNumber();
+function init() {
     if (paymentTableText) {
-        paymentTableText.innerText = table ? `Table ${table}` : "Table not found";
+        paymentTableText.innerText = tableNumber() ? `Table ${tableNumber()}` : "Table not found";
     }
 
     if (isOrderingLocked()) {
-        showNotice("Payment and review are complete for this session.");
-        if (confirmPaymentBtn) {
-            confirmPaymentBtn.disabled = true;
-            confirmPaymentBtn.classList.add("opacity-60", "cursor-not-allowed");
-        }
-        const pending = getPendingReviewPaymentId();
-        if (pending) {
-            currentPaymentId = pending;
-            showReviewCard("Please leave a review to finish this session.");
-        }
+        toggleButton(confirmPaymentBtn, true);
+        notice("Payment and review are complete for this session.");
+        if (getPendingReviewPaymentId()) showReviewCard("Please leave a review to finish this session.");
         return;
     }
 
     const pendingReviewId = getPendingReviewPaymentId();
     if (pendingReviewId) {
-        currentPaymentId = pendingReviewId;
-        showNotice("Payment already completed. Please leave a review.");
+        state.paymentId = pendingReviewId;
+        toggleButton(confirmPaymentBtn, true);
+        notice("Payment already completed. Please leave a review.");
         showReviewCard("Please leave a review to finish this session.");
-        if (confirmPaymentBtn) {
-            confirmPaymentBtn.disabled = true;
-            confirmPaymentBtn.classList.add("opacity-60", "cursor-not-allowed");
-        }
         return;
     }
 
-    const outstandingOrders = getOutstandingOrders();
-    if (!outstandingOrders.length) {
-        showNotice("No unpaid orders for this session");
-        if (confirmPaymentBtn) {
-            confirmPaymentBtn.disabled = true;
-            confirmPaymentBtn.classList.add("opacity-60", "cursor-not-allowed");
-        }
-        return;
+    const orders = getOutstandingOrders();
+    if (!orders.length) {
+        toggleButton(confirmPaymentBtn, true);
+        return notice("No unpaid orders for this session");
     }
 
-    if (!areOrdersReadyForPayment(outstandingOrders)) {
-        showNotice("Payment is available after all food is served");
-        if (confirmPaymentBtn) {
-            confirmPaymentBtn.disabled = true;
-            confirmPaymentBtn.classList.add("opacity-60", "cursor-not-allowed");
-        }
-        renderSummary(buildPaymentContext(outstandingOrders));
-        return;
-    }
+    state.context = buildContext(orders);
+    renderSummary(state.context);
 
-    currentPaymentContext = buildPaymentContext(outstandingOrders);
-    renderSummary(currentPaymentContext);
+    if (!orders.every((order) => isServed(order.status))) {
+        toggleButton(confirmPaymentBtn, true);
+        return notice("Payment is available after all food is served");
+    }
 }
 
 document.querySelectorAll(".payment-method-btn").forEach((button) => {
     button.addEventListener("click", () => {
-        currentPaymentMethod = button.dataset.method || "";
+        state.method = button.dataset.method || "";
         document.querySelectorAll(".payment-method-btn").forEach((item) => {
             item.classList.remove("border-[#7a4e2f]", "bg-[#fff4e8]", "ring-2", "ring-[#7a4e2f]/20");
         });
@@ -438,17 +274,13 @@ document.querySelectorAll(".payment-method-btn").forEach((button) => {
 
 document.querySelectorAll("#starRating .star").forEach((star) => {
     star.addEventListener("click", () => {
-        currentRating = parseInt(star.dataset.value || "0", 10);
+        state.rating = Number(star.dataset.value || 0);
         document.querySelectorAll("#starRating .star").forEach((item, index) => {
-            if (index < currentRating) {
-                item.classList.add("text-[#f5b342]");
-            } else {
-                item.classList.remove("text-[#f5b342]");
-            }
+            item.classList.toggle("text-[#f5b342]", index < state.rating);
         });
     });
 });
 
-if (confirmPaymentBtn) confirmPaymentBtn.addEventListener("click", confirmPayment);
-if (submitReviewBtn) submitReviewBtn.addEventListener("click", submitReview);
-initPaymentPage();
+confirmPaymentBtn?.addEventListener("click", confirmPayment);
+submitReviewBtn?.addEventListener("click", submitReview);
+init();

@@ -13,7 +13,7 @@ if ($data === null) {
 $table_number = $data['table_number'] ?? null;
 
 if (!$table_number) {
-    jsonResponse(['success' => false, 'message' => 'กรุณากรอกหมายเลขโต๊ะ'], 400);
+    jsonResponse(['success' => false, 'message' => 'Please enter table number'], 400);
 }
 
 try {
@@ -31,8 +31,8 @@ try {
         'user_id' => $session_id,
         'timestamp' => date('Y-m-d H:i:s'),
         'table_number' => $table_number,
-        'message' => 'เข้าสู่ระบบสำเร็จ'
+        'message' => 'Login successful'
     ]);
 } catch (Exception $e) {
-    jsonResponse(['success' => false, 'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()], 500);
+    jsonResponse(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
 }

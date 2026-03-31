@@ -1,5 +1,7 @@
 let editCookIndex = null;
 let editMenuIndex = null;
+const COOKS_API_BASE = "/restaurant-system/api/admin_cooks.php";
+let cookRows = [];
 
 function toDateInputValue(date){
   const year = date.getFullYear();
@@ -194,6 +196,55 @@ function safeParseJson(value, fallback){
   } catch (err) {
     return fallback;
   }
+}
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+async function apiRequest(url, options = {}){
+  const response = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.success === false) {
+    throw new Error(data.message || `Request failed (${response.status})`);
+  }
+  return data;
+}
+
+function normalizeCookRowsFromStorage(){
+  const fromStorage = safeParseJson(localStorage.getItem("cooks"), []);
+  if (!Array.isArray(fromStorage)) return [];
+
+  return fromStorage.map((c) => {
+    const active = typeof c?.active === "boolean" ? c.active : Boolean(c?.cooking || c?.serving);
+    return {
+      id: c?.id || c?.cook_id || "",
+      cook_id: c?.cook_id || c?.id || "",
+      full_name: c?.full_name || c?.name || "",
+      status: c?.status || (active ? "active" : "inactive")
+    };
+  }).filter((c) => c.cook_id);
+}
+
+function persistCookRows(cooks){
+  const safeRows = Array.isArray(cooks) ? cooks : [];
+  const legacy = safeRows.map((c) => ({
+    id: c.cook_id,
+    cook_id: c.cook_id,
+    name: c.full_name || c.cook_id,
+    full_name: c.full_name || c.cook_id,
+    status: c.status,
+    active: String(c.status || "").toLowerCase() === "active"
+  }));
+  localStorage.setItem("cooks", JSON.stringify(legacy));
 }
 
 function readMenusFromStorage(){
@@ -484,9 +535,18 @@ function closeEditCookModal(){
 }
 
 /* ================= COOK ================= */
-function loadCooks(){
-  let cooks = JSON.parse(localStorage.getItem("cooks")) || [];
+async function loadCooks(){
+  try {
+    const data = await apiRequest(COOKS_API_BASE);
+    cookRows = Array.isArray(data.cooks) ? data.cooks : [];
+    persistCookRows(cookRows);
+  } catch (err) {
+    cookRows = normalizeCookRowsFromStorage();
+  }
+
+  const cooks = cookRows;
   let div = document.getElementById("cooks");
+  if (!div) return;
 
   div.innerHTML = `
     <div class="flex items-center justify-between mt-6 mb-4">
@@ -499,14 +559,12 @@ function loadCooks(){
   let list = div.querySelector(".grid");
 
   cooks.forEach((c,i)=>{
-    const isActive = typeof c.active === "boolean"
-      ? c.active
-      : Boolean(c.cooking || c.serving);
+    const isActive = String(c.status || "").toLowerCase() === "active";
     list.innerHTML += `
       <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
         <div class="card-body flex flex-col items-center text-center">
-          <b class="text-lg">${c.name}</b>
-          <div class="opacity-70">ID: ${c.id}</div>
+          <b class="text-lg">${escapeHtml(c.full_name || c.name || c.cook_id)}</b>
+          <div class="opacity-70">ID: ${escapeHtml(c.cook_id || c.id || "-")}</div>
           <div class="mt-3">
             <div class="flex items-center gap-3">
               <span>Status</span>
@@ -542,89 +600,110 @@ function closeCookModal(){
   closeModal(cookModal);
 }
 
-function addCook(){
+async function addCook(){
   const cookName = document.getElementById("cookName");
   const cookId = document.getElementById("cookId");
   const cookPass = document.getElementById("cookPass");
 
-  if(!cookName.value || !cookId.value || !cookPass.value){
+  const fullName = String(cookName.value || "").trim();
+  const cook_id = String(cookId.value || "").trim();
+  const password = String(cookPass.value || "").trim();
+
+  if(!fullName || !cook_id || !password){
     alert("Please fill all fields");
     return;
   }
 
-  let cooks = JSON.parse(localStorage.getItem("cooks")) || [];
-
-  cooks.push({
-    name: cookName.value,
-    id: cookId.value,
-    password: cookPass.value,
-    active: false
-  });
-
-  localStorage.setItem("cooks", JSON.stringify(cooks));
-
-  closeCookModal();
-  loadCooks();
+  try {
+    await apiRequest(COOKS_API_BASE, {
+      method: "POST",
+      body: JSON.stringify({ cook_id, password, full_name: fullName, status: "active" })
+    });
+    closeCookModal();
+    await loadCooks();
+  } catch (err) {
+    alert(err.message || "Unable to add cook");
+  }
 }
 
-function toggleCook(i){
-  let cooks = JSON.parse(localStorage.getItem("cooks")) || [];
-  const current = cooks[i];
-  const isActive = typeof current.active === "boolean"
-    ? current.active
-    : Boolean(current.cooking || current.serving);
-  cooks[i].active = !isActive;
-  delete cooks[i].cooking;
-  delete cooks[i].serving;
-  localStorage.setItem("cooks", JSON.stringify(cooks));
-  loadCooks();
+async function toggleCook(i){
+  const current = cookRows[i];
+  if (!current || !current.cook_id) return;
+  const isActive = String(current.status || "").toLowerCase() === "active";
+  const nextStatus = isActive ? "inactive" : "active";
+
+  try {
+    await apiRequest(`${COOKS_API_BASE}/${encodeURIComponent(current.cook_id)}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: nextStatus })
+    });
+    await loadCooks();
+  } catch (err) {
+    alert(err.message || "Unable to update cook status");
+  }
 }
 
-function deleteCook(i){
-  let cooks = JSON.parse(localStorage.getItem("cooks")) || [];
+async function deleteCook(i){
+  const current = cookRows[i];
+  if (!current || !current.cook_id) return;
   if(confirm("Delete this cook?")){
-    cooks.splice(i,1);
-    localStorage.setItem("cooks", JSON.stringify(cooks));
-    loadCooks();
+    try {
+      await apiRequest(`${COOKS_API_BASE}/${encodeURIComponent(current.cook_id)}`, {
+        method: "DELETE"
+      });
+      await loadCooks();
+    } catch (err) {
+      alert(err.message || "Unable to delete cook");
+    }
   }
 }
 
 function editCook(i){
-  let cooks = JSON.parse(localStorage.getItem("cooks")) || [];
+  const current = cookRows[i];
+  if (!current) return;
   const editCookName = document.getElementById("editCookName");
   const editCookId = document.getElementById("editCookId");
   const editCookPass = document.getElementById("editCookPass");
   const editCookModal = document.getElementById("editCookModal");
 
   editCookIndex = i;
-  editCookName.value = cooks[i].name || "";
-  editCookId.value = cooks[i].id || "";
-  editCookPass.value = cooks[i].password || "";
+  editCookName.value = current.full_name || current.name || "";
+  editCookId.value = current.cook_id || current.id || "";
+  editCookPass.value = "";
+  editCookPass.placeholder = "Leave blank to keep current password";
   openModal(editCookModal);
 }
 
-function updateCook(){
+async function updateCook(){
   if (editCookIndex === null || editCookIndex === undefined) return;
 
   const editCookName = document.getElementById("editCookName");
+  const editCookId = document.getElementById("editCookId");
   const editCookPass = document.getElementById("editCookPass");
   const editCookModal = document.getElementById("editCookModal");
+  const target = cookRows[editCookIndex];
+  const cookId = String(editCookId?.value || target?.cook_id || "").trim();
 
-  if(!editCookName.value || !editCookPass.value){
-    alert("Please fill all fields");
+  if(!editCookName.value || !cookId){
+    alert("Please fill required fields");
     return;
   }
 
-  let cooks = JSON.parse(localStorage.getItem("cooks")) || [];
-  cooks[editCookIndex] = {
-    ...cooks[editCookIndex],
-    name: editCookName.value,
-    password: editCookPass.value
-  };
-  localStorage.setItem("cooks", JSON.stringify(cooks));
-  editCookIndex = null;
-  closeModal(editCookModal);
-  loadCooks();
+  const payload = { full_name: String(editCookName.value || "").trim() };
+  const nextPassword = String(editCookPass.value || "").trim();
+  if (nextPassword) payload.password = nextPassword;
+
+  try {
+    await apiRequest(`${COOKS_API_BASE}/${encodeURIComponent(cookId)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+    editCookIndex = null;
+    closeModal(editCookModal);
+    await loadCooks();
+  } catch (err) {
+    alert(err.message || "Unable to update cook");
+  }
 }
 
 /* ================= MENU ================= */
