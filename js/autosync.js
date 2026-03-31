@@ -3,9 +3,11 @@
     let syncing = false;
     let targetPromise = null;
     let beaconTarget = "";
+    let syncTimer = 0;
 
     async function resolveTarget() {
         if (targetPromise) return targetPromise;
+
         targetPromise = (async () => {
             const candidates = [
                 "http://localhost:3000/api/state/sync",
@@ -31,18 +33,19 @@
 
             return "";
         })();
+
         return targetPromise;
     }
 
-    function payload() {
-        const read = (key, fallback) => {
-            try {
-                return JSON.parse(localStorage.getItem(key) || "null") ?? fallback;
-            } catch {
-                return fallback;
-            }
-        };
+    function read(key, fallback) {
+        try {
+            return JSON.parse(localStorage.getItem(key) || "null") ?? fallback;
+        } catch {
+            return fallback;
+        }
+    }
 
+    function payload() {
         return {
             menus: read("menus", []),
             orders: read("orders", []),
@@ -62,6 +65,7 @@
 
     async function sync(force = false) {
         if (syncing) return;
+
         const body = JSON.stringify(payload());
         if (!force && body === lastPayload) return;
 
@@ -69,21 +73,72 @@
         try {
             const target = await resolveTarget();
             if (!target) return;
-            await fetch(target, {
+
+            const response = await fetch(target, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body
             });
-            lastPayload = body;
+
+            if (response.ok) {
+                lastPayload = body;
+            }
         } catch (error) {
         } finally {
             syncing = false;
         }
     }
 
-    window.AppAutoSync = { sync };
+    function queueSync(delay = 200, force = false) {
+        if (syncTimer) {
+            clearTimeout(syncTimer);
+        }
+        syncTimer = window.setTimeout(() => {
+            syncTimer = 0;
+            sync(force);
+        }, delay);
+    }
 
-    window.addEventListener("storage", () => sync());
+    function patchStorageMethods() {
+        if (!window.localStorage || localStorage.__autosyncPatched) return;
+
+        const originalSetItem = localStorage.setItem.bind(localStorage);
+        const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+        const originalClear = localStorage.clear.bind(localStorage);
+
+        localStorage.setItem = function patchedSetItem(key, value) {
+            const result = originalSetItem(key, value);
+            queueSync();
+            return result;
+        };
+
+        localStorage.removeItem = function patchedRemoveItem(key) {
+            const result = originalRemoveItem(key);
+            queueSync();
+            return result;
+        };
+
+        localStorage.clear = function patchedClear() {
+            const result = originalClear();
+            queueSync(100, true);
+            return result;
+        };
+
+        Object.defineProperty(localStorage, "__autosyncPatched", {
+            value: true,
+            configurable: false,
+            enumerable: false,
+            writable: false
+        });
+    }
+
+    window.AppAutoSync = {
+        sync,
+        queueSync
+    };
+
+    patchStorageMethods();
+    window.addEventListener("storage", () => queueSync());
     window.addEventListener("beforeunload", () => {
         const body = JSON.stringify(payload());
         if (body === lastPayload || !beaconTarget) return;

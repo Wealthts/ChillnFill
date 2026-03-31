@@ -80,6 +80,109 @@ CREATE TABLE IF NOT EXISTS app_state (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS sync_sessions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    session_key VARCHAR(191) UNIQUE NOT NULL,
+    user_id VARCHAR(100) DEFAULT '',
+    table_number VARCHAR(20) DEFAULT '',
+    user_type VARCHAR(50) DEFAULT '',
+    cook_id VARCHAR(100) DEFAULT '',
+    cook_name VARCHAR(100) DEFAULT '',
+    admin_logged_in TINYINT(1) DEFAULT 0,
+    raw_json LONGTEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sync_cooks (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    cook_key VARCHAR(191) UNIQUE NOT NULL,
+    cook_id VARCHAR(100) DEFAULT '',
+    full_name VARCHAR(100) DEFAULT '',
+    password_text VARCHAR(255) DEFAULT '',
+    is_active TINYINT(1) DEFAULT 1,
+    raw_json LONGTEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sync_menus (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    menu_key VARCHAR(191) UNIQUE NOT NULL,
+    menu_id VARCHAR(100) DEFAULT '',
+    name VARCHAR(150) NOT NULL,
+    thai_name VARCHAR(150) DEFAULT '',
+    category VARCHAR(50) DEFAULT '',
+    price DECIMAL(10,2) DEFAULT 0,
+    description TEXT,
+    image_url LONGTEXT,
+    option_keys_json TEXT,
+    is_available TINYINT(1) DEFAULT 1,
+    raw_json LONGTEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sync_orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_key VARCHAR(191) UNIQUE NOT NULL,
+    external_order_id VARCHAR(100) DEFAULT '',
+    user_id VARCHAR(100) DEFAULT '',
+    table_number VARCHAR(20) DEFAULT '',
+    total_amount DECIMAL(10,2) DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'pending',
+    payment_id VARCHAR(100) DEFAULT '',
+    payment_status VARCHAR(50) DEFAULT '',
+    payment_method VARCHAR(50) DEFAULT '',
+    paid_at DATETIME NULL,
+    review_submitted_at DATETIME NULL,
+    ordered_at DATETIME NULL,
+    raw_json LONGTEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sync_order_items (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    item_key VARCHAR(191) UNIQUE NOT NULL,
+    order_key VARCHAR(191) NOT NULL,
+    order_external_id VARCHAR(100) DEFAULT '',
+    item_name VARCHAR(150) NOT NULL,
+    quantity INT DEFAULT 0,
+    unit_price DECIMAL(10,2) DEFAULT 0,
+    options_text TEXT,
+    customer_note TEXT,
+    raw_json LONGTEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_sync_order_items_order_key (order_key)
+);
+
+CREATE TABLE IF NOT EXISTS sync_payments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    payment_key VARCHAR(191) UNIQUE NOT NULL,
+    external_payment_id VARCHAR(100) DEFAULT '',
+    user_id VARCHAR(100) DEFAULT '',
+    table_number VARCHAR(20) DEFAULT '',
+    order_ids_json TEXT,
+    amount DECIMAL(10,2) DEFAULT 0,
+    method VARCHAR(50) DEFAULT '',
+    status VARCHAR(50) DEFAULT 'paid',
+    payment_time DATETIME NULL,
+    review_submitted TINYINT(1) DEFAULT 0,
+    review_submitted_at DATETIME NULL,
+    raw_json LONGTEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sync_reviews (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    review_key VARCHAR(191) UNIQUE NOT NULL,
+    payment_id VARCHAR(100) DEFAULT '',
+    user_id VARCHAR(100) DEFAULT '',
+    table_number VARCHAR(20) DEFAULT '',
+    rating INT DEFAULT 0,
+    comment_text TEXT,
+    review_time DATETIME NULL,
+    raw_json LONGTEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 -- เพิ่มข้อมูลตัวอย่างในเมนู
 INSERT INTO menu (name, category, price, description) VALUES
 ('ข้าวผัดกระเพรา', 'จานเดียว', 65, 'ข้าวผัดกระเพราไก่กรอบ ไข่ดาว'),

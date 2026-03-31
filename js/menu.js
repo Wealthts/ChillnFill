@@ -60,7 +60,12 @@ const mediaImageByMenuName = {
     "som tam thai": "../media/somtamthai.jpg",
     "korean bbq beef": "../media/koreanbbq.jpg",
     "beef basil": "../media/beefbasil.jpg",
-    "lime juice": "../media/limejuice.jpg"
+    "lime juice": "../media/limejuice.jpg",
+    "green tea": "../media/greentea.jpg",
+    "ice cream": "../media/Icecream.jpg",
+    "crispy pork basil": "../media/crispyporkbasil.jpg",
+    "seafood tom yum": "../media/seafoodtomyum.jpg",
+    "soda": "../media/soda.jpg"
 };
 
 function resolveMenuImage(menuName, fallbackImage) {

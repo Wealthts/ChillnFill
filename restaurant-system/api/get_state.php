@@ -5,6 +5,21 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['success' => false, 'message' => 'Method not allowed'], 405);
 }
 
+function getMirrorSummary(PDO $pdo, $table, $keyColumn) {
+    $countStmt = $pdo->query("SELECT COUNT(*) AS total, MAX(updated_at) AS last_updated FROM {$table}");
+    $summary = $countStmt->fetch(PDO::FETCH_ASSOC) ?: ['total' => 0, 'last_updated' => null];
+
+    $sampleStmt = $pdo->query("SELECT * FROM {$table} ORDER BY updated_at DESC LIMIT 5");
+    $rows = $sampleStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    return [
+        'count' => (int)($summary['total'] ?? 0),
+        'last_updated' => $summary['last_updated'] ?? null,
+        'key_column' => $keyColumn,
+        'latest_rows' => $rows
+    ];
+}
+
 try {
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS app_state (
@@ -26,7 +41,37 @@ try {
         ];
     }
 
-    jsonResponse(['success' => true, 'data' => $data]);
+    $mirrors = [];
+    $mirrorTables = [
+        'sync_sessions' => 'session_key',
+        'sync_cooks' => 'cook_key',
+        'sync_menus' => 'menu_key',
+        'sync_orders' => 'order_key',
+        'sync_order_items' => 'item_key',
+        'sync_payments' => 'payment_key',
+        'sync_reviews' => 'review_key'
+    ];
+
+    foreach ($mirrorTables as $table => $keyColumn) {
+        try {
+            $mirrors[$table] = getMirrorSummary($pdo, $table, $keyColumn);
+        } catch (Exception $inner) {
+            $mirrors[$table] = [
+                'count' => 0,
+                'last_updated' => null,
+                'key_column' => $keyColumn,
+                'latest_rows' => [],
+                'error' => $inner->getMessage()
+            ];
+        }
+    }
+
+    jsonResponse([
+        'success' => true,
+        'data' => $data,
+        'mirrors' => $mirrors,
+        'server_time' => date('c')
+    ]);
 } catch (Exception $e) {
     jsonResponse(['success' => false, 'message' => 'Load state failed: ' . $e->getMessage()], 500);
 }
