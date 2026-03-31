@@ -1,3 +1,6 @@
+// ==========================================
+// 1. DATA AND SETTINGS
+// ==========================================
 const optionSets = {
     spice: {
         label: "🌶️ Spiciness",
@@ -225,6 +228,9 @@ const paymentStatusLabels = {
     failed: "Failed"
 };
 
+// ==========================================
+// 2. STATE VARIABLES
+// ==========================================
 let cart = [];
 let currentCategory = "all";
 let searchKeyword = "";
@@ -238,6 +244,9 @@ let currentMenuItem = null;
 let currentQty = 1;
 let currentSelections = [];
 
+// ==========================================
+// 3. CORE UTILITIES
+// ==========================================
 function showToast(msg) {
     const toast = document.getElementById("toastMsg");
     if (!toast) return;
@@ -252,10 +261,8 @@ function showToast(msg) {
 
 function showActionFeedback(msg) {
     showToast(msg);
-
     const banner = document.getElementById("sessionStateBanner");
     if (!banner) return;
-
     banner.innerText = msg;
     banner.classList.remove("hidden");
 }
@@ -283,6 +290,9 @@ function formatDateTime(value) {
     return date.toLocaleString();
 }
 
+// ==========================================
+// 4. SESSION & LOCAL STORAGE LOGIC
+// ==========================================
 function saveMenusToStorage(menus) {
     const safeMenus = Array.isArray(menus) ? menus : [];
     const payload = JSON.stringify(safeMenus);
@@ -345,7 +355,6 @@ function getRuntimeMenuDatabase() {
     if (!normalizedMenus.length) {
         return menuDatabase;
     }
-    // Keep customer menu fully in sync with Admin page when admin data exists.
     return normalizedMenus;
 }
 
@@ -543,6 +552,9 @@ function getReviewByPaymentId(paymentId) {
     return matched[0] || null;
 }
 
+// ==========================================
+// 5. UI UPDATES & RENDERERS
+// ==========================================
 function renderStars(rating) {
     const value = Math.max(0, Math.min(5, Number(rating) || 0));
     const filled = "★".repeat(value);
@@ -1446,6 +1458,9 @@ function submitReview() {
     showToast("Thanks for your review");
 }
 
+// ==========================================
+// 10. INITIALIZATION & EVENT LISTENERS
+// ==========================================
 const cartModal = document.getElementById("cartModal");
 const paymentHistoryModal = document.getElementById("paymentHistoryModal");
 const paymentModal = document.getElementById("paymentModal");
@@ -1538,6 +1553,8 @@ window.openReviewForPayment = function openReviewForPayment(paymentId) {
     }
     openReviewModal(payment);
 };
+
+// Initial Setup
 seedPresetMenusToSharedStorage();
 syncCartWithSession();
 
@@ -1549,6 +1566,7 @@ if (tableDisplay) {
     }
 }
 
+// Attach Event Listeners
 if (openCartBtn) {
     openCartBtn.addEventListener("click", () => {
         if (isOrderCreationDisabled()) {
@@ -1760,6 +1778,7 @@ window.addEventListener("storage", (event) => {
     applyOrderingState();
 });
 
+// Final Setup Checks
 const shouldOpenStatus = localStorage.getItem("open_order_status");
 if (shouldOpenStatus === "1") {
     localStorage.removeItem("open_order_status");
