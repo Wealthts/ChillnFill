@@ -203,7 +203,12 @@ function updateOrderStatus(orderId, nextStatus) {
     renderDashboard();
 }
 
-function logoutCook() {
+async function logoutCook() {
+    try {
+        await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
+    } catch (err) {
+        console.warn("Logout API failed:", err);
+    }
     localStorage.removeItem("user_type");
     localStorage.removeItem("cook_id");
     localStorage.removeItem("cook_name");

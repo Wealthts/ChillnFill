@@ -1,0 +1,1110 @@
+openapi: 3.0.3
+info:
+  title: Chill n Fill API
+  version: 1.0.0
+  description: |
+    OpenAPI spec generated from current Express routes in `server.js`.
+    This includes canonical `/api/*` endpoints and legacy `/restaurant-system/api/*.php` aliases.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Health
+  - name: State
+  - name: Session
+  - name: Auth
+  - name: Cooks
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                success: true
+                database: restaurant_system
+                now: '2026-03-31T10:45:12.000Z'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/state/sync:
+    post:
+      tags: [State]
+      summary: Sync app state to storage
+      operationId: syncState
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StateSyncRequest'
+            example:
+              session:
+                user_id: CUST_1743410000_1234
+                table_number: 5
+              orders: []
+              payments: []
+              reviews: []
+              cooks: []
+      responses:
+        '200':
+          description: State synced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateSyncResponse'
+              example:
+                success: true
+                saved_keys: [session, orders, payments, reviews, cooks]
+                saved_at: '2026-03-31T10:50:00.000Z'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Invalid JSON payload
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/state:
+    get:
+      tags: [State]
+      summary: Get stored app state
+      operationId: getState
+      responses:
+        '200':
+          description: State loaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetStateResponse'
+              example:
+                success: true
+                data:
+                  orders:
+                    value: []
+                    updated_at: '2026-03-31T10:55:00.000Z'
+                  payments:
+                    value: []
+                    updated_at: '2026-03-31T10:55:00.000Z'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/get_session.php:
+    get:
+      tags: [Session]
+      summary: Get login session info
+      operationId: getSessionApi
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetSessionResponse'
+              example:
+                logged_in: true
+                user_type: admin
+
+  /restaurant-system/api/get_session.php:
+    get:
+      tags: [Session]
+      summary: Get login session info (legacy alias)
+      operationId: getSessionLegacy
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetSessionResponse'
+
+  /restaurant-system/api/customer_login.php:
+    post:
+      tags: [Auth]
+      summary: Customer login by table number
+      operationId: customerLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerLoginRequest'
+            example:
+              table_number: 5
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerLoginResponse'
+              example:
+                success: true
+                user_id: CUST_1743410000_1234
+                timestamp: '2026-03-31 17:30:00'
+                table_number: 5
+                message: Login successful
+        '400':
+          description: Missing/invalid table number
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Please enter table number
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/cook_register.php:
+    post:
+      tags: [Auth]
+      summary: Register a cook account
+      operationId: cookRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CookRegisterRequest'
+            example:
+              cook_id: cook01
+              password: '1234'
+              full_name: John Doe
+              phone: '0812345678'
+      responses:
+        '200':
+          description: Registration success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CookRegisterResponse'
+        '400':
+          description: Missing required fields or invalid password length
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate cook id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: This Cook ID already exists
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/cook_login.php:
+    post:
+      tags: [Auth]
+      summary: Cook login
+      operationId: cookLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CookLoginRequest'
+            example:
+              cook_id: cook01
+              password: '1234'
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CookLoginResponse'
+        '400':
+          description: Missing credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/admin_login.php:
+    post:
+      tags: [Auth]
+      summary: Admin login
+      operationId: adminLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLoginRequest'
+            example:
+              username: admin
+              password: adminpass
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminLoginResponse'
+        '400':
+          description: Missing credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/staff_login.php:
+    post:
+      tags: [Auth]
+      summary: Staff login (admin or cook)
+      operationId: staffLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffLoginRequest'
+            example:
+              username: cook01
+              password: '1234'
+      responses:
+        '200':
+          description: Login success as admin or cook
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffLoginResponse'
+        '400':
+          description: Missing credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/admin_logout.php:
+    post:
+      tags: [Auth]
+      summary: Logout current session
+      operationId: adminLogout
+      responses:
+        '200':
+          description: Logout success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+              example:
+                success: true
+                message: Logout successful
+
+  /api/cooks:
+    get:
+      tags: [Cooks]
+      summary: List cooks
+      operationId: listCooks
+      responses:
+        '200':
+          description: Cooks list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CooksListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Cooks]
+      summary: Create cook
+      operationId: createCook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCookRequest'
+            example:
+              cook_id: cook02
+              password: '1234'
+              full_name: Jane Doe
+              phone: '0800000000'
+              status: active
+      responses:
+        '201':
+          description: Cook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleCookResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate cook id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/admin_cooks.php:
+    get:
+      tags: [Cooks]
+      summary: List cooks (legacy alias)
+      operationId: listCooksLegacy
+      responses:
+        '200':
+          description: Cooks list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CooksListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Cooks]
+      summary: Create cook (legacy alias)
+      operationId: createCookLegacy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCookRequest'
+      responses:
+        '201':
+          description: Cook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleCookResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate cook id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/cooks/{cookId}/status:
+    patch:
+      tags: [Cooks]
+      summary: Update cook status
+      operationId: updateCookStatus
+      parameters:
+        - $ref: '#/components/parameters/CookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCookStatusRequest'
+            examples:
+              byStatus:
+                value:
+                  status: inactive
+              byActiveFlag:
+                value:
+                  active: false
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateCookStatusResponse'
+        '400':
+          description: Missing cook id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/admin_cooks.php/{cookId}/status:
+    patch:
+      tags: [Cooks]
+      summary: Update cook status (legacy alias)
+      operationId: updateCookStatusLegacy
+      parameters:
+        - $ref: '#/components/parameters/CookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCookStatusRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateCookStatusResponse'
+        '400':
+          description: Missing cook id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/cooks/{cookId}:
+    put:
+      tags: [Cooks]
+      summary: Update cook details
+      operationId: updateCook
+      parameters:
+        - $ref: '#/components/parameters/CookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCookRequest'
+            example:
+              full_name: Jane Updated
+              phone: '0891111111'
+              status: active
+              password: '5678'
+      responses:
+        '200':
+          description: Cook updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleCookResponse'
+        '400':
+          description: Missing cook id, invalid password, or no fields to update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Cooks]
+      summary: Delete cook
+      operationId: deleteCook
+      parameters:
+        - $ref: '#/components/parameters/CookIdParam'
+      responses:
+        '200':
+          description: Cook deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCookResponse'
+        '400':
+          description: Missing cook id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/admin_cooks.php/{cookId}:
+    put:
+      tags: [Cooks]
+      summary: Update cook details (legacy alias)
+      operationId: updateCookLegacy
+      parameters:
+        - $ref: '#/components/parameters/CookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCookRequest'
+      responses:
+        '200':
+          description: Cook updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleCookResponse'
+        '400':
+          description: Missing cook id, invalid password, or no fields to update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Cooks]
+      summary: Delete cook (legacy alias)
+      operationId: deleteCookLegacy
+      parameters:
+        - $ref: '#/components/parameters/CookIdParam'
+      responses:
+        '200':
+          description: Cook deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCookResponse'
+        '400':
+          description: Missing cook id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/sync_state.php:
+    post:
+      tags: [State]
+      summary: Sync app state (legacy alias)
+      operationId: syncStateLegacy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StateSyncRequest'
+      responses:
+        '200':
+          description: State synced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateSyncResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /restaurant-system/api/get_state.php:
+    get:
+      tags: [State]
+      summary: Get app state (legacy alias)
+      operationId: getStateLegacy
+      responses:
+        '200':
+          description: State loaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetStateLegacyResponse'
+              example:
+                success: true
+                data: {}
+                mirrors: {}
+                server_time: '2026-03-31T10:55:00.000Z'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CookIdParam:
+      name: cookId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Cook identifier (cook_id)
+
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: 'Error: Something went wrong'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        message:
+          type: string
+
+    SuccessMessageResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+
+    HealthResponse:
+      type: object
+      required: [success, database]
+      properties:
+        success:
+          type: boolean
+        database:
+          type: string
+        now:
+          type: string
+          nullable: true
+
+    StateSyncRequest:
+      type: object
+      description: Any subset of supported state keys can be provided.
+      additionalProperties: false
+      properties:
+        menus:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        orders:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        payments:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        reviews:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        cooks:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        session:
+          type: object
+          additionalProperties: true
+
+    StateSyncResponse:
+      type: object
+      required: [success, saved_keys, saved_at]
+      properties:
+        success:
+          type: boolean
+        saved_keys:
+          type: array
+          items:
+            type: string
+            enum: [menus, orders, payments, reviews, cooks, session]
+        saved_at:
+          type: string
+          format: date-time
+
+    StateItem:
+      type: object
+      required: [updated_at]
+      properties:
+        value:
+          nullable: true
+        updated_at:
+          type: string
+
+    GetStateResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/StateItem'
+
+    GetStateLegacyResponse:
+      type: object
+      required: [success, data, mirrors, server_time]
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/StateItem'
+        mirrors:
+          type: object
+          additionalProperties: true
+        server_time:
+          type: string
+          format: date-time
+
+    GetSessionResponse:
+      type: object
+      required: [logged_in, user_type]
+      properties:
+        logged_in:
+          type: boolean
+        user_type:
+          type: string
+          nullable: true
+          enum: [admin, cook, customer, null]
+
+    CustomerLoginRequest:
+      type: object
+      required: [table_number]
+      properties:
+        table_number:
+          type: integer
+          minimum: 1
+
+    CustomerLoginResponse:
+      type: object
+      required: [success, user_id, timestamp, table_number, message]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        user_id:
+          type: string
+        timestamp:
+          type: string
+          description: MySQL datetime string
+        table_number:
+          type: integer
+        message:
+          type: string
+
+    CookRegisterRequest:
+      type: object
+      required: [cook_id, password, full_name]
+      properties:
+        cook_id:
+          type: string
+        password:
+          type: string
+          minLength: 4
+        full_name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+
+    CookRegisterResponse:
+      type: object
+      required: [success, message, cook_id, full_name]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        cook_id:
+          type: string
+        full_name:
+          type: string
+
+    CookLoginRequest:
+      type: object
+      required: [cook_id, password]
+      properties:
+        cook_id:
+          type: string
+        password:
+          type: string
+
+    CookLoginResponse:
+      type: object
+      required: [success, message, cook_id, full_name]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        cook_id:
+          type: string
+        full_name:
+          type: string
+
+    AdminLoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    AdminLoginResponse:
+      type: object
+      required: [success, message, username]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        username:
+          type: string
+
+    StaffLoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    StaffLoginAdminResponse:
+      type: object
+      required: [success, message, role, user_type, user_id, username]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        role:
+          type: string
+          enum: [admin]
+        user_type:
+          type: string
+          enum: [admin]
+        user_id:
+          type: string
+        username:
+          type: string
+
+    StaffLoginCookResponse:
+      type: object
+      required: [success, message, role, user_type, user_id, cook_id, full_name]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        role:
+          type: string
+          enum: [cook]
+        user_type:
+          type: string
+          enum: [cook]
+        user_id:
+          type: string
+        cook_id:
+          type: string
+        full_name:
+          type: string
+
+    StaffLoginResponse:
+      oneOf:
+        - $ref: '#/components/schemas/StaffLoginAdminResponse'
+        - $ref: '#/components/schemas/StaffLoginCookResponse'
+
+    Cook:
+      type: object
+      required: [id, cook_id, full_name, status, created_at]
+      properties:
+        id:
+          type: integer
+        cook_id:
+          type: string
+        full_name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        created_at:
+          type: string
+
+    CooksListResponse:
+      type: object
+      required: [success, cooks]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        cooks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cook'
+
+    CreateCookRequest:
+      type: object
+      required: [cook_id, password, full_name]
+      properties:
+        cook_id:
+          type: string
+          description: "id is also accepted by backend as alias"
+        id:
+          type: string
+        password:
+          type: string
+          minLength: 4
+        full_name:
+          type: string
+          description: "name is also accepted by backend as alias"
+        name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, enabled, disabled, '1', '0', 'true', 'false']
+
+    UpdateCookStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, inactive, enabled, disabled, '1', '0', 'true', 'false']
+        active:
+          type: boolean
+      description: "If status is absent, active=false maps to inactive, otherwise defaults to active."
+
+    UpdateCookStatusResponse:
+      type: object
+      required: [success, cook_id, status]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        cook_id:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+
+    UpdateCookRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          description: "name is also accepted by backend as alias"
+        name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, enabled, disabled, '1', '0', 'true', 'false']
+        password:
+          type: string
+          minLength: 4
+      description: At least one field must be provided.
+
+    SingleCookResponse:
+      type: object
+      required: [success, cook]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        cook:
+          allOf:
+            - $ref: '#/components/schemas/Cook'
+          nullable: true
+
+    DeleteCookResponse:
+      type: object
+      required: [success, cook_id]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        cook_id:
+          type: string

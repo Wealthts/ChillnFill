@@ -24,15 +24,16 @@ async function findApiPath() {
     }
 
     const possiblePaths = [
+        window.location.origin + '/api/',
         'http://localhost:3000/api/',
         'http://127.0.0.1:3000/api/',
-        'http://localhost/restaurant-system/api/',
-        'http://127.0.0.1/restaurant-system/api/'
+        'http://localhost/api/',
+        'http://127.0.0.1/api/'
     ];
 
     for (const path of possiblePaths) {
         try {
-            const testUrl = path + 'get_session.php';
+            const testUrl = path + 'session';
             const healthUrl = path.endsWith('/api/') ? path.replace(/\/api\/$/, '/api/health') : '';
 
             if (healthUrl) {
@@ -168,7 +169,7 @@ async function registerCookFromStaff() {
 
     try {
         if (!API_BASE) throw new Error('API unavailable');
-        const response = await fetch(`${API_BASE}cook_register.php`, {
+        const response = await fetch(`${API_BASE}cook/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ cook_id: cookId, password: password, full_name: fullName })
@@ -225,7 +226,7 @@ async function staffLogin() {
 
     try {
         if (!API_BASE) throw new Error('API unavailable');
-        const response = await fetch(`${API_BASE}staff_login.php`, {
+        const response = await fetch(`${API_BASE}staff/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: username, password: password })
@@ -262,7 +263,7 @@ async function staffLogin() {
         // Fallback: try cook login if unified endpoint is not available
         try {
             if (!API_BASE) throw new Error('API unavailable');
-            const response = await fetch(`${API_BASE}cook_login.php`, {
+            const response = await fetch(`${API_BASE}cook/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cook_id: username, password: password })

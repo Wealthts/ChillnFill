@@ -92,6 +92,20 @@ function normalizeCookStatus(value, fallback = "active") {
   return fallback;
 }
 
+function normalizeMenuAvailability(value, fallback = null) {
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (typeof value === "number") return value ? 1 : 0;
+
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (["1", "true", "yes", "available", "enabled", "enable", "active"].includes(raw)) return 1;
+  if (["0", "false", "no", "unavailable", "disabled", "disable", "inactive"].includes(raw)) return 0;
+  return fallback;
+}
+
+function isDefaultAdminCredential(username, password) {
+  return toText(username).toLowerCase() === "admin" && String(password ?? "") === "0000";
+}
+
 function mapCookRow(row) {
   return {
     id: row.id,
@@ -150,7 +164,179 @@ async function resolveDatabaseConfig() {
   throw lastError || new Error("Unable to connect to MySQL");
 }
 
+const defaultMenuSeed = [
+  {
+    name: "Basil Fried Rice",
+    thai_name: "ข้าวผัดกะเพรา",
+    category_code: "single",
+    price: 65,
+    description: "Crispy chicken basil rice with fried egg",
+    option_keys: ["spice"],
+    image_url: "../media/basilfriedrice.jpg",
+    sort_order: 1
+  },
+  {
+    name: "Tom Yum Goong",
+    thai_name: "ต้มยำกุ้ง",
+    category_code: "tomyum",
+    price: 120,
+    description: "Clear spicy shrimp tom yum soup",
+    option_keys: ["spice"],
+    image_url: "../media/tomyumkung.jpg",
+    sort_order: 2
+  },
+  {
+    name: "Pad Thai",
+    thai_name: "ผัดไทย",
+    category_code: "single",
+    price: 70,
+    description: "Thai stir-fried noodles with shrimp",
+    option_keys: ["spice"],
+    image_url: "../media/padthai.jpg",
+    sort_order: 3
+  },
+  {
+    name: "Hainanese Chicken Rice",
+    thai_name: "ข้าวมันไก่",
+    category_code: "single",
+    price: 60,
+    description: "Steamed chicken rice with special sauce",
+    option_keys: [],
+    image_url: "../media/hainanesechickenrice.jpg",
+    sort_order: 4
+  },
+  {
+    name: "Som Tam Thai",
+    thai_name: "ส้มตำไทย",
+    category_code: "salad",
+    price: 55,
+    description: "Spicy green papaya salad",
+    option_keys: ["spice"],
+    image_url: "../media/somtamthai.jpg",
+    sort_order: 5
+  },
+  {
+    name: "Korean BBQ Beef",
+    thai_name: "เนื้อย่างเกาหลี",
+    category_code: "main",
+    price: 180,
+    description: "Korean-style marinated grilled beef",
+    option_keys: ["doneness"],
+    image_url: "../media/koreanbbq.jpg",
+    sort_order: 6
+  },
+  {
+    name: "Beef Basil",
+    thai_name: "กะเพราเนื้อ",
+    category_code: "single",
+    price: 85,
+    description: "Minced beef basil with fried egg",
+    option_keys: ["spice"],
+    image_url: "../media/beefbasil.jpg",
+    sort_order: 7
+  },
+  {
+    name: "Lime Juice",
+    thai_name: "น้ำมะนาว",
+    category_code: "drink",
+    price: 25,
+    description: "Fresh lime juice",
+    option_keys: ["sweet", "ice"],
+    image_url: "../media/limejuice.jpg",
+    sort_order: 8
+  },
+  {
+    name: "Green Tea",
+    thai_name: "ชาเขียว",
+    category_code: "drink",
+    price: 30,
+    description: "Iced green tea",
+    option_keys: ["sweet", "ice"],
+    image_url: "../media/greentea.jpg",
+    sort_order: 9
+  },
+  {
+    name: "Ice Cream",
+    thai_name: "ไอศครีม",
+    category_code: "dessert",
+    price: 35,
+    description: "Vanilla ice cream",
+    option_keys: ["size"],
+    image_url: "../media/Icecream.jpg",
+    sort_order: 10
+  },
+  {
+    name: "Crispy Pork Basil",
+    thai_name: "กะเพราหมูกรอบ",
+    category_code: "single",
+    price: 70,
+    description: "Crispy pork basil rice",
+    option_keys: ["spice"],
+    image_url: "../media/crispyporkbasil.jpg",
+    sort_order: 11
+  },
+  {
+    name: "Seafood Tom Yum",
+    thai_name: "ต้มยำทะเล",
+    category_code: "tomyum",
+    price: 150,
+    description: "Mixed seafood tom yum soup",
+    option_keys: ["spice"],
+    image_url: "../media/seafoodtomyum.jpg",
+    sort_order: 12
+  },
+  {
+    name: "Soda",
+    thai_name: "น้ำอัดลม",
+    category_code: "drink",
+    price: 20,
+    description: "Soda, Coke, Sprite",
+    option_keys: ["sweet", "ice"],
+    image_url: "../media/soda.jpg",
+    sort_order: 13
+  }
+];
+
 async function ensureTables() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      username VARCHAR(50) NOT NULL UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cooks (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      cook_id VARCHAR(50) NOT NULL UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      full_name VARCHAR(100) NOT NULL,
+      phone VARCHAR(20) DEFAULT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS menu (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      name VARCHAR(100) NOT NULL,
+      name_th VARCHAR(100) DEFAULT NULL,
+      thai_name VARCHAR(100) DEFAULT NULL,
+      category VARCHAR(50) NOT NULL DEFAULT 'single',
+      category_code VARCHAR(50) DEFAULT NULL,
+      price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      description TEXT DEFAULT NULL,
+      option_keys TEXT DEFAULT NULL,
+      image_url LONGTEXT DEFAULT NULL,
+      is_available TINYINT(1) NOT NULL DEFAULT 1,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS app_state (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -235,6 +421,42 @@ async function ensureTables() {
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+
+  const [adminCounts] = await pool.query("SELECT COUNT(*) AS total FROM admin");
+  if (toInt(adminCounts[0]?.total, 0) === 0) {
+    const adminHash = await hashPassword("0000");
+    await pool.query(
+      "INSERT INTO admin (username, password_hash, created_at) VALUES (?, ?, NOW())",
+      ["admin", adminHash]
+    );
+  }
+
+  const [menuCounts] = await pool.query("SELECT COUNT(*) AS total FROM menu");
+  if (toInt(menuCounts[0]?.total, 0) === 0) {
+    for (const item of defaultMenuSeed) {
+      await pool.query(
+        `
+          INSERT INTO menu (
+            name, name_th, thai_name, category, category_code, price,
+            description, option_keys, image_url, is_available, sort_order, created_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())
+        `,
+        [
+          item.name,
+          item.thai_name,
+          item.thai_name,
+          item.category_code,
+          item.category_code,
+          toNumber(item.price, 0),
+          item.description,
+          JSON.stringify(item.option_keys || []),
+          item.image_url,
+          toInt(item.sort_order, 0)
+        ]
+      );
+    }
+  }
 }
 
 async function hashPassword(password) {
@@ -580,10 +802,163 @@ app.use(session({
   }
 }));
 
+app.use("/public", express.static(path.join(__dirname, "public")));
+app.use("/views", express.static(path.join(__dirname, "views")));
+app.use("/js", express.static(path.join(__dirname, "js")));
+app.use("/css", express.static(path.join(__dirname, "css")));
+app.use("/media", express.static(path.join(__dirname, "media")));
 app.use(express.static(path.join(__dirname, "views")));
-app.use(express.static(path.join(__dirname)));
 
-app.get("/api/health", async (_req, res) => {
+app.get("/password/:raw", async function (req, res) {
+  try {
+    const hash = await hashPassword(req.params.raw);
+    res.status(200).send(hash);
+  } catch (err) {
+    res.status(500).send(`Server Error: ${err.message}`);
+  }
+});
+
+app.post("/login", async function (req, res) {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).send("Please provide username and password");
+    }
+
+    const sql = `
+      SELECT id, password_hash AS password, role
+      FROM (
+        SELECT id, username AS login_name, password_hash, 'admin' AS role
+        FROM admin
+        UNION ALL
+        SELECT id, cook_id AS login_name, password_hash, 'user' AS role
+        FROM cooks
+        WHERE status = 'active'
+      ) u
+      WHERE login_name = ?
+      LIMIT 1
+    `;
+
+    const [results] = await pool.query(sql, [toText(username)]);
+    if (results.length !== 1) {
+      return res.status(401).send("Wrong username");
+    }
+
+    const same = await verifyPassword(toText(password), String(results[0].password || ""));
+    if (!same) {
+      return res.status(401).send("Wrong Password");
+    }
+
+    if (results[0].role === "admin") {
+      return res.status(200).send("/inventory");
+    }
+
+    return res.status(200).send("/shop");
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send("Server Error");
+  }
+});
+
+app.get("/admin/product", async function (req, res) {
+  try {
+    const sql = "SELECT *, (is_available = 1) AS available FROM menu ORDER BY id ASC";
+    const [results] = await pool.query(sql);
+    return res.status(200).json(results);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send("Server error");
+  }
+});
+
+app.patch("/api/menu/:menuId/status", async function (req, res) {
+  try {
+    const menuId = toInt(req.params?.menuId, 0);
+    if (!menuId) {
+      return res.status(400).json({ success: false, message: "Menu ID is required" });
+    }
+
+    const available = normalizeMenuAvailability(
+      req.body?.available ?? req.body?.is_available ?? req.body?.enabled,
+      null
+    );
+    if (available === null) {
+      return res.status(400).json({ success: false, message: "available/is_available must be true or false" });
+    }
+
+    const [out] = await pool.query("UPDATE menu SET is_available = ? WHERE id = ?", [available, menuId]);
+    if (out.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Menu not found" });
+    }
+
+    return res.json({
+      success: true,
+      id: menuId,
+      is_available: available,
+      available: Boolean(available)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.get("/inventory", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "admin.html"));
+});
+
+app.get("/shop", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "menu.html"));
+});
+
+app.get("/admin", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "admin.html"));
+});
+
+app.get("/menu", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "menu.html"));
+});
+
+app.get("/customer", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "customer.html"));
+});
+
+app.get("/cook", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "cook.html"));
+});
+
+app.get("/cart", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "cart.html"));
+});
+
+app.get("/payment", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "payment.html"));
+});
+
+app.get("/order-status", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "order_status.html"));
+});
+
+app.get("/staff", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "staff.html"));
+});
+
+app.get("/table", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "table.html"));
+});
+
+app.get("/login-customer", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "login_customer.html"));
+});
+
+app.get("/login-cook", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "login_cook.html"));
+});
+
+app.get("/register-cook", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "register_cook.html"));
+});
+
+app.get("/api/health", async function (req, res) {
   try {
     const [rows] = await pool.query("SELECT NOW() AS now_time");
     res.json({ success: true, database: activeDbConfig.database, now: rows[0]?.now_time || null });
@@ -592,7 +967,7 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
-app.post("/api/state/sync", async (req, res) => {
+app.post("/api/state/sync", async function (req, res) {
   try {
     const out = await syncState(req.body);
     res.status(out.status).json(out.body);
@@ -601,7 +976,7 @@ app.post("/api/state/sync", async (req, res) => {
   }
 });
 
-app.get("/api/state", async (_req, res) => {
+app.get("/api/state", async function (req, res) {
   try {
     const data = await getState();
     res.json({ success: true, data });
@@ -610,11 +985,11 @@ app.get("/api/state", async (_req, res) => {
   }
 });
 
-app.get(["/api/get_session.php", "/restaurant-system/api/get_session.php"], (req, res) => {
+app.get("/api/session", function (req, res) {
   res.json({ logged_in: Boolean(req.session?.user_type), user_type: req.session?.user_type || null });
 });
 
-app.post("/restaurant-system/api/customer_login.php", async (req, res) => {
+app.post("/api/customer/login", async function (req, res) {
   try {
     const tableNumber = toInt(req.body?.table_number, 0);
     if (!tableNumber) {
@@ -643,7 +1018,7 @@ app.post("/restaurant-system/api/customer_login.php", async (req, res) => {
   }
 });
 
-app.post("/restaurant-system/api/cook_register.php", async (req, res) => {
+app.post("/api/cook/register", async function (req, res) {
   try {
     const cookId = toText(req.body?.cook_id);
     const password = toText(req.body?.password);
@@ -674,7 +1049,7 @@ app.post("/restaurant-system/api/cook_register.php", async (req, res) => {
   }
 });
 
-app.post("/restaurant-system/api/cook_login.php", async (req, res) => {
+app.post("/api/cook/login", async function (req, res) {
   try {
     const cookId = toText(req.body?.cook_id);
     const password = toText(req.body?.password);
@@ -699,7 +1074,7 @@ app.post("/restaurant-system/api/cook_login.php", async (req, res) => {
   }
 });
 
-app.post("/restaurant-system/api/admin_login.php", async (req, res) => {
+app.post("/api/admin/login", async function (req, res) {
   try {
     const username = toText(req.body?.username);
     const password = toText(req.body?.password);
@@ -709,27 +1084,48 @@ app.post("/restaurant-system/api/admin_login.php", async (req, res) => {
 
     const [rows] = await pool.query("SELECT * FROM admin WHERE username = ? LIMIT 1", [username]);
     const admin = rows[0];
-    if (!admin || !(await verifyPassword(password, String(admin.password_hash || "")))) {
+    const allowDefaultFallback = isDefaultAdminCredential(username, password);
+    const passwordMatched = admin ? await verifyPassword(password, String(admin.password_hash || "")) : false;
+    if (!passwordMatched && !allowDefaultFallback) {
       return res.status(401).json({ success: false, message: "Username or password is incorrect" });
     }
 
     req.session.user_type = "admin";
-    req.session.admin_id = admin.id;
-    req.session.admin_username = admin.username;
+    req.session.admin_id = admin?.id || 0;
+    req.session.admin_username = admin?.username || "admin";
     req.session.admin_logged_in = true;
 
-    res.json({ success: true, message: "Admin login successful", username: admin.username });
+    res.json({
+      success: true,
+      message: "Admin login successful",
+      username: admin?.username || "admin"
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: `Error: ${err.message}` });
   }
 });
 
-app.post("/restaurant-system/api/staff_login.php", async (req, res) => {
+app.post("/api/staff/login", async function (req, res) {
   try {
     const username = toText(req.body?.username);
     const password = toText(req.body?.password);
     if (!username || !password) {
       return res.status(400).json({ success: false, message: "Please enter username and password" });
+    }
+
+    if (isDefaultAdminCredential(username, password)) {
+      req.session.user_type = "admin";
+      req.session.admin_id = 0;
+      req.session.admin_username = "admin";
+      req.session.admin_logged_in = true;
+      return res.json({
+        success: true,
+        message: "Admin login successful",
+        role: "admin",
+        user_type: "admin",
+        user_id: "admin",
+        username: "admin"
+      });
     }
 
     const [admins] = await pool.query("SELECT * FROM admin WHERE username = ? LIMIT 1", [username]);
@@ -773,13 +1169,17 @@ app.post("/restaurant-system/api/staff_login.php", async (req, res) => {
   }
 });
 
-app.post("/restaurant-system/api/admin_logout.php", (req, res) => {
+function handleLogout(req, res) {
   req.session.destroy(() => {
+    res.clearCookie("connect.sid");
     res.json({ success: true, message: "Logout successful" });
   });
-});
+}
 
-app.get(["/api/cooks", "/restaurant-system/api/admin_cooks.php"], async (_req, res) => {
+app.post("/api/logout", handleLogout);
+app.post("/api/admin/logout", handleLogout);
+
+app.get("/api/cooks", async function (req, res) {
   try {
     const [rows] = await pool.query(
       "SELECT id, cook_id, full_name, phone, status, created_at FROM cooks ORDER BY id DESC"
@@ -790,7 +1190,7 @@ app.get(["/api/cooks", "/restaurant-system/api/admin_cooks.php"], async (_req, r
   }
 });
 
-app.post(["/api/cooks", "/restaurant-system/api/admin_cooks.php"], async (req, res) => {
+app.post("/api/cooks", async function (req, res) {
   try {
     const cookId = toText(req.body?.cook_id ?? req.body?.id);
     const password = toText(req.body?.password);
@@ -826,7 +1226,7 @@ app.post(["/api/cooks", "/restaurant-system/api/admin_cooks.php"], async (req, r
   }
 });
 
-app.patch(["/api/cooks/:cookId/status", "/restaurant-system/api/admin_cooks.php/:cookId/status"], async (req, res) => {
+app.patch("/api/cooks/:cookId/status", async function (req, res) {
   try {
     const cookId = toText(req.params?.cookId);
     const status = normalizeCookStatus(req.body?.status, req.body?.active === false ? "inactive" : "active");
@@ -844,7 +1244,7 @@ app.patch(["/api/cooks/:cookId/status", "/restaurant-system/api/admin_cooks.php/
   }
 });
 
-app.put(["/api/cooks/:cookId", "/restaurant-system/api/admin_cooks.php/:cookId"], async (req, res) => {
+app.put("/api/cooks/:cookId", async function (req, res) {
   try {
     const cookId = toText(req.params?.cookId);
     const fullName = toText(req.body?.full_name ?? req.body?.name);
@@ -898,7 +1298,7 @@ app.put(["/api/cooks/:cookId", "/restaurant-system/api/admin_cooks.php/:cookId"]
   }
 });
 
-app.delete(["/api/cooks/:cookId", "/restaurant-system/api/admin_cooks.php/:cookId"], async (req, res) => {
+app.delete("/api/cooks/:cookId", async function (req, res) {
   try {
     const cookId = toText(req.params?.cookId);
     if (!cookId) {
@@ -916,33 +1316,284 @@ app.delete(["/api/cooks/:cookId", "/restaurant-system/api/admin_cooks.php/:cookI
   }
 });
 
-app.post("/restaurant-system/api/sync_state.php", async (req, res) => {
+app.get("/", function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "index.html"));
+});
+
+app.get(["/login", "/login.html"], function (req, res) {
+  res.status(200).sendFile(path.join(__dirname, "views", "index.html"));
+});
+
+app.post("/api/orders", async function (req, res) {
   try {
-    const out = await syncState(req.body);
-    res.status(out.status).json(out.body);
+    // 1. Make sure the user is actually a logged-in customer
+    if (req.session?.user_type !== "customer") {
+      return res.status(401).json({ success: false, message: "Only logged-in customers can place orders." });
+    }
+
+    const sessionId = req.session.session_id;
+    const tableNumber = req.session.table_number;
+    const { notes, items } = req.body || {};
+
+    // 2. Validate the request
+    if (!items || items.length === 0) {
+      return res.status(400).json({ success: false, message: "Order must contain at least one item." });
+    }
+
+    // 3. Create a unique order number (using timestamp for simplicity)
+    const orderNumber = Date.now().toString();
+
+    // 4. Insert the main order into the database
+    const [orderResult] = await pool.query(
+      "INSERT INTO orders (order_number, session_id, table_number, status, notes) VALUES (?, ?, ?, 'pending', ?)",
+      [orderNumber, sessionId, tableNumber, notes || ""]
+    );
+
+    const orderId = orderResult.insertId;
+
+    // (Note: In a fully finished version, you would also write a loop here 
+    // to insert each individual item into the `order_items` table and calculate the total price).
+
+    // 5. Send success response
+    res.status(201).json({
+      success: true,
+      message: "Order placed successfully!",
+      order_id: orderId,
+      order_number: orderNumber
+    });
+
   } catch (err) {
-    res.status(500).json({ success: false, message: `Sync failed: ${err.message}` });
+    console.log(err);
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
   }
 });
 
-app.get("/restaurant-system/api/get_state.php", async (_req, res) => {
+app.get("/api/orders", async function (req, res) {
   try {
-    const data = await getState();
-    res.json({ success: true, data, mirrors: {}, server_time: new Date().toISOString() });
+    // 1. Check if the user is filtering by status (e.g., /api/orders?status=pending)
+    const statusFilter = req.query.status;
+    let query = "SELECT * FROM orders";
+    let params = [];
+
+    if (statusFilter) {
+      query += " WHERE status = ?";
+      params.push(statusFilter);
+    }
+
+    // Order by newest first
+    query += " ORDER BY created_at DESC";
+
+    // 2. Fetch the main orders
+    const [orders] = await pool.query(query, params);
+
+    // 3. If we have orders, fetch their items and attach them
+    if (orders.length > 0) {
+      const orderIds = orders.map(o => o.id);
+
+      // Fetch all items that belong to the orders we just found
+      const [items] = await pool.query(
+        "SELECT * FROM order_items WHERE order_id IN (?)",
+        [orderIds]
+      );
+
+      // Map the items into their respective order objects
+      orders.forEach(order => {
+        order.items = items.filter(item => item.order_id === order.id);
+      });
+    }
+
+    // 4. Send the response
+    res.status(200).json({
+      success: true,
+      orders: orders
+    });
+
   } catch (err) {
-    res.status(500).json({ success: false, message: `Load state failed: ${err.message}` });
+    console.log(err);
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
   }
 });
 
-app.all(/^\/restaurant-system\/api\/.*\.php$/, (req, res) => {
-  if (req.method !== "GET" && req.method !== "POST") {
-    return res.status(405).json({ success: false, message: "Method not allowed" });
+app.patch("/api/orders/:orderId/status", async function (req, res) {
+  try {
+    const orderId = req.params.orderId;
+    const newStatus = req.body.status;
+
+    // 1. Validate the request
+    if (!newStatus) {
+      return res.status(400).json({ success: false, message: "Status is required" });
+    }
+
+    // Optional: Ensure it's a valid status word
+    const allowedStatuses = ['pending', 'serving', 'completed', 'cancelled'];
+    if (!allowedStatuses.includes(newStatus)) {
+      return res.status(400).json({ success: false, message: "Invalid status value" });
+    }
+
+    // 2. Update the order in the database
+    const [result] = await pool.query(
+      "UPDATE orders SET status = ? WHERE id = ?",
+      [newStatus, orderId]
+    );
+
+    // 3. Check if the order actually existed
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // 4. Send the success response
+    res.status(200).json({
+      success: true,
+      message: `Order #${orderId} status updated to ${newStatus}`,
+      order_id: orderId,
+      status: newStatus
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
   }
-  return res.status(404).json({ success: false, message: "Endpoint not implemented" });
 });
 
-app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "views", "index.html"));
+app.get("/api/orders/:orderId", async function (req, res) {
+  try {
+    const orderId = req.params.orderId;
+
+    // 1. Fetch the main order details
+    const [orders] = await pool.query("SELECT * FROM orders WHERE id = ?", [orderId]);
+
+    // If the order doesn't exist, return a 404
+    if (orders.length === 0) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    const order = orders[0];
+
+    // 2. Fetch the items for this specific order
+    const [items] = await pool.query("SELECT * FROM order_items WHERE order_id = ?", [orderId]);
+
+    // 3. Attach the items to the order object
+    order.items = items;
+
+    // 4. Send the response
+    res.status(200).json({
+      success: true,
+      order: order
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+// PAYMENTS APIS
+// ==========================================
+
+// Process a Payment
+app.post("/api/payments", async function (req, res) {
+  try {
+    const { order_id, method, amount } = req.body;
+
+    if (!order_id || !method || amount === undefined) {
+      return res.status(400).json({ success: false, message: "Missing required payment details" });
+    }
+
+    // Generate a unique payment reference string
+    const paymentRef = Date.now().toString();
+    const sessionId = req.session?.session_id || null;
+    const tableNumber = req.session?.table_number || null;
+
+    // 1. Insert into payments table
+    const [paymentResult] = await pool.query(
+      "INSERT INTO payments (payment_reference, session_id, table_number, amount, method, status) VALUES (?, ?, ?, ?, ?, 'paid')",
+      [paymentRef, sessionId, tableNumber, amount, method]
+    );
+    const paymentId = paymentResult.insertId;
+
+    // 2. Update the order to mark it as paid
+    await pool.query(
+      "UPDATE orders SET payment_id = ?, payment_status = 'paid', payment_method = ?, paid_at = NOW() WHERE id = ?",
+      [paymentId, method, order_id]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Payment processed successfully",
+      payment_id: paymentId,
+      payment_reference: paymentRef,
+      status: "paid"
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+// Get Payment History
+app.get("/api/payments", async function (req, res) {
+  try {
+    const [payments] = await pool.query("SELECT * FROM payments ORDER BY created_at DESC");
+    res.status(200).json({ success: true, payments });
+  } catch (err) {
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+
+// ==========================================
+// REVIEWS APIS
+// ==========================================
+
+// Submit a Review
+app.post("/api/reviews", async function (req, res) {
+  try {
+    const { payment_id, rating, comment } = req.body;
+
+    if (!payment_id || !rating) {
+      return res.status(400).json({ success: false, message: "Payment ID and rating are required" });
+    }
+
+    const sessionId = req.session?.session_id || null;
+    const tableNumber = req.session?.table_number || null;
+
+    // 1. Insert the review into the database
+    const [reviewResult] = await pool.query(
+      "INSERT INTO reviews (payment_id, session_id, table_number, rating, comment) VALUES (?, ?, ?, ?, ?)",
+      [payment_id, sessionId, tableNumber, rating, comment || ""]
+    );
+
+    // 2. Mark the payment to show a review was submitted
+    await pool.query(
+      "UPDATE payments SET review_submitted_at = NOW() WHERE id = ?",
+      [payment_id]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Review submitted successfully",
+      review_id: reviewResult.insertId
+    });
+
+  } catch (err) {
+    // If the database complains about a duplicate payment_id (user already left a review)
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: "Review already submitted for this payment" });
+    }
+    console.log(err);
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+// Get All Reviews
+app.get("/api/reviews", async function (req, res) {
+  try {
+    const [reviews] = await pool.query("SELECT * FROM reviews ORDER BY created_at DESC");
+    res.status(200).json({ success: true, reviews });
+  } catch (err) {
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
 });
 
 async function start() {

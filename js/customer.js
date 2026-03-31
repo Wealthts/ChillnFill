@@ -24,15 +24,14 @@ async function findApiPath() {
     }
 
     const possiblePaths = [
-        window.location.origin + '/restaurant-system/api/',
-        window.location.origin + '/restaurant-system/',
-        'http://localhost/restaurant-system/api/',
-        'http://localhost/restaurant-system/'
+        window.location.origin + '/api/',
+        'http://localhost:3000/api/',
+        'http://127.0.0.1:3000/api/'
     ];
 
     for (const path of possiblePaths) {
         try {
-            const testUrl = path + 'get_session.php';
+            const testUrl = path + 'session';
             const response = await fetch(testUrl, { method: 'GET' });
             const contentType = response.headers.get('content-type') || '';
             if (response.ok && contentType.includes('application/json')) {
@@ -41,7 +40,7 @@ async function findApiPath() {
         } catch (e) {
         }
     }
-    return normalizeBase(window.location.origin + '/restaurant-system/api/');
+    return normalizeBase(window.location.origin + '/api/');
 }
 
 async function parseJsonResponse(response) {
@@ -302,7 +301,7 @@ async function customerLogin() {
     }
 
     try {
-        const response = await fetch(`${API_BASE}customer_login.php`, {
+        const response = await fetch(`${API_BASE}customer/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ table_number: normalizedTableNumber })
