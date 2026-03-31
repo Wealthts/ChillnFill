@@ -16,7 +16,7 @@ $password = $input['password'] ?? null;
 if (!$cook_id || !$password) {
     jsonResponse([
         'success' => false,
-        'message' => 'กรุณากรอก Cook ID และรหัสผ่าน'
+        'message' => 'Please enter Cook ID and password'
     ], 400);
 }
 
@@ -33,19 +33,19 @@ try {
         
         jsonResponse([
             'success' => true,
-            'message' => 'เข้าสู่ระบบสำเร็จ',
+            'message' => 'Login successful',
             'cook_id' => $cook['cook_id'],
             'full_name' => $cook['full_name']
         ]);
     } else {
         jsonResponse([
             'success' => false,
-            'message' => 'Cook ID หรือรหัสผ่านไม่ถูกต้อง'
+            'message' => 'Cook ID or password is incorrect'
         ], 401);
     }
 } catch (Exception $e) {
     jsonResponse([
         'success' => false,
-        'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()
+        'message' => 'Error: ' . $e->getMessage()
     ], 500);
 }

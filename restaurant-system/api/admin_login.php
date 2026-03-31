@@ -14,17 +14,17 @@ $username = $data['username'] ?? null;
 $password = $data['password'] ?? null;
 
 if (!$username || !$password) {
-    jsonResponse(['success' => false, 'message' => 'กรุณากรอก username และรหัสผ่าน'], 400);
+    jsonResponse(['success' => false, 'message' => 'Please enter username and password'], 400);
 }
 
 try {
-    // ดึงข้อมูลแอดมินจากฐานข้อมูล
+    // Load admin from database
     $stmt = $pdo->prepare("SELECT * FROM admin WHERE username = ?");
     $stmt->execute([$username]);
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($admin && password_verify($password, $admin['password_hash'])) {
-        // ล็อกอินสำเร็จ
+        // Login successful
         $_SESSION['user_type'] = 'admin';
         $_SESSION['admin_id'] = $admin['id'];
         $_SESSION['admin_username'] = $admin['username'];
@@ -32,12 +32,12 @@ try {
         
         jsonResponse([
             'success' => true,
-            'message' => 'เข้าสู่ระบบ admin สำเร็จ',
+            'message' => 'Admin login successful',
             'username' => $admin['username']
         ]);
     } else {
-        jsonResponse(['success' => false, 'message' => 'Username หรือรหัสผ่านไม่ถูกต้อง'], 401);
+        jsonResponse(['success' => false, 'message' => 'Username or password is incorrect'], 401);
     }
 } catch (Exception $e) {
-    jsonResponse(['success' => false, 'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()], 500);
+    jsonResponse(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
 }

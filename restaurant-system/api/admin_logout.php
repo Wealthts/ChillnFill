@@ -6,4 +6,4 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 session_destroy();
-jsonResponse(['success' => true, 'message' => 'ออกจากระบบสำเร็จ']);
+jsonResponse(['success' => true, 'message' => 'Logout successful']);
