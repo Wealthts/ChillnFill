@@ -102,7 +102,7 @@ function getOutstandingOrders() {
 }
 
 function buildContext(orders) {
-    const sorted = [...orders].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+    const sorted = [...orders].sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
     return {
         orders: sorted,
         orderIds: sorted.map((order) => order.id),
@@ -176,7 +176,9 @@ function confirmPayment() {
         status: "paid"
     };
 
-    write("payments", [...read("payments"), payment]);
+    // FIX: Put the new 'payment' at the start of the array instead of the end
+    write("payments", [payment, ...read("payments")]);
+
     write("orders", read("orders").map((order) =>
         state.context.orderIds.includes(order.id)
             ? { ...order, paymentId, paymentStatus: "paid", paymentMethod: state.method, paidAt: now }
@@ -205,7 +207,8 @@ function submitReview() {
         paymentId: paymentId || null
     };
 
-    write("reviews", [...read("reviews"), review]);
+    // FIX: Put the new 'review' at the start of the array instead of the end
+    write("reviews", [review, ...read("reviews")]);
 
     if (paymentId) {
         write("payments", read("payments").map((payment) =>

@@ -1,6 +1,7 @@
 let editCookIndex = null;
 let editMenuIndex = null;
-const COOKS_API_BASE = "/restaurant-system/api/admin_cooks.php";
+const COOKS_API_BASE = "/api/cooks";
+const MENUS_API_BASE = "/api/menu";
 let cookRows = [];
 
 function toDateInputValue(date){
@@ -315,7 +316,12 @@ function login(){
   }
 }
 
-function logout(){
+async function logout(){
+  try {
+    await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
+  } catch (err) {
+    console.warn("Logout API failed:", err);
+  }
   localStorage.removeItem("admin_logged_in");
   localStorage.removeItem("user_type");
   localStorage.removeItem("cook_id");
@@ -941,9 +947,23 @@ function deleteMenu(i){
 
 function toggleMenu(i){
   let menus = readMenusFromStorage();
+  if (!menus[i]) return;
+
   menus[i].available = !menus[i].available;
   saveMenusToStorage(menus);
   loadMenu();
+
+  const menuId = Number.parseInt(String(menus[i].id || ""), 10);
+  if (!Number.isInteger(menuId) || menuId <= 0) {
+    return;
+  }
+
+  apiRequest(`${MENUS_API_BASE}/${menuId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ available: menus[i].available })
+  }).catch((err) => {
+    alert(`Menu status saved locally but DB update failed: ${err.message}`);
+  });
 }
 
 /* ================= ORDERS ================= */
@@ -1005,11 +1025,12 @@ function setOrderStatus(orderId, status){
 /* ================= PAYMENTS ================= */
 function loadPayments(){
   let payments = JSON.parse(localStorage.getItem("payments")) || [];
+  const sortedPayments = [...payments].sort((a,b)=> new Date(b.time || 0) - new Date(a.time || 0));
   let div = document.getElementById("payment");
 
   div.innerHTML = "<h2 class='text-2xl font-bold mt-6 mb-4'>Payments</h2>";
 
-  payments.forEach(p=>{
+  sortedPayments.forEach(p=>{
 
     let itemsHTML = (p.items || []).map(i=>`
       - ${i.name} x${i.qty} (${i.price} Baht)

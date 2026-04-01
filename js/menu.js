@@ -434,9 +434,15 @@ function clearPendingReviewPaymentId() {
     localStorage.removeItem(getPendingReviewKey());
 }
 
-function logoutCustomer() {
+async function logoutCustomer() {
     const lockKey = getOrderingLockKey();
     const pendingKey = getPendingReviewKey();
+
+    try {
+        await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
+    } catch (err) {
+        console.warn("Logout API failed:", err);
+    }
 
     localStorage.removeItem(lockKey);
     localStorage.removeItem(pendingKey);
@@ -1363,8 +1369,7 @@ function confirmPaymentSelection() {
     };
 
     const payments = getAllPayments();
-    payments.push(paymentRecord);
-    saveAllPayments(payments);
+    saveAllPayments([paymentRecord, ...payments]);
 
     const updatedOrders = getAllOrders().map((order) => {
         if (!orderIdSet.has(String(order.id))) return order;

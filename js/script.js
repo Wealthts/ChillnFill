@@ -24,15 +24,14 @@ async function findApiPath() {
     }
 
     const possiblePaths = [
-        window.location.origin + '/restaurant-system/api/',
-        window.location.origin + '/restaurant-system/',
-        'http://localhost/restaurant-system/api/',
-        'http://localhost/restaurant-system/'
+        window.location.origin + '/api/',
+        'http://localhost:3000/api/',
+        'http://127.0.0.1:3000/api/'
     ];
 
     for (const path of possiblePaths) {
         try {
-            const testUrl = path + 'get_session.php';
+            const testUrl = path + 'session';
             console.log('Testing:', testUrl);
             const response = await fetch(testUrl, { method: 'GET' });
             const contentType = response.headers.get('content-type') || '';
@@ -44,7 +43,7 @@ async function findApiPath() {
             console.log('Failed:', path, e.message);
         }
     }
-    return normalizeBase(window.location.origin + '/restaurant-system/api/');
+    return normalizeBase(window.location.origin + '/api/');
 }
 
 async function parseJsonResponse(response) {
@@ -219,7 +218,7 @@ async function customerLogin() {
     }
 
     try {
-        const response = await fetch(`${API_BASE}customer_login.php`, {
+        const response = await fetch(`${API_BASE}customer/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ table_number: normalizedTableNumber })
@@ -263,7 +262,7 @@ async function cookRegister() {
     }
 
     try {
-        const response = await fetch(`${API_BASE}cook_register.php`, {
+        const response = await fetch(`${API_BASE}cook/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ cook_id: cookId, password: password, full_name: fullName })
@@ -277,7 +276,7 @@ async function cookRegister() {
         if (data.success) {
             showMessage(data.message, 'success');
             setTimeout(() => {
-                window.location.href = 'index.html#cook';
+                window.location.href = 'login.html#cook';
             }, 1500);
         } else {
             showMessage(data.message, 'error');
@@ -303,7 +302,7 @@ async function cookLogin() {
     }
 
     try {
-        const response = await fetch(`${API_BASE}cook_login.php`, {
+        const response = await fetch(`${API_BASE}cook/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ cook_id: cookId, password: password })
@@ -348,7 +347,7 @@ async function adminLogin() {
     }
 
     try {
-        const response = await fetch(`${API_BASE}admin_login.php`, {
+        const response = await fetch(`${API_BASE}admin/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: username, password: password })
@@ -378,7 +377,7 @@ async function adminLogin() {
 
 async function checkSession() {
     try {
-        const response = await fetch(`${API_BASE}get_session.php`);
+        const response = await fetch(`${API_BASE}session`);
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
         }
@@ -387,8 +386,8 @@ async function checkSession() {
         if (data.logged_in) {
             if (data.user_type === 'customer' && !window.location.pathname.includes('menu.html')) {
                 window.location.href = 'menu.html';
-            } else if (data.user_type === 'cook' && !window.location.pathname.includes('admin.html')) {
-                window.location.href = 'admin.html#orders';
+            } else if (data.user_type === 'cook' && !window.location.pathname.includes('cook.html')) {
+                window.location.href = 'cook.html';
             } else if (data.user_type === 'admin' && !window.location.pathname.includes('admin.html')) {
                 window.location.href = 'admin.html';
             }

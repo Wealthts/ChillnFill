@@ -9,12 +9,12 @@
         if (targetPromise) return targetPromise;
 
         targetPromise = (async () => {
-            const candidates = [
+            const origin = String(window.location.origin || "").trim();
+            const candidates = Array.from(new Set([
+                origin ? `${origin}/api/state/sync` : "",
                 "http://localhost:3000/api/state/sync",
-                "http://127.0.0.1:3000/api/state/sync",
-                "http://localhost/restaurant-system/api/sync_state.php",
-                "http://127.0.0.1/restaurant-system/api/sync_state.php"
-            ];
+                "http://127.0.0.1:3000/api/state/sync"
+            ].filter(Boolean)));
 
             for (const url of candidates) {
                 try {
