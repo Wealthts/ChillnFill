@@ -250,41 +250,44 @@ async function customerLogin() {
         window.location.href = 'menu.html';
     }
 }
-
+//ตอนนี้ cookRegister() ยังเก็บ cook_id + password + full_name แล้ว POST ไป /api/cook/register ต้องเปลี่ยนเป็น “ตั้งรหัสผ่านครั้งแรก”
 async function cookRegister() {
-    const cookId = document.getElementById('register-cook-id').value.trim();
-    const password = document.getElementById('register-password').value;
-    const fullName = document.getElementById('register-fullname').value.trim();
+  const cookId = document.getElementById('register-cook-id').value.trim();
+  const password = document.getElementById('register-password').value;
 
-    if (!cookId || !password || !fullName) {
-        showMessage('Please enter Cook ID, password, and full name.', 'error');
-        return;
+  if (!cookId || !password) {
+    showMessage('Please enter Cook ID and password.', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}cook/set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cook_id: cookId,
+        password: password
+      })
+    });
+
+    const data = await parseJsonResponse(response);
+
+    if (!response.ok) {
+      throw new Error(data.message || `Request failed with status ${response.status}`);
     }
 
-    try {
-        const response = await fetch(`${API_BASE}cook/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cook_id: cookId, password: password, full_name: fullName })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`);
-        }
-        const data = await parseJsonResponse(response);
-
-        if (data.success) {
-            showMessage(data.message, 'success');
-            setTimeout(() => {
-                window.location.href = 'login.html#cook';
-            }, 1500);
-        } else {
-            showMessage(data.message, 'error');
-        }
-    } catch (error) {
-        showMessage('Error: ' + error.message, 'error');
-        console.error('cookRegister error:', error);
+    if (data.success) {
+      showMessage(data.message, 'success');
+      setTimeout(() => {
+        window.location.href = 'login.html#cook';
+      }, 1500);
+    } else {
+      showMessage(data.message, 'error');
     }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+    console.error('cookSetPassword error:', error);
+  }
 }
 
 async function cookLogin() {

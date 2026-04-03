@@ -72,14 +72,15 @@ INSERT INTO `app_state` (`id`, `state_key`, `state_value`, `updated_at`) VALUES
 --
 -- Table structure for table `cooks`
 --
-
+-- ตอนนี้ dump เดิมของ cooks กำหนด password_hash เป็น NOT NULL
 CREATE TABLE `cooks` (
   `id` int(11) NOT NULL,
   `cook_id` varchar(50) NOT NULL,
-  `password_hash` varchar(255) NOT NULL,
+  `password_hash` varchar(255) DEFAULT NULL,
   `full_name` varchar(100) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `status` varchar(20) NOT NULL DEFAULT 'active',
+  `must_set_password` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -87,17 +88,16 @@ CREATE TABLE `cooks` (
 -- Dumping data for table `cooks`
 --
 
-INSERT INTO `cooks` (`id`, `cook_id`, `password_hash`, `full_name`, `phone`, `status`, `created_at`) VALUES
-(1, 'COOK001', '$2a$10$EEvVOnre94sXytWNYJ2mBuMEDacOL.Qiulj.oAnwm7PsPZlw0OjB2', 'Somchai Jaidee', '0812345678', 'active', '2026-03-30 17:16:14'),
-(2, 'COOK002', '$2a$10$EEvVOnre94sXytWNYJ2mBuMEDacOL.Qiulj.oAnwm7PsPZlw0OjB2', 'Somying Rakdee', '0898765432', 'active', '2026-03-30 17:16:14'),
-(3, 'cook01', '$2y$10$ttnahOm2nIA7o6OtsLAxu.7Q1h4OTGSC8undYecsXD0lqNl/Nmfjq', 'Test Cook', '0812345678', 'active', '2026-03-30 22:37:11');
-
+INSERT INTO `cooks`//
+(`id`, `cook_id`, `password_hash`, `full_name`, `phone`, `status`, `must_set_password`, `created_at`)
+VALUES
+(1, 'COOK001', NULL, 'Somchai Jaidee', '0812345678', 'active', 1, '2026-03-30 17:16:14');
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `customer_sessions`
 --
-
+--จากเดิมที่มี password hash เลย ให้เป็นแบบ admin สร้าง ID อย่างเดียว
 CREATE TABLE `customer_sessions` (
   `id` int(11) NOT NULL,
   `session_id` varchar(100) NOT NULL,
@@ -332,6 +332,8 @@ CREATE TABLE `reviews` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 
 --
 -- Indexes for dumped tables

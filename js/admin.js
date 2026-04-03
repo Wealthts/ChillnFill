@@ -593,14 +593,11 @@ function openCookModal(){
   const cookModal = document.getElementById("cookModal");
   const cookName = document.getElementById("cookName");
   const cookId = document.getElementById("cookId");
-  const cookPass = document.getElementById("cookPass");
 
   openModal(cookModal);
   cookName.value = "";
   cookId.value = "";
-  cookPass.value = "";
 }
-
 function closeCookModal(){
   const cookModal = document.getElementById("cookModal");
   closeModal(cookModal);
@@ -609,22 +606,25 @@ function closeCookModal(){
 async function addCook(){
   const cookName = document.getElementById("cookName");
   const cookId = document.getElementById("cookId");
-  const cookPass = document.getElementById("cookPass");
 
   const fullName = String(cookName.value || "").trim();
   const cook_id = String(cookId.value || "").trim();
-  const password = String(cookPass.value || "").trim();
 
-  if(!fullName || !cook_id || !password){
-    alert("Please fill all fields");
+  if (!fullName || !cook_id) {
+    alert("Please fill cook name and cook ID");
     return;
   }
 
   try {
     await apiRequest(COOKS_API_BASE, {
       method: "POST",
-      body: JSON.stringify({ cook_id, password, full_name: fullName, status: "active" })
+      body: JSON.stringify({
+        cook_id,
+        full_name: fullName,
+        status: "active"
+      })
     });
+
     closeCookModal();
     await loadCooks();
   } catch (err) {
@@ -685,9 +685,9 @@ async function updateCook(){
 
   const editCookName = document.getElementById("editCookName");
   const editCookId = document.getElementById("editCookId");
-  const editCookPass = document.getElementById("editCookPass");
   const editCookModal = document.getElementById("editCookModal");
   const target = cookRows[editCookIndex];
+
   const cookId = String(editCookId?.value || target?.cook_id || "").trim();
 
   if(!editCookName.value || !cookId){
@@ -695,15 +695,15 @@ async function updateCook(){
     return;
   }
 
-  const payload = { full_name: String(editCookName.value || "").trim() };
-  const nextPassword = String(editCookPass.value || "").trim();
-  if (nextPassword) payload.password = nextPassword;
-
+  const payload = {
+  full_name: String(editCookName.value || "").trim()
+  };
   try {
     await apiRequest(`${COOKS_API_BASE}/${encodeURIComponent(cookId)}`, {
       method: "PUT",
       body: JSON.stringify(payload)
     });
+
     editCookIndex = null;
     closeModal(editCookModal);
     await loadCooks();
