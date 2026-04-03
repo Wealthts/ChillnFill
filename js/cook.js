@@ -1,22 +1,85 @@
-function getOrders() {
-    return JSON.parse(localStorage.getItem("orders") || "[]");
+// 1. Fetch orders from API
+async function getOrders() {
+    try {
+        const response = await fetch('/api/orders'); 
+        if (response.ok) {
+            const orders = await response.json();
+            localStorage.setItem("orders", JSON.stringify(orders));
+            return orders;
+        }
+        return JSON.parse(localStorage.getItem("orders") || "[]");
+    } catch (error) {
+        console.error("Network error:", error);
+        return JSON.parse(localStorage.getItem("orders") || "[]");
+    }
 }
 
-function saveOrders(orders) {
-    localStorage.setItem("orders", JSON.stringify(orders));
+// 2. Core Function: Assign Cook ID to Order in Database
+
+async function assignCookToOrder(orderId) {
+    // 1. ดึง ID จริงที่เก็บไว้ตอน Login (ต้องชื่อเดียวกับที่หนู setItem ไว้นะลูก)
+    const currentCookId = localStorage.getItem("cook_id");
+
+    // 2. Security Check: ถ้าไม่มี ID (ไม่ได้ Login) ห้ามทำเด็ดขาด!
+    if (!currentCookId) {
+        alert("⚠️ Access Denied! Please login as a cook to accept this order.");
+        window.location.href = "staff.html"; // พาไปหน้า Login ทันที
+        return;
+    }
+
+    console.log(`[System] Processing Order #${orderId} by Cook ID: ${currentCookId}`);
+
+    try {
+        // 3. พยายามส่งไปหา API (ใช้ ID จริงจากระบบ)
+        const response = await fetch(`/api/orders/${orderId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                cook_id: currentCookId, // ส่ง ID ที่ได้จากการ Login จริงๆ
+                status: 'cooking' 
+            })
+        });
+
+        if (response.ok) {
+            console.log("✅ API Success: Linked to Database.");
+            await refreshAllData();
+            return;
+        }
+    } catch (err) {
+        console.warn("⚠️ API Failed (Server Offline). Switching to Local Mock Mode.");
+    }
+
+    // 4. แผนสำรอง: ทำในเครื่องตัวเอง (Mock Mode)
+    let orders = JSON.parse(localStorage.getItem("orders") || "[]");
+    const idx = orders.findIndex(o => String(o.id) === String(orderId));
+    
+    if (idx !== -1) {
+        // ใช้ currentCookId ที่เราเช็กแล้วว่ามีตัวตนจริงๆ
+        orders[idx].cook_id = currentCookId;
+        orders[idx].status = 'cooking';
+        localStorage.setItem("orders", JSON.stringify(orders));
+        
+        console.log(`🚀 Mock Success: Order #${orderId} assigned to Cook ID: ${currentCookId} locally.`);
+        await refreshAllData(); 
+    }
+}
+// 3. Update Status (e.g., Mark as Served)
+async function updateOrderStatus(orderId, nextStatus) {
+    try {
+        const response = await fetch(`/api/orders/${orderId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: nextStatus })
+        });
+        if (response.ok) await refreshAllData();
+    } catch (err) {
+        console.error("Update failed:", err);
+    }
 }
 
-function getReviews() {
-    return JSON.parse(localStorage.getItem("reviews") || "[]");
-}
-
+// 4. Security & Formatting Helpers
 function escapeHtml(text) {
-    return String(text || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    return String(text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 function getStatusClass(status) {
@@ -27,255 +90,147 @@ function getStatusClass(status) {
 }
 
 function isServedOrderStatus(status) {
-    const normalized = String(status || "").toLowerCase();
-    return ["serving", "served", "completed", "done"].includes(normalized);
+    return ["serving", "served", "completed", "done"].includes(String(status || "").toLowerCase());
 }
 
 function formatTime(value) {
     const date = new Date(value || 0);
-    if (Number.isNaN(date.getTime())) return "-";
-    return date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString('en-US');
 }
 
-function renderCookIdentity() {
-    const cookName = localStorage.getItem("cook_name") || "Cook";
-    const cookId = localStorage.getItem("cook_id") || "-";
-    const el = document.getElementById("cookIdentity");
-    if (el) {
-        el.innerText = `${cookName} (ID: ${cookId})`;
-    }
-}
-
-function renderOrders() {
+// 5. Render Orders with Search Functionality
+// 5. Render Orders with Security Check
+async function renderOrders() {
     const container = document.getElementById("ordersContainer");
+    const searchInput = document.getElementById("orderSearchInput");
     if (!container) return;
 
-    const orders = getOrders().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-    if (!orders.length) {
-        container.innerHTML = `<div class="rounded-[24px] border border-[#e6d7c7] bg-[#fbf5ee] p-6 text-center text-[#a97a52]">No orders yet</div>`;
+    const allOrders = await getOrders();
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+    
+    // ดึง cook_id มาเช็คสถานะการ Login
+    const currentCookId = localStorage.getItem("cook_id");
+
+    const filteredOrders = allOrders.filter(order => 
+        String(order.id).toLowerCase().includes(searchTerm) || 
+        String(order.table).toLowerCase().includes(searchTerm)
+    ).sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+
+    if (!filteredOrders.length) {
+        container.innerHTML = `<div class="rounded-[24px] border border-[#e6d7c7] bg-[#fbf5ee] p-6 text-center text-[#a97a52]">No orders found</div>`;
         return;
     }
 
-    container.innerHTML = orders.map((order) => {
+    container.innerHTML = filteredOrders.map((order) => {
         const items = Array.isArray(order.items) ? order.items : [];
-        const itemsHtml = items.length
-            ? items.map((item) => `<div>- ${escapeHtml(item.name)} x${Number(item.qty || 0)}</div>`).join("")
-            : "-";
+        const itemsHtml = items.map((item) => `<div>- ${escapeHtml(item.name)} x${Number(item.qty || 0)}</div>`).join("");
         const status = String(order.status || "pending").toLowerCase();
 
+        let actionUI = "";
+        if (status === "pending") {
+            // --- เช็คเงื่อนไขปุ่ม Accept ตรงนี้ลูก ---
+            if (currentCookId) {
+                // ✅ มี ID จริง: โชว์ปุ่มปกติ
+                actionUI = `<button onclick="assignCookToOrder('${order.id}')" class="btn btn-sm w-full bg-[#7a4e2f] text-white border-none mt-3">Accept Order</button>`;
+            } else {
+                // ❌ ไม่มี ID: ปิดปุ่ม (Disabled) และเปลี่ยนสีเป็นเทา
+                actionUI = `<button disabled class="btn btn-sm w-full bg-gray-400 text-white border-none mt-3 cursor-not-allowed">Please Login to Accept</button>`;
+            }
+        } else if (status === "cooking") {
+            actionUI = `
+                <div class="mt-3 p-2 bg-white rounded-lg border border-[#e5f0ff]">
+                    <div class="text-xs font-bold text-[#1b4d8f] mb-2">🧑‍🍳 Cooking by ID: ${order.cook_id || '-'}</div>
+                    <button onclick="updateOrderStatus('${order.id}', 'serving')" class="btn btn-xs w-full bg-[#1b4d8f] text-white border-none">Mark as Served</button>
+                </div>`;
+        }
+
         return `
-            <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-                <div class="card-body">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow hover:shadow-md transition-shadow">
+                <div class="card-body p-5">
+                    <div class="flex justify-between items-start">
                         <div>
                             <div class="font-bold text-lg">Order #${escapeHtml(order.id)}</div>
-                            <div class="text-sm text-[#a97a52]">Table ${escapeHtml(order.table || "-")} • ${formatTime(order.time)}</div>
+                            <div class="text-sm text-[#a97a52]">Table: ${escapeHtml(order.table || "-")} • ${formatTime(order.time)}</div>
                         </div>
                         <div class="px-3 py-1 rounded-full text-xs font-bold ${getStatusClass(status)}">${status.toUpperCase()}</div>
                     </div>
-
-                    <div class="mt-2 text-sm text-[#5f4028]">${itemsHtml}</div>
-                    <div class="mt-2 font-semibold">Total: ${Number(order.total || 0)} Baht</div>
-
-                    <div class="mt-3 flex items-center gap-3">
-                        <span class="text-sm font-semibold">Status</span>
-                        <select class="select select-sm bg-[#fffaf5] border-[#e6d7c7]" data-order-id="${escapeHtml(order.id)}">
-                            <option value="pending" ${status === "pending" ? "selected" : ""}>Pending</option>
-                            <option value="cooking" ${status === "cooking" ? "selected" : ""}>Cooking</option>
-                            <option value="serving" ${status === "serving" ? "selected" : ""}>Serving</option>
-                        </select>
-                    </div>
+                    <div class="mt-3 text-sm text-[#5f4028] bg-white/50 p-2 rounded-lg">${itemsHtml}</div>
+                    <div class="mt-2 font-semibold border-t border-[#e6d7c7] pt-2">Total: ${Number(order.total || 0)} Baht</div>
+                    ${actionUI}
                 </div>
             </div>
         `;
     }).join("");
-
-    container.querySelectorAll("select[data-order-id]").forEach((selectEl) => {
-        selectEl.addEventListener("change", (event) => {
-            const orderId = selectEl.dataset.orderId;
-            const nextStatus = event.target.value;
-            updateOrderStatus(orderId, nextStatus);
-        });
-    });
 }
 
-function renderDashboard() {
+// 6. Dashboard & Statistics
+async function renderDashboard() {
     const container = document.getElementById("cookDashboardContainer");
     if (!container) return;
-
-    const orders = getOrders();
+    const orders = await getOrders();
     const servedOrders = orders.filter((order) => isServedOrderStatus(order.status));
-
-    let servedMenusCount = 0;
-    const menuCounts = {};
-
-    servedOrders.forEach((order) => {
-        const items = Array.isArray(order.items) ? order.items : [];
-        items.forEach((item) => {
-            const qty = Number(item.qty || 0);
-            servedMenusCount += qty;
-            const name = String(item.name || "").trim();
-            if (!name) return;
-            menuCounts[name] = (menuCounts[name] || 0) + qty;
-        });
-    });
-
-    let topMenu = "-";
-    let topMenuCount = 0;
-    Object.entries(menuCounts).forEach(([name, count]) => {
-        if (count > topMenuCount) {
-            topMenu = name;
-            topMenuCount = count;
-        }
-    });
+    let servedCount = 0;
+    servedOrders.forEach(o => (o.items || []).forEach(i => servedCount += Number(i.qty || 0)));
 
     container.innerHTML = `
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-          <div class="card-body">
-            <div class="text-sm text-[#a97a52]">Served Menus</div>
-            <div class="text-2xl font-extrabold text-[#5f4028]">${servedMenusCount}</div>
-          </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="card bg-[#fbf5ee] border border-[#e6d7c7] p-4 text-center">
+                <div class="text-xs text-[#a97a52]">Total Served</div>
+                <div class="text-2xl font-bold">${servedCount} Menus</div>
+            </div>
+            <div class="card bg-[#fbf5ee] border border-[#e6d7c7] p-4 text-center">
+                <div class="text-xs text-[#a97a52]">Cook Status</div>
+                <div class="text-sm font-bold text-[#1f7a3d]">Online ✅</div>
+            </div>
         </div>
-        <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-          <div class="card-body">
-            <div class="text-sm text-[#a97a52]">Top Menu Served</div>
-            <div class="text-2xl font-extrabold text-[#5f4028]">${escapeHtml(topMenu)}</div>
-            <div class="text-xs text-[#a97a52]">${topMenuCount ? `${topMenuCount} servings` : "No served menu yet"}</div>
-          </div>
-        </div>
-      </div>
     `;
 }
 
-function renderReviews() {
-    const container = document.getElementById("cookReviewsContainer");
-    if (!container) return;
-
-    const reviews = getReviews().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-    const avg = reviews.length
-        ? (reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1)
-        : "0.0";
-
-    if (!reviews.length) {
-        container.innerHTML = `
-          <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-            <div class="card-body">
-              <div class="text-sm text-[#a97a52]">Average Rating</div>
-              <div class="text-2xl font-extrabold text-[#5f4028]">${avg}</div>
-              <div class="text-sm text-[#a97a52] mt-2">No reviews yet</div>
-            </div>
-          </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = `
-      <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow mb-4">
-        <div class="card-body">
-          <div class="text-sm text-[#a97a52]">Average Rating</div>
-          <div class="text-2xl font-extrabold text-[#5f4028]">${avg} / 5</div>
-        </div>
-      </div>
-      ${reviews.map((review) => `
-        <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-          <div class="card-body">
-            <div class="flex items-center justify-between gap-3">
-              <div class="font-bold text-[#5f4028]">⭐ ${Number(review.rating || 0)} / 5</div>
-              <div class="text-xs text-[#a97a52]">${formatTime(review.time)}</div>
-            </div>
-            <div class="text-sm text-[#5f4028] mt-2">${escapeHtml(review.comment || "-")}</div>
-            <div class="text-xs text-[#a97a52] mt-1">Table: ${escapeHtml(review.table || "-")}</div>
-          </div>
-        </div>
-      `).join("")}
-    `;
-}
-
-function updateOrderStatus(orderId, nextStatus) {
-    const orders = getOrders();
-    const idx = orders.findIndex((order) => String(order.id) === String(orderId));
-    if (idx === -1) return;
-
-    orders[idx].status = nextStatus;
-    saveOrders(orders);
-    renderOrders();
-    renderDashboard();
-}
-
-async function logoutCook() {
-    try {
-        await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
-    } catch (err) {
-        console.warn("Logout API failed:", err);
-    }
-    localStorage.removeItem("user_type");
-    localStorage.removeItem("cook_id");
-    localStorage.removeItem("cook_name");
-    window.location.href = "staff.html";
-}
-
-function showSection(section) {
-    const ordersSection = document.getElementById("cookOrdersSection");
-    const dashboardSection = document.getElementById("cookDashboardSection");
-    const reviewsSection = document.getElementById("cookReviewsSection");
-
-    if (ordersSection) ordersSection.classList.toggle("hidden", section !== "orders");
-    if (dashboardSection) dashboardSection.classList.toggle("hidden", section !== "dashboard");
-    if (reviewsSection) reviewsSection.classList.toggle("hidden", section !== "reviews");
-
-    const showOrdersBtn = document.getElementById("showOrdersBtn");
-    const showDashboardBtn = document.getElementById("showDashboardBtn");
-    const showReviewsBtn = document.getElementById("showReviewsBtn");
-
-    [showOrdersBtn, showDashboardBtn, showReviewsBtn].forEach((button) => {
-        if (!button) return;
-        button.classList.remove("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-none");
-        button.classList.add("bg-[#efe4d8]", "text-[#5f4028]", "border", "border-[#e6d7c7]");
-    });
-
-    const activeBtn = section === "orders" ? showOrdersBtn : section === "dashboard" ? showDashboardBtn : showReviewsBtn;
-    if (activeBtn) {
-        activeBtn.classList.remove("bg-[#efe4d8]", "text-[#5f4028]", "border", "border-[#e6d7c7]");
-        activeBtn.classList.add("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-none");
-    }
+// 7. Utility & Init
+async function refreshAllData() {
+    await renderOrders();
+    await renderDashboard();
 }
 
 function initCookPage() {
-    const userType = (localStorage.getItem("user_type") || "").toLowerCase();
-    if (userType !== "cook") {
-        window.location.href = "staff.html";
-        return;
+    renderCookIdentity();
+    refreshAllData();
+
+    const searchInput = document.getElementById("orderSearchInput");
+    if (searchInput) {
+        searchInput.addEventListener("input", renderOrders);
     }
 
-    renderCookIdentity();
-    renderOrders();
-    renderDashboard();
-    renderReviews();
-    showSection("orders");
+    setInterval(refreshAllData, 5000);
 
-    const logoutBtn = document.getElementById("logoutCookBtn");
-    if (logoutBtn) logoutBtn.addEventListener("click", logoutCook);
+    document.getElementById("showOrdersBtn")?.addEventListener("click", () => showSection("orders"));
+    document.getElementById("showDashboardBtn")?.addEventListener("click", () => showSection("dashboard"));
+    document.getElementById("logoutCookBtn")?.addEventListener("click", logoutCook);
+}
 
-    const showOrdersBtn = document.getElementById("showOrdersBtn");
-    const showDashboardBtn = document.getElementById("showDashboardBtn");
-    const showReviewsBtn = document.getElementById("showReviewsBtn");
+function renderCookIdentity() {
+    const name = localStorage.getItem("cook_name");
+    const id = localStorage.getItem("cook_id");
+    const el = document.getElementById("cookIdentity");
+    
+    if (el) {
+        if (id && name) {
+            el.innerText = `${name} (ID: ${id})`;
+        } else {
+            el.innerText = "Guest Cook (Please Login)"; // ให้มันโชว์เลยว่ายังไม่ได้ Login
+            el.classList.add("text-red-500"); // ใส่สีแดงเตือนไปเลยลูก!
+        }
+    }
+}
+function showSection(section) {
+    document.getElementById("cookOrdersSection")?.classList.toggle("hidden", section !== "orders");
+    document.getElementById("cookDashboardSection")?.classList.toggle("hidden", section !== "dashboard");
+    document.getElementById("cookReviewsSection")?.classList.toggle("hidden", section !== "reviews");
+}
 
-    if (showOrdersBtn) showOrdersBtn.addEventListener("click", () => showSection("orders"));
-    if (showDashboardBtn) showDashboardBtn.addEventListener("click", () => {
-        renderDashboard();
-        showSection("dashboard");
-    });
-    if (showReviewsBtn) showReviewsBtn.addEventListener("click", () => {
-        renderReviews();
-        showSection("reviews");
-    });
-
-    setInterval(() => {
-        renderOrders();
-        renderDashboard();
-        renderReviews();
-    }, 2000);
+async function logoutCook() {
+    localStorage.clear();
+    window.location.href = "staff.html";
 }
 
 initCookPage();

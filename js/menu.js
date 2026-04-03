@@ -1060,38 +1060,59 @@ function renderMenu() {
     });
 }
 
-function persistOrderToLocal() {
+/// หาฟังก์ชัน persistOrderToLocal ใน menu.js
+async function persistOrderToLocal() {
     if (!cart.length) return false;
-    if (isOrderCreationDisabled()) {
-        showToast(getOrderingDisabledMessage());
-        return false;
-    }
 
-    const tableNumber = getCurrentTableNumber() || "-";
-    const sessionId = getCurrentSessionId() || "";
-    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const orders = getAllOrders();
+    // ดึงเลขโต๊ะและ User ID มาเตรียมไว้
+    const tableNum = localStorage.getItem("table_number"); 
+    const userId = localStorage.getItem("user_id");
+    
+    // คำนวณราคาทั้งหมด
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    orders.push({
-        id: Date.now(),
-        table: tableNumber,
-        userId: sessionId,
-        items: cart.map((item) => ({
+    // ปั้นข้อมูลให้ตรงกับที่ server.js ของเพื่อนรอรับ (Mapping ชื่อตัวแปรให้ตรงกัน)
+    const orderPayload = {
+        table_number: tableNum, 
+        user_id: userId,
+        total_price: total, // ใน server.js พี่แก้ให้รับชื่อนี้แล้ว
+        items: cart.map(item => ({
             name: item.name,
-            qty: item.quantity,
-            price: item.price,
-            optionsText: item.optionsText || "",
-            customerNote: item.customerNote || ""
-        })),
-        total,
-        time: new Date().toISOString(),
+            qty: item.quantity, // แปลงจาก quantity เป็น qty ให้ตรงกับหลังบ้าน
+            price: item.price
+        })), 
         status: "pending"
-    });
+    };
 
-    saveAllOrders(orders);
-    return true;
+    console.log("📤 Sending Payload:", orderPayload); // เอาไว้ดูใน Console ว่าเลขโต๊ะไปจริงมั้ย
+
+    try {
+        const response = await fetch('http://localhost:3000/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderPayload)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            // ถ้า API ส่ง order_id กลับมา ให้เอามาโชว์คู่กับเลขโต๊ะ
+            showToast(`Order #${result.order_id || result.order_number} for Table ${tableNum} sent!`);
+            
+            // สั่งเสร็จล้างตะกร้าในเครื่องด้วยลูก
+            cart = [];
+            localStorage.setItem("cart", JSON.stringify(cart));
+            updateCartUI();
+            
+            return true;
+        } else {
+            const errorData = await response.json();
+            showToast("Error: " + errorData.message);
+        }
+    } catch (err) {
+        console.error("❌ API Connection Failed:", err);
+        showToast("Server is offline. Please tell staff.");
+    }
 }
-
 function renderPaymentSummary(context) {
     const container = document.getElementById("paymentSummaryContainer");
     if (!container) return;

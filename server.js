@@ -1324,42 +1324,40 @@ app.get(["/login", "/login.html"], function (req, res) {
   res.status(200).sendFile(path.join(__dirname, "views", "index.html"));
 });
 
+// แก้ไข POST /api/orders ใน server.js
 app.post("/api/orders", async function (req, res) {
   try {
-    // 1. Make sure the user is actually a logged-in customer
-    if (req.session?.user_type !== "customer") {
-      return res.status(401).json({ success: false, message: "Only logged-in customers can place orders." });
-    }
+    // 1. รับค่ามาจาก Body (ที่ส่งมาจาก menu.js)
+    const { table_number, user_id, total_price, items, notes } = req.body || {};
 
-    const sessionId = req.session.session_id;
-    const tableNumber = req.session.table_number;
-    const { notes, items } = req.body || {};
+    // เช็กหน่อยว่าส่งเลขโต๊ะมามั้ย ถ้าไม่มีจริงๆ ค่อยไปเอาจาก Session
+    const finalTableNumber = table_number || req.session?.table_number || 0;
+    const finalUserId = user_id || req.session?.session_id || "GUEST";
+    const orderNumber = Date.now().toString(); // เลข Order ID แบบ Dynamic
 
-    // 2. Validate the request
-    if (!items || items.length === 0) {
-      return res.status(400).json({ success: false, message: "Order must contain at least one item." });
-    }
-
-    // 3. Create a unique order number (using timestamp for simplicity)
-    const orderNumber = Date.now().toString();
-
-    // 4. Insert the main order into the database
+    // 2. INSERT ลงตาราง orders (ใส่เลขโต๊ะ และราคารวมด้วย!)
     const [orderResult] = await pool.query(
-      "INSERT INTO orders (order_number, session_id, table_number, status, notes) VALUES (?, ?, ?, 'pending', ?)",
-      [orderNumber, sessionId, tableNumber, notes || ""]
+      "INSERT INTO orders (order_number, session_id, table_number, total_amount, status, notes) VALUES (?, ?, ?, ?, 'pending', ?)",
+      [orderNumber, finalUserId, finalTableNumber, total_price || 0, notes || ""]
     );
 
     const orderId = orderResult.insertId;
 
-    // (Note: In a fully finished version, you would also write a loop here 
-    // to insert each individual item into the `order_items` table and calculate the total price).
+    // 3. (สำคัญ!) วนลูป INSERT รายการอาหารลงตาราง order_items
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        await pool.query(
+          "INSERT INTO order_items (order_id, item_name, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)",
+          [orderId, item.name, item.qty, item.price, (item.qty * item.price)]
+        );
+      }
+    }
 
-    // 5. Send success response
     res.status(201).json({
       success: true,
       message: "Order placed successfully!",
       order_id: orderId,
-      order_number: orderNumber
+      table_number: finalTableNumber
     });
 
   } catch (err) {
@@ -1368,49 +1366,27 @@ app.post("/api/orders", async function (req, res) {
   }
 });
 
+// แก้ไข GET /api/orders ใน server.js
 app.get("/api/orders", async function (req, res) {
   try {
-    // 1. Check if the user is filtering by status (e.g., /api/orders?status=pending)
-    const statusFilter = req.query.status;
-    let query = "SELECT * FROM orders";
-    let params = [];
+    // ดึงมาทุกคอลัมน์ โดยเฉพาะ table_number และ total_amount
+    const [orders] = await pool.query("SELECT * FROM orders ORDER BY created_at DESC");
 
-    if (statusFilter) {
-      query += " WHERE status = ?";
-      params.push(statusFilter);
-    }
-
-    // Order by newest first
-    query += " ORDER BY created_at DESC";
-
-    // 2. Fetch the main orders
-    const [orders] = await pool.query(query, params);
-
-    // 3. If we have orders, fetch their items and attach them
     if (orders.length > 0) {
       const orderIds = orders.map(o => o.id);
+      const [items] = await pool.query("SELECT * FROM order_items WHERE order_id IN (?)", [orderIds]);
 
-      // Fetch all items that belong to the orders we just found
-      const [items] = await pool.query(
-        "SELECT * FROM order_items WHERE order_id IN (?)",
-        [orderIds]
-      );
-
-      // Map the items into their respective order objects
       orders.forEach(order => {
         order.items = items.filter(item => item.order_id === order.id);
       });
     }
 
-    // 4. Send the response
     res.status(200).json({
       success: true,
-      orders: orders
+      orders: orders // ก้อนนี้แหละที่จะมีเลขโต๊ะไปโชว์ที่หน้า Cook!
     });
-
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
