@@ -1,99 +1,141 @@
-function safeParseJSON(value, fallback) {
-    try {
-        return JSON.parse(value);
-    } catch (err) {
-        return fallback;
-    }
-}
+const STORAGE_KEYS = Object.freeze({
+    userId: "user_id",
+    tableNumber: "table_number"
+});
+
+const API_ENDPOINTS = Object.freeze({
+    orders: "/api/orders"
+});
+
+const PAGE_PATHS = Object.freeze({
+    payment: "payment.html"
+});
+
+const REFRESH_INTERVAL_MS = 5000;
+
+const state = {
+    orders: []
+};
 
 function getCurrentSessionId() {
-    return localStorage.getItem("user_id") || "";
+    return localStorage.getItem(STORAGE_KEYS.userId) || "";
 }
 
 function getCurrentTableNumber() {
-    return localStorage.getItem("table_number") || "";
+    return localStorage.getItem(STORAGE_KEYS.tableNumber) || "";
 }
 
-function isCustomerSession() {
-    return String(localStorage.getItem("user_type") || "").toLowerCase() === "customer";
-}
-
-function matchesCurrentSession(record) {
-    if (!record) return false;
-
+function customerApiHeaders(extra = {}) {
+    const headers = { ...extra };
     const sessionId = getCurrentSessionId();
     const tableNumber = getCurrentTableNumber();
 
-    if (sessionId && record.userId) {
-        return String(record.userId) === String(sessionId);
-    }
+    if (sessionId) headers["X-Customer-Session-Id"] = sessionId;
+    if (tableNumber) headers["X-Customer-Table-Number"] = tableNumber;
 
-    if (sessionId && !record.userId) {
-        return false;
-    }
+    return headers;
+}
 
-    if (tableNumber) {
-        return String(record.table || "") === String(tableNumber);
-    }
+function normalizeStatus(status, fallback = "pending") {
+    const normalized = String(status || fallback).trim().toLowerCase();
+    return normalized || fallback;
+}
 
-    return true;
+function normalizeApiOrder(order) {
+    const items = Array.isArray(order?.items) ? order.items : [];
+
+    return {
+        id: order?.id,
+        table: order?.table ?? order?.table_number ?? "-",
+        items: items.map((item) => ({
+            name: item.name || item.item_name || "-",
+            qty: Number(item.qty ?? item.quantity ?? 0),
+            price: Number(item.price ?? item.unit_price ?? 0)
+        })),
+        total: Number(order?.total ?? order?.total_amount ?? 0),
+        time: order?.time || order?.created_at || new Date().toISOString(),
+        status: order?.status || "pending",
+        paymentId: order?.payment_id || order?.paymentId || null,
+        paymentStatus: order?.payment_status || order?.paymentStatus || "",
+        paymentMethod: order?.payment_method || order?.paymentMethod || "",
+        paidAt: order?.paid_at || order?.paidAt || null
+    };
 }
 
 function getOrderStatusClass(status) {
-    const normalized = String(status || "").toLowerCase();
-    if (normalized === "completed" || normalized === "served" || normalized === "serving" || normalized === "done") {
+    const normalized = normalizeStatus(status, "");
+
+    if (["completed", "served", "serving", "done"].includes(normalized)) {
         return "bg-[#dff3e4] text-[#1f7a3d]";
     }
-    if (normalized === "cooking" || normalized === "preparing") return "bg-[#e5f0ff] text-[#1b4d8f]";
-    if (normalized === "ready") return "bg-[#eaf7ff] text-[#0f5d7f]";
-    if (normalized === "cancelled" || normalized === "canceled") return "bg-[#fde2e2] text-[#b42318]";
+
+    if (["cooking", "preparing"].includes(normalized)) {
+        return "bg-[#e5f0ff] text-[#1b4d8f]";
+    }
+
+    if (["cancelled", "canceled"].includes(normalized)) {
+        return "bg-[#fde2e2] text-[#b42318]";
+    }
+
     return "bg-[#fff1cc] text-[#9a6a00]";
 }
 
-function formatOrderTime(isoString) {
-    if (!isoString) return "-";
-    const date = new Date(isoString);
-    if (Number.isNaN(date.getTime())) return isoString;
-    return date.toLocaleString();
+function formatOrderTime(value) {
+    const parsed = new Date(value || 0);
+    if (Number.isNaN(parsed.getTime())) return "-";
+    return parsed.toLocaleString();
 }
 
 function getOrderItemsText(order) {
-    const itemsArray = Array.isArray(order.items) ? order.items : [];
-    if (itemsArray.length) {
-        return itemsArray.map((item) => `${item.name} x${item.qty}`).join(", ");
-    }
-    return typeof order.items === "string" ? order.items : "-";
+    const items = Array.isArray(order?.items) ? order.items : [];
+    return items.length ? items.map((item) => `${item.name} x${item.qty}`).join(", ") : "-";
 }
 
 function isCancelledStatus(status) {
-    const normalized = String(status || "").toLowerCase();
-    return normalized === "cancelled" || normalized === "canceled";
+    return ["cancelled", "canceled"].includes(normalizeStatus(status, ""));
 }
 
 function isPaidOrder(order) {
-    return Boolean(order && (order.paymentId || order.paidAt || String(order.paymentStatus || "").toLowerCase() === "paid"));
+    return Boolean(
+        order?.paymentId ||
+        order?.paidAt ||
+        normalizeStatus(order?.paymentStatus, "") === "paid"
+    );
 }
 
 function getOrderPaymentText(order) {
-    if (isCancelledStatus(order.status)) return "Not required";
+    if (isCancelledStatus(order?.status)) return "Not required";
     if (isPaidOrder(order)) return `Paid (${order.paymentMethod || "Cash"})`;
     return "Waiting for payment";
+}
+
+async function loadOrders() {
+    const response = await fetch(API_ENDPOINTS.orders, {
+        method: "GET",
+        credentials: "same-origin",
+        headers: customerApiHeaders()
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Unable to load orders");
+    }
+
+    state.orders = (Array.isArray(result.orders) ? result.orders : [])
+        .map(normalizeApiOrder)
+        .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
 }
 
 function renderOrderStatus() {
     const container = document.getElementById("orderStatusContainer");
     if (!container) return;
 
-    const orders = (safeParseJSON(localStorage.getItem("orders"), []) || [])
-        .filter(matchesCurrentSession)
-        .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-
-    if (!orders.length) {
+    if (!state.orders.length) {
         container.innerHTML = `<div class="text-center py-5 text-[#a97a52]">No orders found</div>`;
         return;
     }
 
-    container.innerHTML = orders.map((order) => `
+    container.innerHTML = state.orders.map((order) => `
         <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                 <div class="font-bold text-[#5f4028]">Order #${order.id}</div>
@@ -110,17 +152,32 @@ function renderOrderStatus() {
     `).join("");
 }
 
-window.addEventListener("storage", (event) => {
-    if ((event.key || "") === "orders" || (event.key || "") === "payments") {
+async function refreshAndRenderOrderStatus() {
+    try {
+        await loadOrders();
         renderOrderStatus();
+    } catch (error) {
+        const container = document.getElementById("orderStatusContainer");
+        if (container) {
+            container.innerHTML = `<div class="text-center py-5 text-[#a97a52]">${error.message || "Unable to load orders"}</div>`;
+        }
     }
-});
+}
 
-renderOrderStatus();
-
-const goToPaymentBtn = document.getElementById("goToPaymentBtn");
-if (goToPaymentBtn) {
-    goToPaymentBtn.addEventListener("click", () => {
-        window.location.href = "payment.html";
+function bindGoToPaymentButton() {
+    document.getElementById("goToPaymentBtn")?.addEventListener("click", () => {
+        window.location.href = PAGE_PATHS.payment;
     });
+}
+
+function initOrderStatusPage() {
+    bindGoToPaymentButton();
+    refreshAndRenderOrderStatus();
+    window.setInterval(refreshAndRenderOrderStatus, REFRESH_INTERVAL_MS);
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initOrderStatusPage);
+} else {
+    initOrderStatusPage();
 }

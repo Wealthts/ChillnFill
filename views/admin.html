@@ -1,50 +1,48 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-    <meta name="color-scheme" content="light">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Panel</title>
 <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-[#f3eadf] text-[#5f4028] font-['Sarabun']">
-
-<!-- LOGIN -->
-<div id="loginPage" class="min-h-screen flex items-center justify-center">
-  <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
-    <div class="card-body items-center text-center">
-      <h2 class="card-title">Admin Login</h2>
-      <input id="adminUser" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] text-left" placeholder="Username">
-      <input id="adminPass" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7] text-left" type="password" placeholder="Password">
-      <div class="card-actions">
-        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="login()">Login</button>
-      </div>
-    </div>
-  </div>
-</div>  
+<body class="min-h-screen bg-[#f3eadf] text-[#5f4028]">
 
 <!-- APP -->
-<div id="app" class="hidden min-h-screen bg-[#f3eadf]">
-  <aside class="fixed inset-y-0 left-0 w-64 bg-[#efe4d8] border-r border-[#e6d7c7] p-4 flex flex-col justify-between">
-    <div>
-      <h2 class="text-xl font-bold text-center mb-4">Admin Panel</h2>
-      <div class="space-y-2">
-        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('dashboard')">Dashboard</button>
-        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('cooks')">Cooks</button>
-        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('menu')">Menu</button>
-        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('orders')">Orders</button>
-        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('payment')">Payments</button>
-        <button class="btn btn-ghost w-full justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('reviews')">Reviews</button>
+<div id="app" class="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">
+  <!-- Simple sidebar -->
+  <aside class="border-b border-[#e6d7c7] bg-[#efe4d8] p-4 lg:min-h-screen lg:border-b-0 lg:border-r">
+    <div class="flex h-full flex-col gap-4 lg:justify-between">
+      <div>
+        <div class="mb-4 text-center">
+          <h2 class="text-2xl font-bold">Admin Panel</h2>
+          <p class="mt-1 text-sm text-[#a97a52]">Manage cooks, menu, orders, payments, and reviews</p>
+        </div>
+
+        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+          <button class="btn btn-ghost justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('dashboard')">Dashboard</button>
+          <button class="btn btn-ghost justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('cooks')">Cooks</button>
+          <button class="btn btn-ghost justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('menu')">Menu</button>
+          <button class="btn btn-ghost justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('orders')">Orders</button>
+          <button class="btn btn-ghost justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('payment')">Payments</button>
+          <button class="btn btn-ghost justify-start rounded-xl hover:bg-[#fbf5ee]" onclick="showPage('reviews')">Reviews</button>
+        </div>
       </div>
+
+      <button class="btn rounded-xl border-none bg-[#7a4e2f] text-[#fbf5ee] hover:bg-[#5f4028]" onclick="logout()">
+        Logout
+      </button>
     </div>
-    <button class="btn w-full rounded-xl bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="logout()">Logout</button>
   </aside>
 
-  <main class="ml-64 min-h-screen bg-[#f3eadf] px-6 py-8">
-    <div class="mx-auto w-full max-w-5xl">
-      <h1 id="title" class="text-3xl font-bold">Dashboard</h1>
-      <div id="clock" class="opacity-70 mt-1"></div>
+  <!-- Page content -->
+  <main class="px-4 py-6 md:px-6 md:py-8">
+    <div class="mx-auto w-full max-w-6xl">
+      <section class="mb-6 rounded-3xl border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-sm">
+        <h1 id="title" class="text-3xl font-bold">Dashboard</h1>
+        <div id="clock" class="mt-1 opacity-70"></div>
+      </section>
 
       <div id="dashboard" class="page"></div>
       <div id="cooks" class="page"></div>
@@ -62,8 +60,10 @@
     <div class="card-body">
       <h3 class="card-title">Add Cook</h3>
       <input id="cookName" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Name">
-      <input id="cookId" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="ID">
-      <input id="cookPass" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Password">
+      <input id="cookId" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Cook ID">
+      <div class="rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3 text-sm text-[#a97a52]">
+        Admin creates only the Cook ID and name. The cook will set their own password on first login.
+      </div>
       <div class="card-actions justify-end">
         <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="addCook()">Save</button>
         <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeCookModal()">Cancel</button>
@@ -78,7 +78,9 @@
       <h3 class="card-title">Edit Cook</h3>
       <input id="editCookName" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
       <input id="editCookId" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" disabled>
-      <input id="editCookPass" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+      <div class="rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3 text-sm text-[#a97a52]">
+        Password is managed by the cook on first login.
+      </div>
       <div class="card-actions justify-end">
         <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="updateCook()">Update</button>
         <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeEditCookModal()">Cancel</button>
@@ -154,7 +156,6 @@
   </div>
 </div>
 
-<script src="../js/autosync.js"></script>
-<script src="../js/admin.js?v=20260331_1735"></script>
+<script src="../js/admin.js?v=20260408_2"></script>
 </body>
 </html>

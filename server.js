@@ -33,7 +33,6 @@ loadLegacyEnvFile();
 const express = require("express");
 const mysql = require("mysql2/promise");
 const session = require("express-session");
-const bcrypt = require("bcryptjs");
 const argon2 = require("argon2");
 
 const app = express();
@@ -78,9 +77,11 @@ function toText(value, fallback = "") {
 }
 
 function toMysqlDate(value) {
-  const d = value ? new Date(value) : new Date();
+  if (!value) return null;
+
+  const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) {
-    return new Date().toISOString().slice(0, 19).replace("T", " ");
+    return null;
   }
   return d.toISOString().slice(0, 19).replace("T", " ");
 }
@@ -102,6 +103,29 @@ function normalizeMenuAvailability(value, fallback = null) {
   return fallback;
 }
 
+function getTableStatusSet() {
+  return new Set(["available", "reserved", "occupied", "inactive", "maintenance"]);
+}
+
+function normalizeTableStatus(value, fallback = "available") {
+  const raw = String(value ?? "").trim().toLowerCase();
+  return getTableStatusSet().has(raw) ? raw : fallback;
+}
+
+function mapTableRow(row) {
+  return {
+    id: row.id,
+    table_number: toInt(row.table_number, 0),
+    tableNumber: toInt(row.table_number, 0),
+    status: normalizeTableStatus(row.status, "available"),
+    reservation_name: toText(row.reservation_name, ""),
+    reservationName: toText(row.reservation_name, ""),
+    reservation_time: toText(row.reservation_time, ""),
+    reservationTime: toText(row.reservation_time, ""),
+    updated_at: row.updated_at || null
+  };
+}
+
 function isDefaultAdminCredential(username, password) {
   return toText(username).toLowerCase() === "admin" && String(password ?? "") === "0000";
 }
@@ -113,14 +137,468 @@ function mapCookRow(row) {
     full_name: row.full_name,
     phone: row.phone,
     status: row.status,
+    password_ready: Boolean(row.password_ready ?? row.password_hash),
     created_at: row.created_at
   };
+}
+
+function normalizeMenuOptionKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => toText(item)).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    const parsed = safeJsonParse(trimmed, null);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => toText(item)).filter(Boolean);
+    }
+    return trimmed.split(",").map((item) => toText(item)).filter(Boolean);
+  }
+
+  return [];
+}
+
+function establishCookSession(req, cook) {
+  req.session.user_type = "cook";
+  req.session.cook_id = cook.cook_id;
+  req.session.cook_name = cook.full_name;
+  req.session.cook_db_id = cook.id;
+}
+
+function mapMenuRow(row) {
+  const optionKeys = normalizeMenuOptionKeys(row.option_keys);
+  return {
+    id: row.id,
+    name: row.name,
+    thaiName: row.thai_name || row.name_th || "",
+    price: toNumber(row.price, 0),
+    category: row.category_code || row.category || "single",
+    desc: row.description || "",
+    optionKeys,
+    hasOptions: optionKeys.length > 0,
+    img: row.image_url || "",
+    image: row.image_url || "",
+    available: Boolean(row.is_available),
+    created_at: row.created_at
+  };
+}
+
+function ensureAdminSession(req, res) {
+  if (req.session?.user_type !== "admin") {
+    res.status(401).json({ success: false, message: "Admin login required" });
+    return false;
+  }
+  return true;
 }
 
 function normalizeSessionId(raw, tableNumber = 0) {
   const id = toText(raw);
   if (id) return id;
   return `GUEST_TABLE_${toInt(tableNumber, 0)}`;
+}
+
+async function getCustomerContext(req) {
+  if (req.session?.user_type === "customer") {
+    return {
+      sessionId: normalizeSessionId(req.session?.session_id, req.session?.table_number),
+      tableNumber: toInt(req.session?.table_number, 0)
+    };
+  }
+
+  const tableNumber = toInt(req.get("x-customer-table-number"), 0);
+  const sessionId = normalizeSessionId(req.get("x-customer-session-id"), tableNumber);
+  if (!tableNumber || !sessionId) return null;
+
+  const [rows] = await pool.query(
+    "SELECT session_id, table_number FROM customer_sessions WHERE session_id = ? AND table_number = ? LIMIT 1",
+    [sessionId, tableNumber]
+  );
+  if (rows.length === 0) return null;
+
+  return {
+    sessionId: normalizeSessionId(rows[0].session_id, rows[0].table_number),
+    tableNumber: toInt(rows[0].table_number, 0)
+  };
+}
+
+function getOrderStatusSet() {
+  return new Set(["pending", "cooking", "serving", "completed", "cancelled"]);
+}
+
+function normalizeOrderStatus(value, fallback = "pending") {
+  const raw = String(value ?? "").trim().toLowerCase();
+  return getOrderStatusSet().has(raw) ? raw : fallback;
+}
+
+function normalizeOrderItemStatus(value, fallback = "pending") {
+  return normalizeOrderStatus(value, fallback);
+}
+
+async function ensureTableRecord(executor, tableNumber) {
+  const normalizedTableNumber = toInt(tableNumber, 0);
+  if (!normalizedTableNumber) return null;
+
+  await executor.query(
+    `
+      INSERT INTO tables (table_number, status)
+      VALUES (?, 'available')
+      ON DUPLICATE KEY UPDATE
+        table_number = VALUES(table_number)
+    `,
+    [normalizedTableNumber]
+  );
+
+  const [rows] = await executor.query("SELECT * FROM tables WHERE table_number = ? LIMIT 1", [normalizedTableNumber]);
+  return rows[0] || null;
+}
+
+async function updateTableStatus(executor, tableNumber, nextStatus, extras = {}) {
+  const normalizedTableNumber = toInt(tableNumber, 0);
+  if (!normalizedTableNumber) return null;
+
+  await ensureTableRecord(executor, normalizedTableNumber);
+
+  const status = normalizeTableStatus(nextStatus, "available");
+  const reservationName = extras.reservationName === undefined ? undefined : toText(extras.reservationName, "");
+  const reservationTime = extras.reservationTime === undefined ? undefined : toText(extras.reservationTime, "");
+
+  const updates = ["status = ?"];
+  const params = [status];
+
+  if (reservationName !== undefined) {
+    updates.push("reservation_name = ?");
+    params.push(reservationName || null);
+  }
+
+  if (reservationTime !== undefined) {
+    updates.push("reservation_time = ?");
+    params.push(reservationTime || null);
+  }
+
+  params.push(normalizedTableNumber);
+  await executor.query(`UPDATE tables SET ${updates.join(", ")} WHERE table_number = ?`, params);
+
+  const [rows] = await executor.query("SELECT * FROM tables WHERE table_number = ? LIMIT 1", [normalizedTableNumber]);
+  return rows[0] || null;
+}
+
+async function getOrCreateCustomerContext(req, options = {}) {
+  const existing = await getCustomerContext(req);
+  if (existing || !options.allowCreateFromBody) {
+    return existing;
+  }
+
+  const fallbackTableNumber = toInt(req.body?.table_number ?? req.query?.table_number, 0);
+  if (!fallbackTableNumber) {
+    return null;
+  }
+
+  const requestedSessionId = normalizeSessionId(
+    req.body?.session_id ?? req.get("x-customer-session-id"),
+    fallbackTableNumber
+  );
+
+  let sessionId = "";
+  if (requestedSessionId && await canReuseCustomerSession(requestedSessionId, fallbackTableNumber)) {
+    sessionId = requestedSessionId;
+  } else {
+    sessionId = await findReusableCustomerSession(fallbackTableNumber);
+  }
+
+  if (!sessionId) {
+    sessionId = `CUST_${Math.floor(Date.now() / 1000)}_${Math.floor(1000 + Math.random() * 9000)}`;
+  }
+
+  await upsertCustomerSession(pool, sessionId, fallbackTableNumber);
+  await updateTableStatus(pool, fallbackTableNumber, "occupied", {
+    reservationName: "",
+    reservationTime: ""
+  });
+
+  req.session.user_type = "customer";
+  req.session.session_id = sessionId;
+  req.session.table_number = fallbackTableNumber;
+
+  return {
+    sessionId,
+    tableNumber: fallbackTableNumber,
+    createdFromBody: true
+  };
+}
+
+async function resolveIncomingOrderItem(item) {
+  const quantity = Math.max(1, toInt(item?.quantity ?? item?.qty, 1));
+  const explicitName = toText(item?.name ?? item?.item_name);
+  const hasExplicitPrice = item?.price !== undefined || item?.unit_price !== undefined;
+  const explicitPrice = hasExplicitPrice ? Math.max(0, toNumber(item?.price ?? item?.unit_price, 0)) : null;
+  const menuId = await resolveMenuIdByItem(item);
+
+  let itemName = explicitName;
+  let unitPrice = explicitPrice;
+
+  if (menuId && (!itemName || unitPrice === null)) {
+    const [menuRows] = await pool.query("SELECT name, price FROM menu WHERE id = ? LIMIT 1", [menuId]);
+    const menu = menuRows[0];
+    if (menu) {
+      if (!itemName) itemName = toText(menu.name);
+      if (unitPrice === null) unitPrice = Math.max(0, toNumber(menu.price, 0));
+    }
+  }
+
+  if (!itemName) {
+    return { error: "Each order item must include a name or valid menu_id." };
+  }
+
+  return {
+    menuId,
+    itemName,
+    quantity,
+    unitPrice: unitPrice === null ? 0 : unitPrice,
+    subtotal: (unitPrice === null ? 0 : unitPrice) * quantity,
+    notes: [toText(item?.optionsText), toText(item?.customerNote), toText(item?.notes)]
+      .filter(Boolean)
+      .join(" | ")
+  };
+}
+
+async function resolveMenuIdByItem(item) {
+  const directMenuId = toInt(item?.menuId ?? item?.menu_id, 0);
+  if (directMenuId) return directMenuId;
+
+  const itemName = toText(item?.name ?? item?.item_name);
+  if (!itemName) return null;
+
+  const [rows] = await pool.query(
+    "SELECT id FROM menu WHERE LOWER(name) = LOWER(?) OR LOWER(COALESCE(thai_name, '')) = LOWER(?) LIMIT 1",
+    [itemName, itemName]
+  );
+  return rows[0]?.id || null;
+}
+
+function mapOrderItemRow(item) {
+  const qty = toInt(item?.quantity, toInt(item?.qty, 1));
+  const price = toNumber(item?.unit_price ?? item?.price, 0);
+  return {
+    id: item.id,
+    order_id: item.order_id,
+    menu_id: item.menu_id ?? null,
+    cook_id: item.cook_id || "",
+    cookId: item.cook_id || "",
+    name: toText(item.item_name ?? item.name, "Unknown Item"),
+    qty,
+    quantity: qty,
+    price,
+    unit_price: price,
+    subtotal: toNumber(item.subtotal, price * qty),
+    notes: toText(item.notes),
+    status: normalizeOrderItemStatus(item.status, "pending"),
+    started_at: item.started_at || null,
+    completed_at: item.completed_at || null
+  };
+}
+
+function mapOrderRow(order, items = []) {
+  const mappedItems = items.map(mapOrderItemRow);
+  return {
+    ...order,
+    table: order.table_number,
+    userId: order.session_id,
+    total: toNumber(order.total_amount, 0),
+    time: order.created_at,
+    cookId: order.cook_id || "",
+    items: mappedItems
+  };
+}
+
+function computeOrderRollup(items = [], fallbackStatus = "pending") {
+  const normalizedItems = items.map(mapOrderItemRow);
+  const activeItems = normalizedItems.filter((item) => item.status !== "cancelled");
+  const distinctCookIds = [...new Set(normalizedItems.map((item) => toText(item.cook_id ?? item.cookId)).filter(Boolean))];
+  const everyActiveItemAssigned = activeItems.every((item) => toText(item.cook_id ?? item.cookId));
+
+  let status = normalizeOrderStatus(fallbackStatus, "pending");
+  let completedAt = null;
+
+  if (normalizedItems.length > 0) {
+    if (activeItems.length === 0) {
+      status = "cancelled";
+    } else if (activeItems.every((item) => item.status === "completed")) {
+      status = "completed";
+      const completionTimes = activeItems
+        .map((item) => toMysqlDate(item.completed_at))
+        .filter(Boolean)
+        .sort();
+      completedAt = completionTimes[completionTimes.length - 1] || toMysqlDate(new Date());
+    } else if (activeItems.every((item) => ["serving", "completed"].includes(item.status))) {
+      status = "serving";
+    } else if (activeItems.some((item) => ["cooking", "serving", "completed"].includes(item.status))) {
+      status = "cooking";
+    } else {
+      status = "pending";
+    }
+  }
+
+  return {
+    status,
+    cookId: everyActiveItemAssigned && distinctCookIds.length === 1 ? distinctCookIds[0] : null,
+    completedAt
+  };
+}
+
+async function refreshOrderSummary(orderId, executor = pool) {
+  const normalizedOrderId = toInt(orderId, 0);
+  if (!normalizedOrderId) return null;
+
+  const [itemRows] = await executor.query("SELECT * FROM order_items WHERE order_id = ? ORDER BY id ASC", [normalizedOrderId]);
+  const [orderRows] = await executor.query("SELECT * FROM orders WHERE id = ? LIMIT 1", [normalizedOrderId]);
+  const existingOrder = orderRows[0];
+  if (!existingOrder) return null;
+
+  const rollup = computeOrderRollup(itemRows, existingOrder.status);
+  await executor.query(
+    "UPDATE orders SET cook_id = ?, status = ?, completed_at = ? WHERE id = ?",
+    [rollup.cookId, rollup.status, rollup.completedAt, normalizedOrderId]
+  );
+
+  const [updatedOrderRows] = await executor.query("SELECT * FROM orders WHERE id = ? LIMIT 1", [normalizedOrderId]);
+  return updatedOrderRows[0] ? mapOrderRow(updatedOrderRows[0], itemRows) : null;
+}
+
+function hasStaffOrderAccess(req) {
+  const userType = String(req.session?.user_type || "").toLowerCase();
+  return userType === "admin" || userType === "cook";
+}
+
+function mapPaymentRow(row, extras = {}) {
+  const orderIds = Array.isArray(extras.orderIds)
+    ? extras.orderIds.map((id) => toInt(id, 0)).filter(Boolean)
+    : [];
+  const mappedItems = Array.isArray(extras.items)
+    ? extras.items.map((item) => ({
+      order_id: toInt(item?.order_id ?? item?.orderId, 0) || null,
+      orderId: toInt(item?.order_id ?? item?.orderId, 0) || null,
+      name: toText(item?.name ?? item?.item_name, "Unknown Item"),
+      qty: toInt(item?.quantity ?? item?.qty, 0),
+      quantity: toInt(item?.quantity ?? item?.qty, 0),
+      price: toNumber(item?.unit_price ?? item?.price, 0),
+      unit_price: toNumber(item?.unit_price ?? item?.price, 0)
+    }))
+    : [];
+
+  return {
+    id: row.id,
+    payment_reference: row.payment_reference,
+    paymentReference: row.payment_reference,
+    order_id: toInt(extras.order_id, 0) || (orderIds.length === 1 ? orderIds[0] : null),
+    orderId: toInt(extras.order_id, 0) || (orderIds.length === 1 ? orderIds[0] : null),
+    order_ids: orderIds,
+    orderIds,
+    session_id: row.session_id,
+    userId: row.session_id,
+    table_number: row.table_number,
+    table: row.table_number,
+    amount: toNumber(row.amount, 0),
+    method: row.method,
+    status: row.status,
+    items: mappedItems,
+    reviewSubmitted: Boolean(row.review_submitted_at),
+    created_at: row.created_at,
+    time: row.created_at,
+    review_submitted_at: row.review_submitted_at,
+    reviewSubmittedAt: row.review_submitted_at
+  };
+}
+
+async function hydratePaymentsWithOrderDetails(paymentRows, executor = pool) {
+  if (!Array.isArray(paymentRows) || paymentRows.length === 0) return [];
+
+  const paymentIds = paymentRows.map((row) => toInt(row?.id, 0)).filter(Boolean);
+  if (!paymentIds.length) return paymentRows.map((row) => mapPaymentRow(row));
+
+  const [orderRows] = await executor.query(
+    `
+      SELECT id, payment_id
+      FROM orders
+      WHERE payment_id IN (?)
+      ORDER BY created_at DESC, id DESC
+    `,
+    [paymentIds]
+  );
+
+  const orderIds = orderRows.map((row) => toInt(row.id, 0)).filter(Boolean);
+  const [itemRows] = orderIds.length
+    ? await executor.query(
+      `
+        SELECT order_id, item_name, quantity, unit_price
+        FROM order_items
+        WHERE order_id IN (?)
+        ORDER BY order_id ASC, id ASC
+      `,
+      [orderIds]
+    )
+    : [[]];
+
+  const ordersByPaymentId = new Map();
+  for (const order of orderRows) {
+    const paymentId = toInt(order.payment_id, 0);
+    if (!paymentId) continue;
+    if (!ordersByPaymentId.has(paymentId)) {
+      ordersByPaymentId.set(paymentId, []);
+    }
+    ordersByPaymentId.get(paymentId).push(order);
+  }
+
+  const itemsByOrderId = new Map();
+  for (const item of itemRows) {
+    const orderId = toInt(item.order_id, 0);
+    if (!orderId) continue;
+    if (!itemsByOrderId.has(orderId)) {
+      itemsByOrderId.set(orderId, []);
+    }
+    itemsByOrderId.get(orderId).push(item);
+  }
+
+  return paymentRows.map((payment) => {
+    const paymentId = toInt(payment?.id, 0);
+    const linkedOrders = ordersByPaymentId.get(paymentId) || [];
+    const linkedOrderIds = linkedOrders.map((order) => toInt(order.id, 0)).filter(Boolean);
+    const linkedItems = linkedOrders.flatMap((order) => {
+      const orderId = toInt(order.id, 0);
+      const orderItems = itemsByOrderId.get(orderId) || [];
+      return orderItems.map((item) => ({
+        order_id: orderId,
+        orderId,
+        item_name: item.item_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price
+      }));
+    });
+
+    return mapPaymentRow(payment, {
+      order_id: linkedOrderIds.length === 1 ? linkedOrderIds[0] : null,
+      orderIds: linkedOrderIds,
+      items: linkedItems
+    });
+  });
+}
+
+function mapReviewRow(row) {
+  return {
+    id: row.id,
+    payment_id: row.payment_id,
+    paymentId: row.payment_id,
+    session_id: row.session_id,
+    userId: row.session_id,
+    table_number: row.table_number,
+    table: row.table_number,
+    rating: toInt(row.rating, 0),
+    comment: row.comment || "",
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    time: row.created_at
+  };
 }
 
 async function ensureDatabase() {
@@ -311,7 +789,7 @@ async function ensureTables() {
     CREATE TABLE IF NOT EXISTS cooks (
       id INT PRIMARY KEY AUTO_INCREMENT,
       cook_id VARCHAR(50) NOT NULL UNIQUE,
-      password_hash VARCHAR(255) NOT NULL,
+      password_hash VARCHAR(255) DEFAULT NULL,
       full_name VARCHAR(100) NOT NULL,
       phone VARCHAR(20) DEFAULT NULL,
       status VARCHAR(20) NOT NULL DEFAULT 'active',
@@ -338,15 +816,6 @@ async function ensureTables() {
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS app_state (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      state_key VARCHAR(50) UNIQUE NOT NULL,
-      state_value LONGTEXT NOT NULL,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )
-  `);
-
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_sessions (
       id INT PRIMARY KEY AUTO_INCREMENT,
       session_id VARCHAR(100) NOT NULL,
@@ -355,6 +824,18 @@ async function ensureTables() {
       last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       status VARCHAR(20) NOT NULL DEFAULT 'active',
       UNIQUE KEY uq_customer_session_id (session_id)
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tables (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      table_number INT NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'available',
+      reservation_name VARCHAR(100) DEFAULT NULL,
+      reservation_time VARCHAR(50) DEFAULT NULL,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_tables_table_number (table_number)
     )
   `);
 
@@ -385,11 +866,15 @@ async function ensureTables() {
       id INT PRIMARY KEY AUTO_INCREMENT,
       order_id INT NOT NULL,
       menu_id INT DEFAULT NULL,
+      cook_id VARCHAR(50) DEFAULT NULL,
       item_name VARCHAR(150) NOT NULL,
       quantity INT NOT NULL DEFAULT 1,
       unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       notes TEXT DEFAULT NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'pending',
+      started_at TIMESTAMP NULL DEFAULT NULL,
+      completed_at TIMESTAMP NULL DEFAULT NULL,
       INDEX idx_order_items_order_id (order_id)
     )
   `);
@@ -457,6 +942,86 @@ async function ensureTables() {
       );
     }
   }
+
+  const [tableCounts] = await pool.query("SELECT COUNT(*) AS total FROM tables");
+  if (toInt(tableCounts[0]?.total, 0) === 0) {
+    for (let tableNumber = 1; tableNumber <= 10; tableNumber += 1) {
+      await pool.query(
+        "INSERT INTO tables (table_number, status, reservation_name, reservation_time) VALUES (?, 'available', NULL, NULL)",
+        [tableNumber]
+      );
+    }
+  }
+
+  await pool.query(
+    `
+      UPDATE tables
+      SET status = 'available'
+      WHERE LOWER(COALESCE(status, 'available')) = 'inactive'
+        AND COALESCE(reservation_name, '') = ''
+        AND COALESCE(reservation_time, '') = ''
+    `
+  );
+
+  await ensureColumnExists("order_items", "cook_id", "ALTER TABLE order_items ADD COLUMN cook_id VARCHAR(50) DEFAULT NULL AFTER menu_id");
+  await ensureColumnExists("order_items", "status", "ALTER TABLE order_items ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'pending' AFTER notes");
+  await ensureColumnExists("order_items", "started_at", "ALTER TABLE order_items ADD COLUMN started_at TIMESTAMP NULL DEFAULT NULL AFTER status");
+  await ensureColumnExists("order_items", "completed_at", "ALTER TABLE order_items ADD COLUMN completed_at TIMESTAMP NULL DEFAULT NULL AFTER started_at");
+  await ensureColumnExists("tables", "reservation_name", "ALTER TABLE tables ADD COLUMN reservation_name VARCHAR(100) DEFAULT NULL AFTER status");
+  await ensureColumnExists("tables", "reservation_time", "ALTER TABLE tables ADD COLUMN reservation_time VARCHAR(50) DEFAULT NULL AFTER reservation_name");
+  await pool.query("ALTER TABLE cooks MODIFY COLUMN password_hash VARCHAR(255) NULL");
+
+  await pool.query(`
+    UPDATE order_items oi
+    INNER JOIN orders o ON o.id = oi.order_id
+    SET
+      oi.cook_id = COALESCE(oi.cook_id, o.cook_id),
+      oi.status = CASE
+        WHEN oi.status IS NULL OR oi.status = '' THEN COALESCE(NULLIF(o.status, ''), 'pending')
+        ELSE oi.status
+      END,
+      oi.completed_at = COALESCE(oi.completed_at, o.completed_at)
+    WHERE
+      (oi.cook_id IS NULL AND o.cook_id IS NOT NULL)
+      OR (oi.status IS NULL OR oi.status = '')
+      OR (oi.status = 'pending' AND COALESCE(o.status, 'pending') <> 'pending')
+      OR (oi.completed_at IS NULL AND o.completed_at IS NOT NULL)
+  `);
+
+  // Repair historical rows so per-item timestamps match the newer item-status flow.
+  await pool.query(`
+    UPDATE order_items oi
+    INNER JOIN orders o ON o.id = oi.order_id
+    SET
+      oi.started_at = CASE
+        WHEN oi.started_at IS NULL AND oi.status IN ('cooking', 'serving', 'completed')
+          THEN COALESCE(o.updated_at, o.created_at)
+        ELSE oi.started_at
+      END,
+      oi.completed_at = CASE
+        WHEN oi.completed_at IS NULL AND oi.status = 'completed'
+          THEN COALESCE(o.completed_at, o.updated_at, o.created_at)
+        ELSE oi.completed_at
+      END
+    WHERE
+      (oi.started_at IS NULL AND oi.status IN ('cooking', 'serving', 'completed'))
+      OR (oi.completed_at IS NULL AND oi.status = 'completed')
+  `);
+}
+
+async function ensureColumnExists(tableName, columnName, alterSql) {
+  const [rows] = await pool.query(
+    `
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
+      LIMIT 1
+    `,
+    [activeDbConfig.database, tableName, columnName]
+  );
+  if (rows.length === 0) {
+    await pool.query(alterSql);
+  }
 }
 
 async function hashPassword(password) {
@@ -474,18 +1039,14 @@ async function verifyPassword(password, hash) {
     }
   }
 
-  if (String(hash).startsWith("$2")) {
-    try {
-      return await bcrypt.compare(password, hash);
-    } catch {
-      return false;
-    }
-  }
-
   return false;
 }
 
 async function upsertCustomerSession(conn, sessionId, tableNumber) {
+  const resolvedSessionId = toText(sessionId);
+  const resolvedTableNumber = toInt(tableNumber, 0);
+  if (!resolvedSessionId || !resolvedTableNumber) return;
+
   await conn.query(
     `
       INSERT INTO customer_sessions (session_id, table_number, status)
@@ -495,298 +1056,284 @@ async function upsertCustomerSession(conn, sessionId, tableNumber) {
         status = 'active',
         last_activity = CURRENT_TIMESTAMP
     `,
-    [sessionId, toInt(tableNumber, 0)]
+    [resolvedSessionId, resolvedTableNumber]
+  );
+
+  await conn.query(
+    `
+      UPDATE customer_sessions
+      SET status = 'inactive', last_activity = CURRENT_TIMESTAMP
+      WHERE table_number = ?
+        AND session_id <> ?
+        AND status = 'active'
+    `,
+    [resolvedTableNumber, resolvedSessionId]
   );
 }
 
-async function syncRelationalTables(payload) {
-  if (!pool || typeof pool.getConnection !== "function") return;
+async function ensureHistoricalCustomerSession(conn, sessionId, tableNumber) {
+  const resolvedSessionId = toText(sessionId);
+  const resolvedTableNumber = toInt(tableNumber, 0);
+  if (!resolvedSessionId || !resolvedTableNumber) return;
 
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    let menuRows = [];
-    try {
-      const [rows] = await conn.query("SELECT id, name FROM menu ORDER BY id ASC");
-      menuRows = rows;
-    } catch {
-      menuRows = [];
-    }
-    const menuIds = new Set(menuRows.map((r) => Number(r.id)));
-    const menuByName = new Map(menuRows.map((r) => [String(r.name || "").trim().toLowerCase(), Number(r.id)]));
-    const fallbackMenuId = menuRows.length ? Number(menuRows[0].id) : null;
-
-    if (Array.isArray(payload.payments)) {
-      for (const p of payload.payments) {
-        const paymentRef = toText(p?.id);
-        if (!paymentRef) continue;
-
-        const sessionId = normalizeSessionId(p?.userId ?? payload?.session?.user_id, p?.table ?? payload?.session?.table_number);
-        const tableNumber = toInt(p?.table ?? payload?.session?.table_number, 0);
-        await upsertCustomerSession(conn, sessionId, tableNumber);
-
-        const [rows] = await conn.query("SELECT id FROM payments WHERE payment_reference = ? LIMIT 1", [paymentRef]);
-        if (rows.length === 0) {
-          await conn.query(
-            `
-              INSERT INTO payments (payment_reference, session_id, table_number, amount, method, status, created_at, review_submitted_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `,
-            [
-              paymentRef,
-              sessionId,
-              tableNumber,
-              toNumber(p?.amount, 0),
-              toText(p?.method, "Cash"),
-              toText(p?.status, "paid"),
-              toMysqlDate(p?.time),
-              toMysqlDate(p?.reviewSubmittedAt)
-            ]
-          );
-        }
-      }
-    }
-
-    if (Array.isArray(payload.orders)) {
-      for (const o of payload.orders) {
-        const orderNumber = toText(o?.id);
-        if (!orderNumber) continue;
-
-        const sessionId = normalizeSessionId(o?.userId ?? payload?.session?.user_id, o?.table ?? payload?.session?.table_number);
-        const tableNumber = toInt(o?.table ?? payload?.session?.table_number, 0);
-        await upsertCustomerSession(conn, sessionId, tableNumber);
-
-        let linkedPaymentId = null;
-        const paymentRef = toText(o?.paymentId);
-        if (paymentRef) {
-          const [paymentRows] = await conn.query("SELECT id FROM payments WHERE payment_reference = ? LIMIT 1", [paymentRef]);
-          if (paymentRows.length > 0) {
-            linkedPaymentId = paymentRows[0].id;
-          }
-        }
-
-        const [orderRows] = await conn.query("SELECT id FROM orders WHERE order_number = ? LIMIT 1", [orderNumber]);
-        let orderId;
-        if (orderRows.length > 0) {
-          orderId = orderRows[0].id;
-          await conn.query(
-            `
-              UPDATE orders
-              SET session_id = ?, table_number = ?, total_amount = ?, status = ?, payment_id = ?,
-                  payment_status = ?, payment_method = ?, paid_at = ?, review_submitted_at = ?
-              WHERE id = ?
-            `,
-            [
-              sessionId,
-              tableNumber,
-              toNumber(o?.total, 0),
-              toText(o?.status, "pending"),
-              linkedPaymentId,
-              toText(o?.paymentStatus),
-              toText(o?.paymentMethod),
-              toMysqlDate(o?.paidAt),
-              toMysqlDate(o?.reviewSubmittedAt),
-              orderId
-            ]
-          );
-        } else {
-          const [ins] = await conn.query(
-            `
-              INSERT INTO orders (
-                order_number, session_id, table_number, total_amount, status, notes,
-                payment_id, payment_status, payment_method, paid_at, review_submitted_at, created_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `,
-            [
-              orderNumber,
-              sessionId,
-              tableNumber,
-              toNumber(o?.total, 0),
-              toText(o?.status, "pending"),
-              "",
-              linkedPaymentId,
-              toText(o?.paymentStatus),
-              toText(o?.paymentMethod),
-              toMysqlDate(o?.paidAt),
-              toMysqlDate(o?.reviewSubmittedAt),
-              toMysqlDate(o?.time)
-            ]
-          );
-          orderId = ins.insertId;
-        }
-
-        const items = Array.isArray(o?.items) ? o.items : [];
-        for (const item of items) {
-          const qty = Math.max(1, toInt(item?.qty, 1));
-          const unitPrice = toNumber(item?.price, 0);
-          const subtotal = qty * unitPrice;
-          const notes = [toText(item?.optionsText), toText(item?.customerNote)].filter(Boolean).join(" | ");
-          const itemName = toText(item?.name, "Unknown Item");
-
-          let menuId = toInt(item?.menuId, 0);
-          if (!menuIds.has(menuId)) {
-            const byName = menuByName.get(itemName.toLowerCase());
-            menuId = menuIds.has(byName) ? byName : fallbackMenuId;
-          }
-
-          const [exists] = await conn.query(
-            `
-              SELECT id FROM order_items
-              WHERE order_id = ? AND item_name = ? AND quantity = ? AND unit_price = ? AND subtotal = ? AND notes = ?
-              LIMIT 1
-            `,
-            [orderId, itemName, qty, unitPrice, subtotal, notes]
-          );
-          if (exists.length > 0) continue;
-
-          await conn.query(
-            `
-              INSERT INTO order_items (order_id, menu_id, item_name, quantity, unit_price, subtotal, notes)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-            `,
-            [orderId, menuId, itemName, qty, unitPrice, subtotal, notes]
-          );
-        }
-      }
-    }
-
-    if (Array.isArray(payload.reviews)) {
-      for (const r of payload.reviews) {
-        const paymentRef = toText(r?.paymentId);
-        if (!paymentRef) continue;
-
-        const [payRows] = await conn.query("SELECT id FROM payments WHERE payment_reference = ? LIMIT 1", [paymentRef]);
-        if (payRows.length === 0) continue;
-        const paymentId = payRows[0].id;
-
-        const sessionId = normalizeSessionId(r?.userId ?? payload?.session?.user_id, r?.table ?? payload?.session?.table_number);
-        const tableNumber = toInt(r?.table ?? payload?.session?.table_number, 0);
-        await upsertCustomerSession(conn, sessionId, tableNumber);
-
-        const [exists] = await conn.query(
-          "SELECT id FROM reviews WHERE payment_id = ? AND session_id = ? LIMIT 1",
-          [paymentId, sessionId]
-        );
-
-        if (exists.length > 0) {
-          await conn.query(
-            `
-              UPDATE reviews
-              SET rating = ?, comment = ?, table_number = ?, updated_at = CURRENT_TIMESTAMP
-              WHERE id = ?
-            `,
-            [Math.max(0, Math.min(5, toInt(r?.rating, 0))), toText(r?.comment), tableNumber, exists[0].id]
-          );
-        } else {
-          await conn.query(
-            `
-              INSERT INTO reviews (payment_id, session_id, table_number, rating, comment, created_at)
-              VALUES (?, ?, ?, ?, ?, ?)
-            `,
-            [paymentId, sessionId, tableNumber, Math.max(0, Math.min(5, toInt(r?.rating, 0))), toText(r?.comment), toMysqlDate(r?.time)]
-          );
-        }
-      }
-    }
-
-    if (Array.isArray(payload.cooks)) {
-      for (const c of payload.cooks) {
-        const cookId = toText(c?.cook_id ?? c?.id);
-        if (!cookId) continue;
-
-        const fullName = toText(c?.full_name ?? c?.name);
-        const password = toText(c?.password);
-        const status = normalizeCookStatus(c?.status, null) || (c?.active === false ? "inactive" : "active");
-
-        const [exists] = await conn.query("SELECT id FROM cooks WHERE cook_id = ? LIMIT 1", [cookId]);
-        if (exists.length > 0) {
-          const updates = [];
-          const params = [];
-
-          if (fullName) {
-            updates.push("full_name = ?");
-            params.push(fullName);
-          }
-
-          if (status) {
-            updates.push("status = ?");
-            params.push(status);
-          }
-
-          if (password) {
-            const passwordHash = await hashPassword(password);
-            updates.push("password_hash = ?");
-            params.push(passwordHash);
-          }
-
-          if (updates.length > 0) {
-            params.push(exists[0].id);
-            await conn.query(`UPDATE cooks SET ${updates.join(", ")} WHERE id = ?`, params);
-          }
-          continue;
-        }
-
-        if (!password) continue;
-        const passwordHash = await hashPassword(password);
-        await conn.query(
-          "INSERT INTO cooks (cook_id, password_hash, full_name, phone, status, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-          [cookId, passwordHash, fullName || cookId, null, status || "active"]
-        );
-      }
-    }
-
-    await conn.commit();
-  } catch (err) {
-    await conn.rollback();
-    throw err;
-  } finally {
-    conn.release();
-  }
+  await conn.query(
+    `
+      UPDATE customer_sessions
+      SET
+        table_number = ?,
+        last_activity = CURRENT_TIMESTAMP
+      WHERE session_id = ?
+    `,
+    [resolvedTableNumber, resolvedSessionId]
+  );
 }
 
-async function syncState(payload) {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return { status: 400, body: { success: false, message: "Invalid JSON payload" } };
+async function findReusableCustomerSession(tableNumber) {
+  const resolvedTable = toInt(tableNumber, 0);
+  if (!resolvedTable) return null;
+
+  const [rows] = await pool.query(
+    `
+      SELECT cs.session_id
+      FROM customer_sessions cs
+      WHERE cs.table_number = ?
+        AND cs.status = 'active'
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM orders o
+            WHERE o.session_id = cs.session_id
+              AND o.table_number = cs.table_number
+              AND LOWER(COALESCE(o.status, 'pending')) NOT IN ('cancelled', 'canceled')
+              AND (
+                o.payment_id IS NULL
+                OR COALESCE(o.payment_status, '') <> 'paid'
+              )
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM payments p
+            WHERE p.session_id = cs.session_id
+              AND LOWER(COALESCE(p.status, 'paid')) = 'paid'
+              AND p.review_submitted_at IS NULL
+          )
+        )
+      ORDER BY cs.last_activity DESC, cs.id DESC
+      LIMIT 1
+    `,
+    [resolvedTable]
+  );
+
+  return rows[0]?.session_id ? String(rows[0].session_id) : "";
+}
+
+async function canReuseCustomerSession(sessionId, tableNumber) {
+  const resolvedSessionId = toText(sessionId);
+  const resolvedTable = toInt(tableNumber, 0);
+  if (!resolvedSessionId || !resolvedTable) return false;
+
+  const [rows] = await pool.query(
+    `
+      SELECT cs.session_id
+      FROM customer_sessions cs
+      WHERE cs.session_id = ?
+        AND cs.table_number = ?
+        AND cs.status = 'active'
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM orders o
+            WHERE o.session_id = cs.session_id
+              AND o.table_number = cs.table_number
+              AND LOWER(COALESCE(o.status, 'pending')) NOT IN ('cancelled', 'canceled')
+              AND (
+                o.payment_id IS NULL
+                OR COALESCE(o.payment_status, '') <> 'paid'
+              )
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM payments p
+            WHERE p.session_id = cs.session_id
+              AND LOWER(COALESCE(p.status, 'paid')) = 'paid'
+              AND p.review_submitted_at IS NULL
+          )
+        )
+      LIMIT 1
+    `,
+    [resolvedSessionId, resolvedTable]
+  );
+
+  return rows.length > 0;
+}
+
+async function getCustomerOrderingState(sessionId, executor = pool) {
+  const resolvedSessionId = toText(sessionId);
+  if (!resolvedSessionId) {
+    return {
+      orderingAllowed: false,
+      pendingReview: false,
+      pendingReviewPaymentId: null,
+      lockedAfterReview: false
+    };
   }
 
-  const sql = `
-    INSERT INTO app_state (state_key, state_value)
-    VALUES (?, ?)
-    ON DUPLICATE KEY UPDATE
-      state_value = VALUES(state_value),
-      updated_at = CURRENT_TIMESTAMP
-  `;
+  const [pendingPayments] = await executor.query(
+    `
+      SELECT id
+      FROM payments
+      WHERE session_id = ?
+        AND LOWER(COALESCE(status, 'paid')) = 'paid'
+        AND review_submitted_at IS NULL
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+    `,
+    [resolvedSessionId]
+  );
 
-  const saved = [];
-  for (const key of ["menus", "orders", "payments", "reviews", "cooks", "session"]) {
-    if (!(key in payload)) continue;
-    await pool.query(sql, [key, JSON.stringify(payload[key])]);
-    saved.push(key);
-  }
+  const [submittedReviews] = await executor.query(
+    `
+      SELECT id
+      FROM reviews
+      WHERE session_id = ?
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+    `,
+    [resolvedSessionId]
+  );
 
-  await syncRelationalTables(payload);
+  const pendingReviewPaymentId = toInt(pendingPayments[0]?.id, 0) || null;
+  const pendingReview = Boolean(pendingReviewPaymentId);
+  const lockedAfterReview = !pendingReview && submittedReviews.length > 0;
 
   return {
-    status: 200,
-    body: {
-      success: true,
-      saved_keys: saved,
-      saved_at: new Date().toISOString()
-    }
+    orderingAllowed: !pendingReview && !lockedAfterReview,
+    pendingReview,
+    pendingReviewPaymentId,
+    lockedAfterReview
   };
 }
 
-async function getState() {
-  const [rows] = await pool.query("SELECT state_key, state_value, updated_at FROM app_state ORDER BY state_key ASC");
-  const data = {};
-  for (const row of rows) {
-    data[row.state_key] = {
-      value: safeJsonParse(row.state_value, row.state_value),
-      updated_at: row.updated_at
-    };
+function getOrderingBlockedMessage(orderingState) {
+  if (orderingState?.pendingReview) {
+    return "Please submit the review for the latest payment before placing another order.";
   }
-  return data;
+  if (orderingState?.lockedAfterReview) {
+    return "This customer session is closed after payment and review.";
+  }
+  return "Ordering is not available for this session.";
+}
+
+async function buildCustomerStateResponse(customer, executor = pool) {
+  const orderingState = await getCustomerOrderingState(customer.sessionId, executor);
+  return {
+    success: true,
+    session_id: customer.sessionId,
+    table_number: customer.tableNumber,
+    ordering_allowed: orderingState.orderingAllowed,
+    pending_review: orderingState.pendingReview,
+    pending_review_payment_id: orderingState.pendingReviewPaymentId,
+    locked_after_review: orderingState.lockedAfterReview
+  };
+}
+
+async function markCustomerSessionInactiveIfFinished(sessionId) {
+  const resolvedSessionId = toText(sessionId);
+  if (!resolvedSessionId) return;
+
+  const [openOrders] = await pool.query(
+    `
+      SELECT id
+      FROM orders
+      WHERE session_id = ?
+        AND LOWER(COALESCE(status, 'pending')) NOT IN ('cancelled', 'canceled')
+        AND (
+          payment_id IS NULL
+          OR COALESCE(payment_status, '') <> 'paid'
+        )
+      LIMIT 1
+    `,
+    [resolvedSessionId]
+  );
+
+  if (openOrders.length > 0) return;
+
+  const orderingState = await getCustomerOrderingState(resolvedSessionId);
+  if (orderingState.pendingReview) return;
+
+  const [sessionRows] = await pool.query(
+    "SELECT table_number FROM customer_sessions WHERE session_id = ? LIMIT 1",
+    [resolvedSessionId]
+  );
+
+  await pool.query(
+    "UPDATE customer_sessions SET status = 'inactive', last_activity = CURRENT_TIMESTAMP WHERE session_id = ?",
+    [resolvedSessionId]
+  );
+
+  const tableNumber = toInt(sessionRows[0]?.table_number, 0);
+  if (tableNumber) {
+    await updateTableStatus(pool, tableNumber, "available", {
+      reservationName: "",
+      reservationTime: ""
+    });
+  }
+}
+
+async function markCustomerSessionInactive(sessionId) {
+  const resolvedSessionId = toText(sessionId);
+  if (!resolvedSessionId) return;
+
+  const [sessionRows] = await pool.query(
+    "SELECT table_number FROM customer_sessions WHERE session_id = ? LIMIT 1",
+    [resolvedSessionId]
+  );
+
+  await pool.query(
+    "UPDATE customer_sessions SET status = 'inactive', last_activity = CURRENT_TIMESTAMP WHERE session_id = ?",
+    [resolvedSessionId]
+  );
+
+  const tableNumber = toInt(sessionRows[0]?.table_number, 0);
+  if (tableNumber) {
+    await updateTableStatus(pool, tableNumber, "available", {
+      reservationName: "",
+      reservationTime: ""
+    });
+  }
+}
+
+async function normalizeCustomerSessionStates() {
+  const [rows] = await pool.query(
+    `
+      SELECT id, table_number
+      FROM customer_sessions
+      WHERE status = 'active'
+      ORDER BY table_number ASC, last_activity DESC, id DESC
+    `
+  );
+
+  const keepByTable = new Set();
+  const duplicateIds = [];
+
+  for (const row of rows) {
+    const tableNumber = toInt(row.table_number, 0);
+    if (!tableNumber) continue;
+
+    if (!keepByTable.has(tableNumber)) {
+      keepByTable.add(tableNumber);
+      continue;
+    }
+
+    duplicateIds.push(toInt(row.id, 0));
+  }
+
+  if (!duplicateIds.length) return;
+
+  await pool.query(
+    "UPDATE customer_sessions SET status = 'inactive', last_activity = CURRENT_TIMESTAMP WHERE id IN (?)",
+    [duplicateIds]
+  );
 }
 
 app.use(express.json({ limit: "10mb" }));
@@ -871,8 +1418,119 @@ app.get("/admin/product", async function (req, res) {
   }
 });
 
+app.get("/api/menu", async function (req, res) {
+  try {
+    const [rows] = await pool.query("SELECT * FROM menu ORDER BY sort_order ASC, id ASC");
+    return res.json({ success: true, menus: rows.map(mapMenuRow) });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.post("/api/menu", async function (req, res) {
+  try {
+    if (!ensureAdminSession(req, res)) return;
+
+    const name = toText(req.body?.name);
+    const thaiName = toText(req.body?.thaiName ?? req.body?.thai_name);
+    const price = Math.max(0, toNumber(req.body?.price, 0));
+    const category = toText(req.body?.category, "single");
+    const desc = toText(req.body?.desc ?? req.body?.description);
+    const optionKeys = normalizeMenuOptionKeys(req.body?.optionKeys ?? req.body?.option_keys);
+    const imageUrl = toText(req.body?.img ?? req.body?.image ?? req.body?.image_url);
+    const available = normalizeMenuAvailability(req.body?.available ?? req.body?.is_available ?? true, 1);
+
+    if (!name) {
+      return res.status(400).json({ success: false, message: "Menu name is required" });
+    }
+
+    const [maxRows] = await pool.query("SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM menu");
+    const sortOrder = toInt(maxRows[0]?.max_sort, 0) + 1;
+
+    const [result] = await pool.query(
+      `
+        INSERT INTO menu (
+          name, name_th, thai_name, category, category_code, price,
+          description, option_keys, image_url, is_available, sort_order
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [name, thaiName || null, thaiName || null, category, category, price, desc, JSON.stringify(optionKeys), imageUrl || null, available, sortOrder]
+    );
+
+    const [rows] = await pool.query("SELECT * FROM menu WHERE id = ? LIMIT 1", [result.insertId]);
+    return res.status(201).json({ success: true, menu: rows[0] ? mapMenuRow(rows[0]) : null });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.put("/api/menu/:menuId", async function (req, res) {
+  try {
+    if (!ensureAdminSession(req, res)) return;
+
+    const menuId = toInt(req.params?.menuId, 0);
+    if (!menuId) {
+      return res.status(400).json({ success: false, message: "Menu ID is required" });
+    }
+
+    const name = toText(req.body?.name);
+    const thaiName = toText(req.body?.thaiName ?? req.body?.thai_name);
+    const price = Math.max(0, toNumber(req.body?.price, 0));
+    const category = toText(req.body?.category, "single");
+    const desc = toText(req.body?.desc ?? req.body?.description);
+    const optionKeys = normalizeMenuOptionKeys(req.body?.optionKeys ?? req.body?.option_keys);
+    const imageUrl = toText(req.body?.img ?? req.body?.image ?? req.body?.image_url);
+    const available = normalizeMenuAvailability(req.body?.available ?? req.body?.is_available ?? true, 1);
+
+    if (!name) {
+      return res.status(400).json({ success: false, message: "Menu name is required" });
+    }
+
+    const [out] = await pool.query(
+      `
+        UPDATE menu
+        SET name = ?, name_th = ?, thai_name = ?, category = ?, category_code = ?, price = ?,
+            description = ?, option_keys = ?, image_url = ?, is_available = ?
+        WHERE id = ?
+      `,
+      [name, thaiName || null, thaiName || null, category, category, price, desc, JSON.stringify(optionKeys), imageUrl || null, available, menuId]
+    );
+
+    if (out.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Menu not found" });
+    }
+
+    const [rows] = await pool.query("SELECT * FROM menu WHERE id = ? LIMIT 1", [menuId]);
+    return res.json({ success: true, menu: rows[0] ? mapMenuRow(rows[0]) : null });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.delete("/api/menu/:menuId", async function (req, res) {
+  try {
+    if (!ensureAdminSession(req, res)) return;
+
+    const menuId = toInt(req.params?.menuId, 0);
+    if (!menuId) {
+      return res.status(400).json({ success: false, message: "Menu ID is required" });
+    }
+
+    const [out] = await pool.query("DELETE FROM menu WHERE id = ?", [menuId]);
+    if (out.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Menu not found" });
+    }
+
+    return res.json({ success: true, id: menuId });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
 app.patch("/api/menu/:menuId/status", async function (req, res) {
   try {
+    if (!ensureAdminSession(req, res)) return;
+
     const menuId = toInt(req.params?.menuId, 0);
     if (!menuId) {
       return res.status(400).json({ success: false, message: "Menu ID is required" });
@@ -951,11 +1609,19 @@ app.get("/login-customer", function (req, res) {
 });
 
 app.get("/login-cook", function (req, res) {
-  res.status(200).sendFile(path.join(__dirname, "views", "login_cook.html"));
+  res.redirect(302, "/staff.html");
 });
 
 app.get("/register-cook", function (req, res) {
-  res.status(200).sendFile(path.join(__dirname, "views", "register_cook.html"));
+  res.redirect(302, "/staff.html#first-time");
+});
+
+app.get("/login_cook.html", function (req, res) {
+  res.redirect(302, "/staff.html");
+});
+
+app.get("/register_cook.html", function (req, res) {
+  res.redirect(302, "/staff.html#first-time");
 });
 
 app.get("/api/health", async function (req, res) {
@@ -967,40 +1633,167 @@ app.get("/api/health", async function (req, res) {
   }
 });
 
-app.post("/api/state/sync", async function (req, res) {
+app.get("/api/session", async function (req, res) {
   try {
-    const out = await syncState(req.body);
-    res.status(out.status).json(out.body);
+    const customer = await getCustomerContext(req);
+    if (customer) {
+      const orderingState = await getCustomerOrderingState(customer.sessionId);
+      return res.json({
+        logged_in: true,
+        user_type: "customer",
+        session_id: customer.sessionId,
+        table_number: customer.tableNumber,
+        ordering_allowed: orderingState.orderingAllowed,
+        pending_review: orderingState.pendingReview,
+        pending_review_payment_id: orderingState.pendingReviewPaymentId,
+        locked_after_review: orderingState.lockedAfterReview
+      });
+    }
+
+    res.json({ logged_in: Boolean(req.session?.user_type), user_type: req.session?.user_type || null });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-app.get("/api/state", async function (req, res) {
+app.get("/api/customer/state", async function (req, res) {
   try {
-    const data = await getState();
-    res.json({ success: true, data });
+    const customer = await getCustomerContext(req);
+    if (!customer) {
+      return res.status(401).json({ success: false, message: "Customer login required" });
+    }
+
+    res.json(await buildCustomerStateResponse(customer));
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-app.get("/api/session", function (req, res) {
-  res.json({ logged_in: Boolean(req.session?.user_type), user_type: req.session?.user_type || null });
+app.get("/api/customer/history", async function (req, res) {
+  try {
+    const tableNumber = toInt(req.query?.table_number, 0);
+    if (!tableNumber) {
+      return res.status(400).json({ success: false, message: "Table number is required" });
+    }
+
+    const [payments] = await pool.query(
+      "SELECT * FROM payments WHERE table_number = ? ORDER BY created_at DESC, id DESC",
+      [tableNumber]
+    );
+    const [reviews] = await pool.query(
+      "SELECT * FROM reviews WHERE table_number = ? ORDER BY created_at DESC, id DESC",
+      [tableNumber]
+    );
+
+    res.json({
+      success: true,
+      table_number: tableNumber,
+      payments: await hydratePaymentsWithOrderDetails(payments),
+      reviews: reviews.map(mapReviewRow)
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get("/api/tables", async function (req, res) {
+  try {
+    const [rows] = await pool.query("SELECT * FROM tables ORDER BY table_number ASC");
+    res.json({ success: true, tables: rows.map(mapTableRow) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.post("/api/tables/:tableNumber/reserve", async function (req, res) {
+  try {
+    const tableNumber = toInt(req.params?.tableNumber, 0);
+    const reservationName = toText(req.body?.name ?? req.body?.reservation_name);
+    const reservationTime = toText(req.body?.time ?? req.body?.reservation_time);
+    if (!tableNumber) {
+      return res.status(400).json({ success: false, message: "Table number is required" });
+    }
+
+    if (!reservationName || !reservationTime) {
+      return res.status(400).json({ success: false, message: "Reservation name and time are required" });
+    }
+
+    const current = await ensureTableRecord(pool, tableNumber);
+    const currentStatus = normalizeTableStatus(current?.status, "available");
+    if (["reserved", "occupied", "maintenance"].includes(currentStatus)) {
+      return res.status(409).json({ success: false, message: `Table ${tableNumber} is not available` });
+    }
+
+    const updated = await updateTableStatus(pool, tableNumber, "reserved", {
+      reservationName,
+      reservationTime
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Table ${tableNumber} reserved successfully`,
+      table: updated ? mapTableRow(updated) : null
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.patch("/api/tables/:tableNumber/status", async function (req, res) {
+  try {
+    if (!ensureAdminSession(req, res)) return;
+
+    const tableNumber = toInt(req.params?.tableNumber, 0);
+    const nextStatus = normalizeTableStatus(req.body?.status, "");
+    if (!tableNumber) {
+      return res.status(400).json({ success: false, message: "Table number is required" });
+    }
+
+    if (!nextStatus) {
+      return res.status(400).json({ success: false, message: "Table status is required" });
+    }
+
+    const shouldClearReservation = nextStatus === "available" || nextStatus === "inactive";
+    const updated = await updateTableStatus(pool, tableNumber, nextStatus, {
+      reservationName: shouldClearReservation ? "" : req.body?.reservation_name,
+      reservationTime: shouldClearReservation ? "" : req.body?.reservation_time
+    });
+
+    res.json({
+      success: true,
+      message: `Table ${tableNumber} updated to ${nextStatus}`,
+      table: updated ? mapTableRow(updated) : null
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
 });
 
 app.post("/api/customer/login", async function (req, res) {
   try {
     const tableNumber = toInt(req.body?.table_number, 0);
+    const requestedSessionId = normalizeSessionId(req.body?.session_id, tableNumber);
     if (!tableNumber) {
       return res.status(400).json({ success: false, message: "Please enter table number" });
     }
 
-    const sessionId = `CUST_${Math.floor(Date.now() / 1000)}_${Math.floor(1000 + Math.random() * 9000)}`;
-    await pool.query(
-      "INSERT INTO customer_sessions (session_id, table_number, status) VALUES (?, ?, 'active')",
-      [sessionId, tableNumber]
-    );
+    let reusedSessionId = "";
+    if (requestedSessionId && await canReuseCustomerSession(requestedSessionId, tableNumber)) {
+      reusedSessionId = requestedSessionId;
+    } else {
+      reusedSessionId = await findReusableCustomerSession(tableNumber);
+    }
+
+    let sessionId = reusedSessionId;
+    if (!sessionId) {
+      sessionId = `CUST_${Math.floor(Date.now() / 1000)}_${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+
+    await upsertCustomerSession(pool, sessionId, tableNumber);
+    await updateTableStatus(pool, tableNumber, "occupied", {
+      reservationName: "",
+      reservationTime: ""
+    });
 
     req.session.user_type = "customer";
     req.session.session_id = sessionId;
@@ -1011,7 +1804,8 @@ app.post("/api/customer/login", async function (req, res) {
       user_id: sessionId,
       timestamp: toMysqlDate(new Date()),
       table_number: tableNumber,
-      message: "Login successful"
+      message: "Login successful",
+      resumed: Boolean(reusedSessionId)
     });
   } catch (err) {
     res.status(500).json({ success: false, message: `Error: ${err.message}` });
@@ -1019,34 +1813,10 @@ app.post("/api/customer/login", async function (req, res) {
 });
 
 app.post("/api/cook/register", async function (req, res) {
-  try {
-    const cookId = toText(req.body?.cook_id);
-    const password = toText(req.body?.password);
-    const fullName = toText(req.body?.full_name);
-    const phone = toText(req.body?.phone);
-
-    if (!cookId || !password || !fullName) {
-      return res.status(400).json({ success: false, message: "Please provide Cook ID, password, and full name" });
-    }
-    if (password.length < 4) {
-      return res.status(400).json({ success: false, message: "Password must be at least 4 characters" });
-    }
-
-    const [exists] = await pool.query("SELECT id FROM cooks WHERE cook_id = ? LIMIT 1", [cookId]);
-    if (exists.length > 0) {
-      return res.status(409).json({ success: false, message: "This Cook ID already exists" });
-    }
-
-    const passwordHash = await hashPassword(password);
-    await pool.query(
-      "INSERT INTO cooks (cook_id, password_hash, full_name, phone, status, created_at) VALUES (?, ?, ?, ?, 'active', NOW())",
-      [cookId, passwordHash, fullName, phone]
-    );
-
-    res.json({ success: true, message: `Registration for ${cookId} successful!`, cook_id: cookId, full_name: fullName });
-  } catch (err) {
-    res.status(500).json({ success: false, message: `Error: ${err.message}` });
-  }
+  return res.status(403).json({
+    success: false,
+    message: "Cook self-registration is disabled. Please contact an admin to create your Cook ID."
+  });
 });
 
 app.post("/api/cook/login", async function (req, res) {
@@ -1057,18 +1827,102 @@ app.post("/api/cook/login", async function (req, res) {
       return res.status(400).json({ success: false, message: "Please enter Cook ID and password" });
     }
 
-    const [rows] = await pool.query("SELECT * FROM cooks WHERE cook_id = ? AND status = 'active' LIMIT 1", [cookId]);
+    const [rows] = await pool.query("SELECT * FROM cooks WHERE cook_id = ? LIMIT 1", [cookId]);
     const cook = rows[0];
-    if (!cook || !(await verifyPassword(password, String(cook.password_hash || "")))) {
+    if (!cook) {
+      return res.status(401).json({ success: false, message: "Cook ID or password is incorrect" });
+    }
+    if (normalizeCookStatus(cook.status, "inactive") !== "active") {
+      return res.status(403).json({
+        success: false,
+        message: "This Cook ID is disabled. Please contact an admin."
+      });
+    }
+
+    if (!toText(cook.password_hash)) {
+      return res.status(403).json({
+        success: false,
+        requires_password_setup: true,
+        cook_id: cook.cook_id,
+        full_name: cook.full_name,
+        message: "This Cook ID has not set a password yet"
+      });
+    }
+
+    if (!(await verifyPassword(password, String(cook.password_hash || "")))) {
       return res.status(401).json({ success: false, message: "Cook ID or password is incorrect" });
     }
 
-    req.session.user_type = "cook";
-    req.session.cook_id = cook.cook_id;
-    req.session.cook_name = cook.full_name;
-    req.session.cook_db_id = cook.id;
+    establishCookSession(req, cook);
 
     res.json({ success: true, message: "Login successful", cook_id: cook.cook_id, full_name: cook.full_name });
+  } catch (err) {
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.post("/api/cook/access", async function (req, res) {
+  try {
+    const cookId = toText(req.body?.cook_id);
+    if (!cookId) {
+      return res.status(400).json({ success: false, message: "Cook ID is required" });
+    }
+
+    const [rows] = await pool.query(
+      "SELECT id, cook_id, full_name, status, password_hash FROM cooks WHERE cook_id = ? LIMIT 1",
+      [cookId]
+    );
+    const cook = rows[0];
+    if (!cook || normalizeCookStatus(cook.status, "inactive") !== "active") {
+      return res.status(404).json({ success: false, message: "Cook ID not found" });
+    }
+
+    return res.json({
+      success: true,
+      cook_id: cook.cook_id,
+      full_name: cook.full_name,
+      password_ready: Boolean(toText(cook.password_hash))
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.post("/api/cook/setup-password", async function (req, res) {
+  try {
+    const cookId = toText(req.body?.cook_id);
+    const password = toText(req.body?.password);
+
+    if (!cookId || !password) {
+      return res.status(400).json({ success: false, message: "Cook ID and password are required" });
+    }
+    if (password.length < 4) {
+      return res.status(400).json({ success: false, message: "Password must be at least 4 characters" });
+    }
+
+    const [rows] = await pool.query(
+      "SELECT id, cook_id, full_name, status, password_hash FROM cooks WHERE cook_id = ? LIMIT 1",
+      [cookId]
+    );
+    const cook = rows[0];
+    if (!cook || normalizeCookStatus(cook.status, "inactive") !== "active") {
+      return res.status(404).json({ success: false, message: "Cook ID not found" });
+    }
+    if (toText(cook.password_hash)) {
+      return res.status(409).json({ success: false, message: "This Cook ID has already set a password" });
+    }
+
+    const passwordHash = await hashPassword(password);
+    await pool.query("UPDATE cooks SET password_hash = ? WHERE id = ?", [passwordHash, cook.id]);
+
+    establishCookSession(req, cook);
+
+    return res.status(201).json({
+      success: true,
+      message: "Password created successfully",
+      cook_id: cook.cook_id,
+      full_name: cook.full_name
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: `Error: ${err.message}` });
   }
@@ -1145,13 +1999,26 @@ app.post("/api/staff/login", async function (req, res) {
       });
     }
 
-    const [cooks] = await pool.query("SELECT * FROM cooks WHERE cook_id = ? AND status = 'active' LIMIT 1", [username]);
+    const [cooks] = await pool.query("SELECT * FROM cooks WHERE cook_id = ? LIMIT 1", [username]);
     const cook = cooks[0];
-    if (cook && (await verifyPassword(password, String(cook.password_hash || "")))) {
-      req.session.user_type = "cook";
-      req.session.cook_id = cook.cook_id;
-      req.session.cook_name = cook.full_name;
-      req.session.cook_db_id = cook.id;
+    if (cook && normalizeCookStatus(cook.status, "inactive") !== "active") {
+      return res.status(403).json({
+        success: false,
+        message: "This Cook ID is disabled. Please contact an admin."
+      });
+    }
+    if (cook && !toText(cook.password_hash)) {
+      return res.status(403).json({
+        success: false,
+        requires_password_setup: true,
+        role: "cook",
+        cook_id: cook.cook_id,
+        full_name: cook.full_name,
+        message: "This Cook ID must create a password on first login"
+      });
+    }
+    if (cook && toText(cook.password_hash) && (await verifyPassword(password, String(cook.password_hash || "")))) {
+      establishCookSession(req, cook);
       return res.json({
         success: true,
         message: "Login successful",
@@ -1169,11 +2036,21 @@ app.post("/api/staff/login", async function (req, res) {
   }
 });
 
-function handleLogout(req, res) {
-  req.session.destroy(() => {
-    res.clearCookie("connect.sid");
-    res.json({ success: true, message: "Logout successful" });
-  });
+async function handleLogout(req, res) {
+  try {
+    const isCustomer = toText(req.session?.user_type).toLowerCase() === "customer";
+    const customerSessionId = toText(req.session?.session_id);
+    if (isCustomer && customerSessionId) {
+      await markCustomerSessionInactive(customerSessionId);
+    }
+
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid");
+      res.json({ success: true, message: "Logout successful" });
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
 }
 
 app.post("/api/logout", handleLogout);
@@ -1181,8 +2058,10 @@ app.post("/api/admin/logout", handleLogout);
 
 app.get("/api/cooks", async function (req, res) {
   try {
+    if (!ensureAdminSession(req, res)) return;
+
     const [rows] = await pool.query(
-      "SELECT id, cook_id, full_name, phone, status, created_at FROM cooks ORDER BY id DESC"
+      "SELECT id, cook_id, full_name, phone, status, created_at, (password_hash IS NOT NULL AND password_hash <> '') AS password_ready FROM cooks ORDER BY id DESC"
     );
     res.json({ success: true, cooks: rows.map(mapCookRow) });
   } catch (err) {
@@ -1192,17 +2071,15 @@ app.get("/api/cooks", async function (req, res) {
 
 app.post("/api/cooks", async function (req, res) {
   try {
+    if (!ensureAdminSession(req, res)) return;
+
     const cookId = toText(req.body?.cook_id ?? req.body?.id);
-    const password = toText(req.body?.password);
     const fullName = toText(req.body?.full_name ?? req.body?.name);
     const phone = toText(req.body?.phone);
     const status = normalizeCookStatus(req.body?.status, "active");
 
-    if (!cookId || !password || !fullName) {
-      return res.status(400).json({ success: false, message: "Please provide Cook ID, password, and full name" });
-    }
-    if (password.length < 4) {
-      return res.status(400).json({ success: false, message: "Password must be at least 4 characters" });
+    if (!cookId || !fullName) {
+      return res.status(400).json({ success: false, message: "Please provide Cook ID and full name" });
     }
 
     const [exists] = await pool.query("SELECT id FROM cooks WHERE cook_id = ? LIMIT 1", [cookId]);
@@ -1210,14 +2087,13 @@ app.post("/api/cooks", async function (req, res) {
       return res.status(409).json({ success: false, message: "This Cook ID already exists" });
     }
 
-    const passwordHash = await hashPassword(password);
     await pool.query(
       "INSERT INTO cooks (cook_id, password_hash, full_name, phone, status, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-      [cookId, passwordHash, fullName, phone, status]
+      [cookId, null, fullName, phone, status]
     );
 
     const [rows] = await pool.query(
-      "SELECT id, cook_id, full_name, phone, status, created_at FROM cooks WHERE cook_id = ? LIMIT 1",
+      "SELECT id, cook_id, full_name, phone, status, created_at, (password_hash IS NOT NULL AND password_hash <> '') AS password_ready FROM cooks WHERE cook_id = ? LIMIT 1",
       [cookId]
     );
     return res.status(201).json({ success: true, cook: rows[0] ? mapCookRow(rows[0]) : null });
@@ -1228,6 +2104,8 @@ app.post("/api/cooks", async function (req, res) {
 
 app.patch("/api/cooks/:cookId/status", async function (req, res) {
   try {
+    if (!ensureAdminSession(req, res)) return;
+
     const cookId = toText(req.params?.cookId);
     const status = normalizeCookStatus(req.body?.status, req.body?.active === false ? "inactive" : "active");
     if (!cookId) {
@@ -1246,9 +2124,10 @@ app.patch("/api/cooks/:cookId/status", async function (req, res) {
 
 app.put("/api/cooks/:cookId", async function (req, res) {
   try {
+    if (!ensureAdminSession(req, res)) return;
+
     const cookId = toText(req.params?.cookId);
     const fullName = toText(req.body?.full_name ?? req.body?.name);
-    const password = toText(req.body?.password);
     const phone = toText(req.body?.phone, null);
     const status = req.body?.status ? normalizeCookStatus(req.body?.status, "active") : null;
     if (!cookId) {
@@ -1269,14 +2148,6 @@ app.put("/api/cooks/:cookId", async function (req, res) {
       updates.push("status = ?");
       params.push(status);
     }
-    if (password) {
-      if (password.length < 4) {
-        return res.status(400).json({ success: false, message: "Password must be at least 4 characters" });
-      }
-      const passwordHash = await hashPassword(password);
-      updates.push("password_hash = ?");
-      params.push(passwordHash);
-    }
 
     if (updates.length === 0) {
       return res.status(400).json({ success: false, message: "No fields to update" });
@@ -1289,7 +2160,7 @@ app.put("/api/cooks/:cookId", async function (req, res) {
     }
 
     const [rows] = await pool.query(
-      "SELECT id, cook_id, full_name, phone, status, created_at FROM cooks WHERE cook_id = ? LIMIT 1",
+      "SELECT id, cook_id, full_name, phone, status, created_at, (password_hash IS NOT NULL AND password_hash <> '') AS password_ready FROM cooks WHERE cook_id = ? LIMIT 1",
       [cookId]
     );
     return res.json({ success: true, cook: rows[0] ? mapCookRow(rows[0]) : null });
@@ -1300,6 +2171,8 @@ app.put("/api/cooks/:cookId", async function (req, res) {
 
 app.delete("/api/cooks/:cookId", async function (req, res) {
   try {
+    if (!ensureAdminSession(req, res)) return;
+
     const cookId = toText(req.params?.cookId);
     if (!cookId) {
       return res.status(400).json({ success: false, message: "Cook ID is required" });
@@ -1326,42 +2199,92 @@ app.get(["/login", "/login.html"], function (req, res) {
 
 app.post("/api/orders", async function (req, res) {
   try {
-    // 1. Make sure the user is actually a logged-in customer
-    if (req.session?.user_type !== "customer") {
-      return res.status(401).json({ success: false, message: "Only logged-in customers can place orders." });
+    const customer = await getOrCreateCustomerContext(req, { allowCreateFromBody: true });
+    if (!customer) {
+      return res.status(401).json({ success: false, message: "Customer session or table_number is required to place orders." });
     }
 
-    const sessionId = req.session.session_id;
-    const tableNumber = req.session.table_number;
+    const sessionId = customer.sessionId;
+    const tableNumber = customer.tableNumber;
+    const orderingState = await getCustomerOrderingState(sessionId);
+    if (!orderingState.orderingAllowed) {
+      return res.status(409).json({
+        success: false,
+        message: getOrderingBlockedMessage(orderingState),
+        pending_review: orderingState.pendingReview,
+        pending_review_payment_id: orderingState.pendingReviewPaymentId,
+        locked_after_review: orderingState.lockedAfterReview
+      });
+    }
+
     const { notes, items } = req.body || {};
 
-    // 2. Validate the request
-    if (!items || items.length === 0) {
+    if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: "Order must contain at least one item." });
     }
 
-    // 3. Create a unique order number (using timestamp for simplicity)
-    const orderNumber = Date.now().toString();
+    const normalizedItems = [];
+    let totalAmount = 0;
+    for (const item of items) {
+      const normalizedItem = await resolveIncomingOrderItem(item);
+      if (normalizedItem?.error) {
+        return res.status(400).json({ success: false, message: normalizedItem.error });
+      }
 
-    // 4. Insert the main order into the database
-    const [orderResult] = await pool.query(
-      "INSERT INTO orders (order_number, session_id, table_number, status, notes) VALUES (?, ?, ?, 'pending', ?)",
-      [orderNumber, sessionId, tableNumber, notes || ""]
-    );
+      totalAmount += normalizedItem.subtotal;
+      normalizedItems.push(normalizedItem);
+    }
 
-    const orderId = orderResult.insertId;
+    let orderNumber = `ORD-TMP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const conn = await pool.getConnection();
+    let orderId = 0;
 
-    // (Note: In a fully finished version, you would also write a loop here 
-    // to insert each individual item into the `order_items` table and calculate the total price).
+    try {
+      await conn.beginTransaction();
 
-    // 5. Send success response
+      const [orderResult] = await conn.query(
+        `
+          INSERT INTO orders (order_number, session_id, table_number, total_amount, status, notes)
+          VALUES (?, ?, ?, ?, 'pending', ?)
+        `,
+        [orderNumber, sessionId, tableNumber, totalAmount, toText(notes)]
+      );
+
+      orderId = orderResult.insertId;
+      orderNumber = `ORD-${String(orderId).padStart(4, "0")}`;
+      await conn.query("UPDATE orders SET order_number = ? WHERE id = ?", [orderNumber, orderId]);
+
+      for (const item of normalizedItems) {
+        await conn.query(
+          `
+            INSERT INTO order_items (order_id, menu_id, item_name, quantity, unit_price, subtotal, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `,
+          [orderId, item.menuId, item.itemName, item.quantity, item.unitPrice, item.subtotal, item.notes]
+        );
+      }
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+
+    const [orders] = await pool.query("SELECT * FROM orders WHERE id = ? LIMIT 1", [orderId]);
+    const [itemRows] = await pool.query("SELECT * FROM order_items WHERE order_id = ? ORDER BY id ASC", [orderId]);
+    const order = orders[0] ? mapOrderRow(orders[0], itemRows) : null;
+
     res.status(201).json({
       success: true,
       message: "Order placed successfully!",
       order_id: orderId,
-      order_number: orderNumber
+      order_number: orderNumber,
+      session_id: sessionId,
+      table_number: tableNumber,
+      order
     });
-
   } catch (err) {
     console.log(err);
     res.status(500).json({ success: false, message: `Error: ${err.message}` });
@@ -1370,42 +2293,62 @@ app.post("/api/orders", async function (req, res) {
 
 app.get("/api/orders", async function (req, res) {
   try {
-    // 1. Check if the user is filtering by status (e.g., /api/orders?status=pending)
-    const statusFilter = req.query.status;
+    const statusFilter = toText(req.query.status).toLowerCase();
+    const cookFilter = toText(req.query.cook_id);
+    const tableFilter = toInt(req.query.table_number, 0);
     let query = "SELECT * FROM orders";
     let params = [];
 
+    const customer = await getCustomerContext(req);
+    const staffAccess = hasStaffOrderAccess(req);
+    if (!customer && !staffAccess) {
+      return res.status(401).json({ success: false, message: "Login required" });
+    }
+
+    if (customer) {
+      const sessionId = customer.sessionId;
+      query += " WHERE session_id = ?";
+      params.push(sessionId);
+    }
+
     if (statusFilter) {
-      query += " WHERE status = ?";
+      query += params.length ? " AND status = ?" : " WHERE status = ?";
       params.push(statusFilter);
     }
 
-    // Order by newest first
-    query += " ORDER BY created_at DESC";
+    if (cookFilter) {
+      query += params.length ? " AND cook_id = ?" : " WHERE cook_id = ?";
+      params.push(cookFilter);
+    }
 
-    // 2. Fetch the main orders
+    if (tableFilter) {
+      query += params.length ? " AND table_number = ?" : " WHERE table_number = ?";
+      params.push(tableFilter);
+    }
+
+    query += " ORDER BY created_at DESC";
     const [orders] = await pool.query(query, params);
 
-    // 3. If we have orders, fetch their items and attach them
     if (orders.length > 0) {
       const orderIds = orders.map(o => o.id);
-
-      // Fetch all items that belong to the orders we just found
       const [items] = await pool.query(
         "SELECT * FROM order_items WHERE order_id IN (?)",
         [orderIds]
       );
 
-      // Map the items into their respective order objects
-      orders.forEach(order => {
-        order.items = items.filter(item => item.order_id === order.id);
+      const normalizedOrders = orders.map((order) =>
+        mapOrderRow(order, items.filter((item) => item.order_id === order.id))
+      );
+
+      return res.status(200).json({
+        success: true,
+        orders: normalizedOrders
       });
     }
 
-    // 4. Send the response
     res.status(200).json({
       success: true,
-      orders: orders
+      orders: []
     });
 
   } catch (err) {
@@ -1414,40 +2357,189 @@ app.get("/api/orders", async function (req, res) {
   }
 });
 
+app.post("/api/orders/:orderId/claim", async function (req, res) {
+  try {
+    if (req.session?.user_type !== "cook") {
+      return res.status(401).json({ success: false, message: "Only logged-in cooks can claim orders." });
+    }
+
+    const orderId = toInt(req.params.orderId, 0);
+    const cookId = toText(req.session?.cook_id);
+    if (!orderId || !cookId) {
+      return res.status(400).json({ success: false, message: "Order ID and cook session are required." });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [currentRows] = await conn.query("SELECT * FROM orders WHERE id = ? LIMIT 1", [orderId]);
+      const currentOrder = currentRows[0];
+      if (!currentOrder) {
+        await conn.rollback();
+        return res.status(404).json({ success: false, message: "Order not found" });
+      }
+
+      const [otherClaims] = await conn.query(
+        `
+          SELECT id
+          FROM order_items
+          WHERE order_id = ?
+            AND cook_id IS NOT NULL
+            AND cook_id <> ''
+            AND cook_id <> ?
+            AND status NOT IN ('completed', 'cancelled')
+          LIMIT 1
+        `,
+        [orderId, cookId]
+      );
+      if (otherClaims.length > 0) {
+        await conn.rollback();
+        return res.status(409).json({ success: false, message: "This order already has active items claimed by another cook." });
+      }
+
+      const [claimResult] = await conn.query(
+        `
+          UPDATE order_items
+          SET
+            cook_id = ?,
+            status = CASE WHEN status = 'pending' THEN 'cooking' ELSE status END,
+            started_at = COALESCE(started_at, NOW())
+          WHERE order_id = ?
+            AND (cook_id IS NULL OR cook_id = '')
+            AND status NOT IN ('completed', 'cancelled')
+        `,
+        [cookId, orderId]
+      );
+
+      if (!claimResult.affectedRows) {
+        await conn.rollback();
+        return res.status(409).json({ success: false, message: "There are no claimable items left in this order." });
+      }
+
+      const order = await refreshOrderSummary(orderId, conn);
+      await conn.commit();
+      return res.json({
+        success: true,
+        message: "Order claimed successfully",
+        order
+      });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
 app.patch("/api/orders/:orderId/status", async function (req, res) {
   try {
-    const orderId = req.params.orderId;
-    const newStatus = req.body.status;
+    const isAdmin = req.session?.user_type === "admin";
+    const isCook = req.session?.user_type === "cook";
+    if (!isAdmin && !isCook) {
+      return res.status(401).json({ success: false, message: "Only staff can update order status." });
+    }
 
-    // 1. Validate the request
+    const orderId = toInt(req.params.orderId, 0);
+    const newStatus = normalizeOrderStatus(req.body?.status, "");
+
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "Order ID is required" });
+    }
+
     if (!newStatus) {
       return res.status(400).json({ success: false, message: "Status is required" });
     }
 
-    // Optional: Ensure it's a valid status word
-    const allowedStatuses = ['pending', 'serving', 'completed', 'cancelled'];
-    if (!allowedStatuses.includes(newStatus)) {
-      return res.status(400).json({ success: false, message: "Invalid status value" });
-    }
-
-    // 2. Update the order in the database
-    const [result] = await pool.query(
-      "UPDATE orders SET status = ? WHERE id = ?",
-      [newStatus, orderId]
-    );
-
-    // 3. Check if the order actually existed
-    if (result.affectedRows === 0) {
+    const [existingRows] = await pool.query("SELECT * FROM orders WHERE id = ? LIMIT 1", [orderId]);
+    const existingOrder = existingRows[0];
+    if (!existingOrder) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // 4. Send the success response
-    res.status(200).json({
-      success: true,
-      message: `Order #${orderId} status updated to ${newStatus}`,
-      order_id: orderId,
-      status: newStatus
-    });
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      let updateSql = "";
+      let updateParams = [];
+      if (isAdmin) {
+        updateSql = `
+          UPDATE order_items
+          SET
+            status = ?,
+            completed_at = CASE WHEN ? = 'completed' THEN NOW() ELSE NULL END,
+            started_at = CASE
+              WHEN ? IN ('cooking', 'serving', 'completed') THEN COALESCE(started_at, NOW())
+              ELSE started_at
+            END
+          WHERE order_id = ?
+        `;
+        updateParams = [newStatus, newStatus, newStatus, orderId];
+      } else {
+        const cookId = toText(req.session?.cook_id);
+        const [ownershipRows] = await conn.query(
+          `
+            SELECT id
+            FROM order_items
+            WHERE order_id = ?
+              AND cook_id IS NOT NULL
+              AND cook_id <> ''
+              AND cook_id <> ?
+              AND status NOT IN ('completed', 'cancelled')
+            LIMIT 1
+          `,
+          [orderId, cookId]
+        );
+        if (ownershipRows.length > 0) {
+          await conn.rollback();
+          return res.status(403).json({ success: false, message: "This order contains items assigned to another cook." });
+        }
+
+        updateSql = `
+          UPDATE order_items
+          SET
+            cook_id = CASE
+              WHEN (cook_id IS NULL OR cook_id = '') AND ? IN ('cooking', 'serving', 'completed', 'cancelled') THEN ?
+              ELSE cook_id
+            END,
+            status = ?,
+            completed_at = CASE WHEN ? = 'completed' THEN NOW() ELSE NULL END,
+            started_at = CASE
+              WHEN ? IN ('cooking', 'serving', 'completed') THEN COALESCE(started_at, NOW())
+              ELSE started_at
+            END
+          WHERE order_id = ?
+            AND ((cook_id = ?) OR (cook_id IS NULL OR cook_id = ''))
+        `;
+        updateParams = [newStatus, cookId, newStatus, newStatus, newStatus, orderId, cookId];
+      }
+
+      const [updateResult] = await conn.query(updateSql, updateParams);
+      if (!updateResult.affectedRows) {
+        await conn.rollback();
+        return res.status(409).json({ success: false, message: "No order items were updated." });
+      }
+
+      const order = await refreshOrderSummary(orderId, conn);
+      await conn.commit();
+      res.status(200).json({
+        success: true,
+        message: `Order #${orderId} status updated to ${newStatus}`,
+        order_id: orderId,
+        status: order?.status || newStatus,
+        order
+      });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
 
   } catch (err) {
     console.log(err);
@@ -1457,30 +2549,207 @@ app.patch("/api/orders/:orderId/status", async function (req, res) {
 
 app.get("/api/orders/:orderId", async function (req, res) {
   try {
-    const orderId = req.params.orderId;
+    const orderId = toInt(req.params.orderId, 0);
+    const customer = await getCustomerContext(req);
+    const staffAccess = hasStaffOrderAccess(req);
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "Order ID is required" });
+    }
+    if (!customer && !staffAccess) {
+      return res.status(401).json({ success: false, message: "Login required" });
+    }
 
-    // 1. Fetch the main order details
-    const [orders] = await pool.query("SELECT * FROM orders WHERE id = ?", [orderId]);
+    const params = [orderId];
+    let query = "SELECT * FROM orders WHERE id = ?";
+    if (customer) {
+      query += " AND session_id = ?";
+      params.push(customer.sessionId);
+    }
 
-    // If the order doesn't exist, return a 404
+    const [orders] = await pool.query(query, params);
+
     if (orders.length === 0) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    const order = orders[0];
-
-    // 2. Fetch the items for this specific order
     const [items] = await pool.query("SELECT * FROM order_items WHERE order_id = ?", [orderId]);
-
-    // 3. Attach the items to the order object
-    order.items = items;
-
-    // 4. Send the response
     res.status(200).json({
       success: true,
-      order: order
+      order: mapOrderRow(orders[0], items)
     });
 
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.post("/api/order-items/:itemId/claim", async function (req, res) {
+  try {
+    if (req.session?.user_type !== "cook") {
+      return res.status(401).json({ success: false, message: "Only logged-in cooks can claim items." });
+    }
+
+    const itemId = toInt(req.params.itemId, 0);
+    const cookId = toText(req.session?.cook_id);
+    if (!itemId || !cookId) {
+      return res.status(400).json({ success: false, message: "Order item ID and cook session are required." });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [rows] = await conn.query("SELECT * FROM order_items WHERE id = ? LIMIT 1", [itemId]);
+      const currentItem = rows[0];
+      if (!currentItem) {
+        await conn.rollback();
+        return res.status(404).json({ success: false, message: "Order item not found" });
+      }
+
+      if (normalizeOrderItemStatus(currentItem.status) === "completed") {
+        await conn.rollback();
+        return res.status(409).json({ success: false, message: "Completed items cannot be claimed." });
+      }
+
+      const [claimResult] = await conn.query(
+        `
+          UPDATE order_items
+          SET
+            cook_id = ?,
+            status = CASE WHEN status = 'pending' THEN 'cooking' ELSE status END,
+            started_at = COALESCE(started_at, NOW())
+          WHERE id = ?
+            AND (cook_id IS NULL OR cook_id = '' OR cook_id = ?)
+            AND status NOT IN ('completed', 'cancelled')
+        `,
+        [cookId, itemId, cookId]
+      );
+
+      if (!claimResult.affectedRows) {
+        await conn.rollback();
+        return res.status(409).json({ success: false, message: "This item has already been claimed by another cook." });
+      }
+
+      const [updatedItemRows] = await conn.query("SELECT * FROM order_items WHERE id = ? LIMIT 1", [itemId]);
+      const updatedItem = updatedItemRows[0];
+      const order = await refreshOrderSummary(updatedItem.order_id, conn);
+
+      await conn.commit();
+      return res.json({
+        success: true,
+        message: "Order item claimed successfully",
+        item: mapOrderItemRow(updatedItem),
+        order
+      });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.patch("/api/order-items/:itemId/status", async function (req, res) {
+  try {
+    const isAdmin = req.session?.user_type === "admin";
+    const isCook = req.session?.user_type === "cook";
+    if (!isAdmin && !isCook) {
+      return res.status(401).json({ success: false, message: "Only staff can update item status." });
+    }
+
+    const itemId = toInt(req.params.itemId, 0);
+    const newStatus = normalizeOrderItemStatus(req.body?.status, "");
+    if (!itemId) {
+      return res.status(400).json({ success: false, message: "Order item ID is required" });
+    }
+    if (!newStatus) {
+      return res.status(400).json({ success: false, message: "Status is required" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [rows] = await conn.query("SELECT * FROM order_items WHERE id = ? LIMIT 1", [itemId]);
+      const existingItem = rows[0];
+      if (!existingItem) {
+        await conn.rollback();
+        return res.status(404).json({ success: false, message: "Order item not found" });
+      }
+
+      if (isCook) {
+        const cookId = toText(req.session?.cook_id);
+        if (existingItem.cook_id && existingItem.cook_id !== cookId) {
+          await conn.rollback();
+          return res.status(403).json({ success: false, message: "This item belongs to another cook." });
+        }
+
+        const [updateResult] = await conn.query(
+          `
+            UPDATE order_items
+            SET
+              cook_id = CASE
+                WHEN (cook_id IS NULL OR cook_id = '') AND ? IN ('cooking', 'serving', 'completed', 'cancelled') THEN ?
+                ELSE cook_id
+              END,
+              status = ?,
+              started_at = CASE
+                WHEN ? IN ('cooking', 'serving', 'completed') THEN COALESCE(started_at, NOW())
+                ELSE started_at
+              END,
+              completed_at = CASE WHEN ? = 'completed' THEN NOW() ELSE NULL END
+            WHERE id = ?
+              AND (cook_id = ? OR cook_id IS NULL OR cook_id = '')
+          `,
+          [newStatus, cookId, newStatus, newStatus, newStatus, itemId, cookId]
+        );
+        if (!updateResult.affectedRows) {
+          await conn.rollback();
+          return res.status(409).json({ success: false, message: "Unable to update this item." });
+        }
+      } else {
+        const [updateResult] = await conn.query(
+          `
+            UPDATE order_items
+            SET
+              status = ?,
+              started_at = CASE
+                WHEN ? IN ('cooking', 'serving', 'completed') THEN COALESCE(started_at, NOW())
+                ELSE started_at
+              END,
+              completed_at = CASE WHEN ? = 'completed' THEN NOW() ELSE NULL END
+            WHERE id = ?
+          `,
+          [newStatus, newStatus, newStatus, itemId]
+        );
+        if (!updateResult.affectedRows) {
+          await conn.rollback();
+          return res.status(409).json({ success: false, message: "Unable to update this item." });
+        }
+      }
+
+      const [updatedItemRows] = await conn.query("SELECT * FROM order_items WHERE id = ? LIMIT 1", [itemId]);
+      const updatedItem = updatedItemRows[0];
+      const order = await refreshOrderSummary(updatedItem.order_id, conn);
+
+      await conn.commit();
+      return res.json({
+        success: true,
+        message: `Order item #${itemId} status updated to ${newStatus}`,
+        item: mapOrderItemRow(updatedItem),
+        order
+      });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
   } catch (err) {
     console.log(err);
     res.status(500).json({ success: false, message: `Error: ${err.message}` });
@@ -1493,36 +2762,115 @@ app.get("/api/orders/:orderId", async function (req, res) {
 // Process a Payment
 app.post("/api/payments", async function (req, res) {
   try {
-    const { order_id, method, amount } = req.body;
+    const customer = await getCustomerContext(req);
+    if (!customer) {
+      return res.status(401).json({ success: false, message: "Only logged-in customers can make payments." });
+    }
 
-    if (!order_id || !method || amount === undefined) {
+    const orderIds = Array.isArray(req.body?.order_ids)
+      ? req.body.order_ids.map((id) => toInt(id, 0)).filter(Boolean)
+      : [toInt(req.body?.order_id, 0)].filter(Boolean);
+    const method = toText(req.body?.method);
+    const sessionId = customer.sessionId;
+    const tableNumber = customer.tableNumber;
+
+    if (!orderIds.length || !method) {
       return res.status(400).json({ success: false, message: "Missing required payment details" });
     }
 
-    // Generate a unique payment reference string
+    const [orders] = await pool.query(
+      "SELECT * FROM orders WHERE id IN (?) AND session_id = ? ORDER BY created_at DESC",
+      [orderIds, sessionId]
+    );
+
+    if (orders.length !== orderIds.length) {
+      return res.status(404).json({ success: false, message: "Some orders were not found for this session" });
+    }
+
+    const unpaidOrders = orders.filter((order) => String(order.payment_status || "").toLowerCase() !== "paid" && !order.payment_id);
+    if (unpaidOrders.length !== orders.length) {
+      return res.status(409).json({ success: false, message: "Some selected orders are already paid" });
+    }
+
+    const [allOutstandingOrders] = await pool.query(
+      `
+        SELECT id, status
+        FROM orders
+        WHERE session_id = ?
+          AND (payment_status IS NULL OR LOWER(payment_status) <> 'paid')
+          AND payment_id IS NULL
+          AND LOWER(COALESCE(status, 'pending')) NOT IN ('cancelled', 'canceled')
+      `,
+      [sessionId]
+    );
+
+    const notReadyOrders = allOutstandingOrders.filter((order) => normalizeOrderStatus(order.status, "pending") !== "serving");
+    if (notReadyOrders.length > 0) {
+      return res.status(409).json({ success: false, message: "Payment is allowed only for orders with serving status" });
+    }
+
+    const amount = unpaidOrders.reduce((sum, order) => sum + toNumber(order.total_amount, 0), 0);
     const paymentRef = Date.now().toString();
-    const sessionId = req.session?.session_id || null;
-    const tableNumber = req.session?.table_number || null;
 
-    // 1. Insert into payments table
-    const [paymentResult] = await pool.query(
-      "INSERT INTO payments (payment_reference, session_id, table_number, amount, method, status) VALUES (?, ?, ?, ?, ?, 'paid')",
-      [paymentRef, sessionId, tableNumber, amount, method]
-    );
-    const paymentId = paymentResult.insertId;
+    const conn = await pool.getConnection();
+    let paymentId = 0;
+    try {
+      await conn.beginTransaction();
 
-    // 2. Update the order to mark it as paid
-    await pool.query(
-      "UPDATE orders SET payment_id = ?, payment_status = 'paid', payment_method = ?, paid_at = NOW() WHERE id = ?",
-      [paymentId, method, order_id]
-    );
+      const [paymentResult] = await conn.query(
+        "INSERT INTO payments (payment_reference, session_id, table_number, amount, method, status) VALUES (?, ?, ?, ?, ?, 'paid')",
+        [paymentRef, sessionId, tableNumber, amount, method]
+      );
+      paymentId = paymentResult.insertId;
 
+      await conn.query(
+        `
+          UPDATE order_items
+          SET
+            status = CASE
+              WHEN LOWER(COALESCE(status, 'pending')) = 'serving' THEN 'completed'
+              ELSE status
+            END,
+            completed_at = CASE
+              WHEN LOWER(COALESCE(status, 'pending')) IN ('serving', 'completed')
+                THEN COALESCE(completed_at, NOW())
+              ELSE completed_at
+            END
+          WHERE order_id IN (?)
+            AND LOWER(COALESCE(status, 'pending')) NOT IN ('cancelled', 'canceled')
+        `,
+        [orderIds]
+      );
+
+      await conn.query(
+        "UPDATE orders SET payment_id = ?, payment_status = 'paid', payment_method = ?, paid_at = NOW() WHERE id IN (?)",
+        [paymentId, method, orderIds]
+      );
+
+      for (const orderId of orderIds) {
+        await refreshOrderSummary(orderId, conn);
+      }
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+
+    await markCustomerSessionInactiveIfFinished(sessionId);
+
+    const [payments] = await pool.query("SELECT * FROM payments WHERE id = ? LIMIT 1", [paymentId]);
+    const hydrated = await hydratePaymentsWithOrderDetails(payments);
     res.status(201).json({
       success: true,
       message: "Payment processed successfully",
       payment_id: paymentId,
       payment_reference: paymentRef,
-      status: "paid"
+      status: "paid",
+      payment: hydrated[0] || null,
+      order_ids: orderIds
     });
 
   } catch (err) {
@@ -1534,8 +2882,19 @@ app.post("/api/payments", async function (req, res) {
 // Get Payment History
 app.get("/api/payments", async function (req, res) {
   try {
-    const [payments] = await pool.query("SELECT * FROM payments ORDER BY created_at DESC");
-    res.status(200).json({ success: true, payments });
+    let query = "SELECT * FROM payments";
+    const params = [];
+
+    const customer = await getCustomerContext(req);
+    if (customer) {
+      query += " WHERE session_id = ?";
+      params.push(customer.sessionId);
+    }
+
+    query += " ORDER BY created_at DESC";
+    const [payments] = await pool.query(query, params);
+    const hydratedPayments = await hydratePaymentsWithOrderDetails(payments);
+    res.status(200).json({ success: true, payments: hydratedPayments });
   } catch (err) {
     res.status(500).json({ success: false, message: `Error: ${err.message}` });
   }
@@ -1555,29 +2914,60 @@ app.post("/api/reviews", async function (req, res) {
       return res.status(400).json({ success: false, message: "Payment ID and rating are required" });
     }
 
-    const sessionId = req.session?.session_id || null;
-    const tableNumber = req.session?.table_number || null;
+    const customer = await getCustomerContext(req);
+    if (!customer) {
+      return res.status(401).json({ success: false, message: "Only logged-in customers can submit reviews." });
+    }
 
-    // 1. Insert the review into the database
-    const [reviewResult] = await pool.query(
-      "INSERT INTO reviews (payment_id, session_id, table_number, rating, comment) VALUES (?, ?, ?, ?, ?)",
-      [payment_id, sessionId, tableNumber, rating, comment || ""]
+    const sessionId = customer.sessionId;
+    const tableNumber = customer.tableNumber;
+
+    const [paymentRows] = await pool.query("SELECT * FROM payments WHERE id = ? AND session_id = ? LIMIT 1", [payment_id, sessionId]);
+    if (paymentRows.length === 0) {
+      return res.status(404).json({ success: false, message: "Payment not found for this session" });
+    }
+
+    const [existingRows] = await pool.query(
+      "SELECT * FROM reviews WHERE payment_id = ? AND session_id = ? LIMIT 1",
+      [payment_id, sessionId]
     );
 
-    // 2. Mark the payment to show a review was submitted
+    let reviewId = 0;
+    if (existingRows.length > 0) {
+      reviewId = existingRows[0].id;
+      await pool.query(
+        "UPDATE reviews SET rating = ?, comment = ?, table_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [rating, comment || "", tableNumber, reviewId]
+      );
+    } else {
+      const [reviewResult] = await pool.query(
+        "INSERT INTO reviews (payment_id, session_id, table_number, rating, comment) VALUES (?, ?, ?, ?, ?)",
+        [payment_id, sessionId, tableNumber, rating, comment || ""]
+      );
+      reviewId = reviewResult.insertId;
+    }
+
     await pool.query(
       "UPDATE payments SET review_submitted_at = NOW() WHERE id = ?",
       [payment_id]
     );
 
+    await pool.query(
+      "UPDATE orders SET review_submitted_at = NOW() WHERE payment_id = ?",
+      [payment_id]
+    );
+
+    await markCustomerSessionInactiveIfFinished(sessionId);
+
+    const [reviews] = await pool.query("SELECT * FROM reviews WHERE id = ? LIMIT 1", [reviewId]);
     res.status(201).json({
       success: true,
       message: "Review submitted successfully",
-      review_id: reviewResult.insertId
+      review_id: reviewId,
+      review: reviews[0] ? mapReviewRow(reviews[0]) : null
     });
 
   } catch (err) {
-    // If the database complains about a duplicate payment_id (user already left a review)
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ success: false, message: "Review already submitted for this payment" });
     }
@@ -1589,8 +2979,94 @@ app.post("/api/reviews", async function (req, res) {
 // Get All Reviews
 app.get("/api/reviews", async function (req, res) {
   try {
-    const [reviews] = await pool.query("SELECT * FROM reviews ORDER BY created_at DESC");
-    res.status(200).json({ success: true, reviews });
+    let query = "SELECT * FROM reviews";
+    const params = [];
+
+    const customer = await getCustomerContext(req);
+    if (customer) {
+      query += " WHERE session_id = ?";
+      params.push(customer.sessionId);
+    }
+
+    query += " ORDER BY created_at DESC";
+    const [reviews] = await pool.query(query, params);
+    res.status(200).json({ success: true, reviews: reviews.map(mapReviewRow) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: `Error: ${err.message}` });
+  }
+});
+
+app.get("/api/cook/dashboard", async function (req, res) {
+  try {
+    if (req.session?.user_type !== "cook" && req.session?.user_type !== "admin") {
+      return res.status(401).json({ success: false, message: "Staff login required" });
+    }
+
+    const [statusRows] = await pool.query(
+      `
+        SELECT
+          CASE
+            WHEN LOWER(COALESCE(payment_status, '')) = 'paid' AND LOWER(COALESCE(status, 'pending')) = 'serving'
+              THEN 'completed'
+            ELSE LOWER(COALESCE(status, 'pending'))
+          END AS status,
+          COUNT(*) AS total
+        FROM orders
+        GROUP BY
+          CASE
+            WHEN LOWER(COALESCE(payment_status, '')) = 'paid' AND LOWER(COALESCE(status, 'pending')) = 'serving'
+              THEN 'completed'
+            ELSE LOWER(COALESCE(status, 'pending'))
+          END
+      `
+    );
+    const [recentOrders] = await pool.query(
+      `
+        SELECT *
+        FROM orders
+        ORDER BY created_at DESC
+        LIMIT 20
+      `
+    );
+    const [cookRows] = await pool.query(
+      `
+        SELECT COUNT(*) AS total_cooks,
+               SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_cooks
+        FROM cooks
+      `
+    );
+
+    const summary = {
+      pending: 0,
+      cooking: 0,
+      serving: 0,
+      completed: 0,
+      cancelled: 0,
+      total_orders: 0
+    };
+
+    for (const row of statusRows) {
+      const key = toText(row.status).toLowerCase();
+      summary[key] = toInt(row.total, 0);
+      summary.total_orders += toInt(row.total, 0);
+    }
+
+    const orderIds = recentOrders.map((order) => order.id);
+    const [items] = orderIds.length
+      ? await pool.query("SELECT * FROM order_items WHERE order_id IN (?)", [orderIds])
+      : [[]];
+
+    res.status(200).json({
+      success: true,
+      summary: {
+        ...summary,
+        total_cooks: toInt(cookRows[0]?.total_cooks, 0),
+        active_cooks: toInt(cookRows[0]?.active_cooks, 0)
+      },
+      recent_orders: recentOrders.map((order) =>
+        mapOrderRow(order, items.filter((item) => item.order_id === order.id))
+      )
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: `Error: ${err.message}` });
   }
@@ -1603,9 +3079,12 @@ async function start() {
     ...activeDbConfig,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0
   }));
   await ensureTables();
+  await normalizeCustomerSessionStates();
 
   app.listen(PORT, () => {
     console.log(`Chill n Fill server running at http://localhost:${PORT}`);

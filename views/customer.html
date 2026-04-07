@@ -1,28 +1,30 @@
 <!DOCTYPE html>
 <html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="color-scheme" content="light">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="api-base" content="/api/">
+    <title>Customer Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#f3eadf] p-6 font-['Sarabun'] text-[#5f4028] flex items-center justify-center">
+    <!-- Main content -->
+    <main class="w-full max-w-sm">
+        <section class="card w-full border border-[#e6d7c7] bg-[#fbf5ee] p-6 shadow-xl">
+            <!-- Header -->
+            <h1 class="mb-2 text-center text-2xl font-bold">Chill n Fill</h1>
+            <p class="mb-6 text-center text-sm font-semibold text-[#a97a52]">Customer Login</p>
 
-    <head>
-        <meta charset="UTF-8">
-        <meta name="color-scheme" content="light">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="api-base" content="/api/">
-        <title>Customer Login</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
-        <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap"
-            rel="stylesheet">
-    </head>
-
-    <body class="min-h-screen flex items-center justify-center bg-[#f3eadf] text-[#5f4028] font-['Sarabun'] p-6">
-        <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl p-6">
-            <h1 class="text-center text-2xl font-bold mb-2">Chill n Fill</h1>
-            <p class="text-center text-sm font-semibold text-[#a97a52] mb-6">Customer Login</p>
-
+            <!-- Messages -->
             <div id="message-container" class="mb-3"></div>
 
+            <!-- Table picker -->
             <div class="mb-3">
-                <div class="mb-3 text-sm text-center font-semibold text-[#7a4e2f]">Select Table</div>
-                <div class="grid grid-cols-5 gap-3 justify-items-center" id="table-picker">
+                <div class="mb-3 text-center text-sm font-semibold text-[#7a4e2f]">Select Table</div>
+                <div class="grid grid-cols-5 justify-items-center gap-3" id="table-picker">
                     <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="1">1</button>
                     <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="2">2</button>
                     <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="3">3</button>
@@ -34,27 +36,32 @@
                     <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="9">9</button>
                     <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="10">10</button>
                 </div>
+
+                <!-- Hidden selected table value -->
                 <input type="hidden" id="table-number">
             </div>
 
-            <button id="btn-view-history" type="button" onclick="openHistoryModal()"
-                class="btn w-full border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
+            <!-- History button -->
+            <button id="btn-view-history" type="button" onclick="openHistoryModal()" class="btn w-full border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
                 View Payment/Review History
             </button>
-        </div>
+        </section>
+    </main>
 
-        <div id="historyModal" class="modal fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
-            <div class="modal-card w-full max-w-[520px] max-h-[80vh] overflow-y-auto rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
-                <div class="flex items-center justify-between text-xl font-extrabold text-[#5f4028] mb-4">
-                    <span>Payment/Review History</span>
-                    <button class="btn btn-ghost btn-sm text-2xl" id="closeHistoryBtn">&times;</button>
-                </div>
-                <div id="historyContainer"></div>
+    <!-- History modal -->
+    <div id="historyModal" class="modal fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+        <div class="modal-card max-h-[80vh] w-full max-w-[520px] overflow-y-auto rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
+            <!-- Modal header -->
+            <div class="mb-4 flex items-center justify-between text-xl font-extrabold text-[#5f4028]">
+                <span>Payment/Review History</span>
+                <button class="btn btn-ghost btn-sm text-2xl" id="closeHistoryBtn" aria-label="Close history">&times;</button>
             </div>
+
+            <!-- Modal content -->
+            <div id="historyContainer"></div>
         </div>
+    </div>
 
-        <script src="../js/autosync.js"></script>
-        <script src="../js/customer.js?v=20260328_7"></script>
-    </body>
-
+    <script src="../js/customer.js?v=20260408_2"></script>
+</body>
 </html>

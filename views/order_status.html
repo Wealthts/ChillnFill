@@ -10,26 +10,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="min-h-screen bg-[#f3eadf] text-[#5f4028] font-['Sarabun']">
-<div class="fixed inset-0 bg-black/30"></div>
-<div class="relative min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-[560px] rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
-        <div class="flex items-center justify-between text-xl font-extrabold text-[#5f4028] mb-4">
-            <span>Order Status</span>
-            <a href="menu.html" class="btn btn-ghost btn-sm text-2xl" aria-label="Back to menu">&times;</a>
-        </div>
+    <!-- Page background -->
+    <div class="fixed inset-0 bg-black/30"></div>
 
-        <div id="orderStatusContainer"></div>
+    <!-- Main content -->
+    <main class="relative min-h-screen flex items-center justify-center p-4">
+        <section class="w-full max-w-[560px] rounded-[28px] border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-xl">
+            <!-- Header -->
+            <div class="mb-4 flex items-center justify-between text-xl font-extrabold text-[#5f4028]">
+                <span>Order Status</span>
+                <a href="menu.html" class="btn btn-ghost btn-sm text-2xl" aria-label="Back to menu">&times;</a>
+            </div>
 
-        <div class="mt-4 flex flex-col gap-3">
-            <button id="goToPaymentBtn" type="button" class="btn btn-sm w-full rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">
-                Make Payment
-            </button>
-            <a href="menu.html" class="btn btn-sm w-full rounded-full bg-[#efe4d8] text-[#5f4028] border-none hover:bg-[#f3eadf]">Back to Menu</a>
-        </div>
-    </div>
-</div>
+            <!-- Order list -->
+            <div id="orderStatusContainer"></div>
 
-<script src="../js/autosync.js"></script>
-<script src="../js/order_status.js"></script>
+            <!-- Action buttons -->
+            <div class="mt-4 flex flex-col gap-3">
+                <button id="goToPaymentBtn" type="button" class="btn btn-sm w-full rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">
+                    Make Payment
+                </button>
+                <a href="menu.html" class="btn btn-sm w-full rounded-full bg-[#efe4d8] text-[#5f4028] border-none hover:bg-[#f3eadf]">Back to Menu</a>
+            </div>
+        </section>
+    </main>
+
+    <script src="../js/order_status.js?v=20260408_2"></script>
 </body>
 </html>

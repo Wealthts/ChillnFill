@@ -49,7 +49,32 @@ const optionSets = {
     }
 };
 
-const MENUS_BACKUP_KEY = "menus_backup_latest";
+const STORAGE_KEYS = Object.freeze({
+    cart: "cart",
+    cartOwnerId: "cart_owner_id",
+    userId: "user_id",
+    tableNumber: "table_number",
+    userType: "user_type"
+});
+
+const API_ENDPOINTS = Object.freeze({
+    session: "/api/session",
+    customerLogin: "/api/customer/login",
+    customerState: "/api/customer/state",
+    menu: "/api/menu",
+    orders: "/api/orders",
+    payments: "/api/payments",
+    reviews: "/api/reviews",
+    logout: "/api/logout"
+});
+
+const PAGE_PATHS = Object.freeze({
+    cart: "cart.html",
+    home: "index.html"
+});
+
+const REFRESH_INTERVAL_MS = 8000;
+
 const defaultMenuImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 const mediaImageByMenuName = {
@@ -68,202 +93,48 @@ const mediaImageByMenuName = {
     "soda": "../media/soda.jpg"
 };
 
-function resolveMenuImage(menuName, fallbackImage) {
-    const key = String(menuName || "").trim().toLowerCase();
-    return mediaImageByMenuName[key] || fallbackImage || defaultMenuImage;
-}
-
-const menuDatabase = [
-    {
-        id: 1,
-        name: "Basil Fried Rice",
-        thaiName: "ข้าวผัดกระเพรา",
-        price: 65,
-        category: "single",
-        desc: "Crispy chicken basil rice with fried egg",
-        hasOptions: true,
-        optionKeys: ["spice"],
-        image: resolveMenuImage("Basil Fried Rice")
-    },
-    {
-        id: 2,
-        name: "Tom Yum Goong",
-        thaiName: "ต้มยำกุ้ง",
-        price: 120,
-        category: "tomyum",
-        desc: "Clear spicy shrimp tom yum soup",
-        hasOptions: true,
-        optionKeys: ["spice"],
-        image: resolveMenuImage("Tom Yum Goong")
-    },
-    {
-        id: 3,
-        name: "Pad Thai",
-        thaiName: "ผัดไทย",
-        price: 70,
-        category: "single",
-        desc: "Thai stir‑fried noodles with shrimp",
-        hasOptions: true,
-        optionKeys: ["spice"],
-        image: resolveMenuImage("Pad Thai")
-    },
-    {
-        id: 4,
-        name: "Hainanese Chicken Rice",
-        thaiName: "ข้าวมันไก่",
-        price: 60,
-        category: "single",
-        desc: "Steamed chicken rice with special sauce",
-        hasOptions: false,
-        optionKeys: [],
-        image: resolveMenuImage("Hainanese Chicken Rice")
-    },
-    {
-        id: 5,
-        name: "Som Tam Thai",
-        thaiName: "ส้มตำไทย",
-        price: 55,
-        category: "salad",
-        desc: "Spicy green papaya salad",
-        hasOptions: true,
-        optionKeys: ["spice"],
-        image: resolveMenuImage("Som Tam Thai")
-    },
-    {
-        id: 6,
-        name: "Korean BBQ Beef",
-        thaiName: "เนื้อย่างเกาหลี",
-        price: 180,
-        category: "main",
-        desc: "Korean‑style marinated grilled beef",
-        hasOptions: true,
-        optionKeys: ["doneness"],
-        image: resolveMenuImage("Korean BBQ Beef")
-    },
-    {
-        id: 7,
-        name: "Beef Basil",
-        thaiName: "กระเพราเนื้อ",
-        price: 85,
-        category: "single",
-        desc: "Minced beef basil with fried egg",
-        hasOptions: true,
-        optionKeys: ["spice"],
-        image: resolveMenuImage("Beef Basil")
-    },
-    {
-        id: 8,
-        name: "Lime Juice",
-        thaiName: "น้ำมะนาว",
-        price: 25,
-        category: "drink",
-        desc: "Fresh lime juice",
-        hasOptions: true,
-        optionKeys: ["sweet", "ice"],
-        image: resolveMenuImage("Lime Juice")
-    },
-    {
-        id: 9,
-        name: "Green Tea",
-        thaiName: "ชาเขียว",
-        price: 30,
-        category: "drink",
-        desc: "Iced green tea",
-        hasOptions: true,
-        optionKeys: ["sweet", "ice"],
-        image: resolveMenuImage("Green Tea")
-    },
-    {
-        id: 10,
-        name: "Ice Cream",
-        thaiName: "ไอศครีม",
-        price: 35,
-        category: "dessert",
-        desc: "Vanilla ice cream",
-        hasOptions: true,
-        optionKeys: ["size"],
-        image: resolveMenuImage("Ice Cream")
-    },
-    {
-        id: 11,
-        name: "Crispy Pork Basil",
-        thaiName: "กระเพราหมูกรอบ",
-        price: 70,
-        category: "single",
-        desc: "Crispy pork basil rice",
-        hasOptions: true,
-        optionKeys: ["spice"],
-        image: resolveMenuImage("Crispy Pork Basil")
-    },
-    {
-        id: 12,
-        name: "Seafood Tom Yum",
-        thaiName: "ต้มยำทะเล",
-        price: 150,
-        category: "tomyum",
-        desc: "Mixed seafood tom yum soup",
-        hasOptions: true,
-        optionKeys: ["spice"],
-        image: resolveMenuImage("Seafood Tom Yum")
-    },
-    {
-        id: 13,
-        name: "Soda",
-        thaiName: "น้ำอัดลม",
-        price: 20,
-        category: "drink",
-        desc: "Soda, Coke, Sprite",
-        hasOptions: true,
-        optionKeys: ["sweet", "ice"],
-        image: resolveMenuImage("Soda")
-    }
-];
-
 const paymentStatusLabels = {
     paid: "Paid",
     pending: "Pending",
     failed: "Failed"
 };
 
-let cart = [];
-let currentCategory = "all";
-let searchKeyword = "";
-let currentRating = 0;
-let currentPaymentMethod = "";
-let currentPaymentContext = null;
-let paymentActionAllowed = false;
-let paymentBlockingMessage = "";
-let currentReviewPaymentId = "";
-let currentMenuItem = null;
-let currentQty = 1;
-let currentSelections = [];
+const state = {
+    menus: [],
+    orders: [],
+    payments: [],
+    reviews: [],
+    customerState: {
+        orderingAllowed: true,
+        pendingReview: false,
+        pendingReviewPaymentId: "",
+        lockedAfterReview: false
+    },
+    cart: [],
+    currentCategory: "all",
+    searchKeyword: "",
+    currentMenuItem: null,
+    currentQty: 1,
+    currentSelections: [],
+    currentPaymentMethod: "",
+    currentPaymentContext: null,
+    currentReviewPaymentId: "",
+    currentRating: 0
+};
 
-function showToast(msg) {
-    const toast = document.getElementById("toastMsg");
-    if (!toast) return;
-    toast.innerText = msg;
-    toast.classList.add("opacity-100");
-    toast.classList.remove("opacity-0");
-    setTimeout(() => {
-        toast.classList.remove("opacity-100");
-        toast.classList.add("opacity-0");
-    }, 1800);
+function getById(id) {
+    return document.getElementById(id);
 }
 
-function showActionFeedback(msg) {
-    showToast(msg);
-
-    const banner = document.getElementById("sessionStateBanner");
-    if (!banner) return;
-
-    banner.innerText = msg;
-    banner.classList.remove("hidden");
+function resolveMenuImage(menuName, fallbackImage) {
+    const key = String(menuName || "").trim().toLowerCase();
+    return mediaImageByMenuName[key] || fallbackImage || defaultMenuImage;
 }
 
 function safeParseJSON(value, fallback) {
     try {
         return JSON.parse(value);
-    } catch (err) {
+    } catch {
         return fallback;
     }
 }
@@ -283,70 +154,302 @@ function formatDateTime(value) {
     return date.toLocaleString();
 }
 
-function saveMenusToStorage(menus) {
-    const safeMenus = Array.isArray(menus) ? menus : [];
-    const payload = JSON.stringify(safeMenus);
-    localStorage.setItem("menus", payload);
-    localStorage.setItem(MENUS_BACKUP_KEY, payload);
+function normalizeStatus(status, fallback = "") {
+    const normalized = String(status || fallback).trim().toLowerCase();
+    return normalized || fallback;
 }
 
-function seedPresetMenusToSharedStorage() {
-    const storedMenus = safeParseJSON(localStorage.getItem("menus"), []);
-    const backupMenus = safeParseJSON(localStorage.getItem(MENUS_BACKUP_KEY), []);
-    const hasStoredMenus = Array.isArray(storedMenus) && storedMenus.length > 0;
-    const hasBackupMenus = Array.isArray(backupMenus) && backupMenus.length > 0;
+function getCurrentSessionId() {
+    return localStorage.getItem(STORAGE_KEYS.userId) || "";
+}
 
-    if (hasStoredMenus) return;
-    if (hasBackupMenus) {
-        localStorage.setItem("menus", JSON.stringify(backupMenus));
+function getCurrentTableNumber() {
+    return localStorage.getItem(STORAGE_KEYS.tableNumber) || "";
+}
+
+function customerApiHeaders(extra = {}) {
+    const headers = { ...extra };
+    if (getCurrentSessionId()) headers["X-Customer-Session-Id"] = getCurrentSessionId();
+    if (getCurrentTableNumber()) headers["X-Customer-Table-Number"] = getCurrentTableNumber();
+    return headers;
+}
+
+function resetCustomerClientState() {
+    localStorage.removeItem(STORAGE_KEYS.cart);
+    localStorage.removeItem(STORAGE_KEYS.cartOwnerId);
+    localStorage.removeItem(STORAGE_KEYS.userType);
+}
+
+async function requestJson(url, options = {}, fallbackMessage = "Request failed") {
+    const response = await fetch(url, {
+        credentials: "same-origin",
+        headers: { ...customerApiHeaders(), ...(options.headers || {}) },
+        ...options
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok || result.success === false) {
+        throw new Error(result.message || fallbackMessage);
+    }
+
+    return result;
+}
+
+async function verifyCustomerSession() {
+    try {
+        const result = await requestJson(API_ENDPOINTS.session, { method: "GET" }, "Session expired");
+        return Boolean(result.logged_in && result.user_type === "customer");
+    } catch {
+        return false;
+    }
+}
+
+async function restoreCustomerSession() {
+    const currentTable = getCurrentTableNumber();
+    if (!currentTable) return false;
+
+    try {
+        const result = await requestJson(API_ENDPOINTS.customerLogin, {
+            method: "POST",
+            headers: customerApiHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({
+                table_number: Number(currentTable),
+                session_id: getCurrentSessionId()
+            })
+        }, "Unable to restore session");
+
+        if (result.user_id) {
+            localStorage.setItem(STORAGE_KEYS.userId, String(result.user_id));
+        }
+        localStorage.setItem(STORAGE_KEYS.tableNumber, String(result.table_number || currentTable));
+        localStorage.setItem(STORAGE_KEYS.userType, "customer");
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function ensureValidCustomerSession() {
+    let validSession = await verifyCustomerSession();
+    if (!validSession) {
+        validSession = await restoreCustomerSession();
+    }
+
+    if (validSession) return true;
+
+    resetCustomerClientState();
+    showToast("Session expired. Please log in again.");
+    window.setTimeout(() => {
+        window.location.href = PAGE_PATHS.home;
+    }, 1200);
+    return false;
+}
+
+async function loadMenusFromApi() {
+    const result = await requestJson(API_ENDPOINTS.menu, { method: "GET" }, "Unable to load menu");
+    state.menus = (Array.isArray(result.menus) ? result.menus : []).map((menu) => ({
+        id: menu.id,
+        name: menu.name || "Unnamed Menu",
+        thaiName: menu.thaiName || "",
+        price: Number(menu.price || 0),
+        category: menu.category || "single",
+        desc: menu.desc || "",
+        hasOptions: Array.isArray(menu.optionKeys) && menu.optionKeys.length > 0,
+        optionKeys: Array.isArray(menu.optionKeys) ? menu.optionKeys : [],
+        image: resolveMenuImage(menu.name, menu.img || menu.image)
+    }));
+}
+
+function normalizeApiOrder(order) {
+    const items = Array.isArray(order?.items) ? order.items : [];
+    return {
+        id: order?.id,
+        table: order?.table ?? order?.table_number ?? "-",
+        items: items.map((item) => ({
+            name: item.name || item.item_name || "-",
+            qty: Number(item.qty ?? item.quantity ?? 0),
+            price: Number(item.price ?? item.unit_price ?? 0),
+            optionsText: item.notes || "",
+            customerNote: item.notes || ""
+        })),
+        total: Number(order?.total ?? order?.total_amount ?? 0),
+        time: order?.time || order?.created_at || new Date().toISOString(),
+        status: order?.status || "pending",
+        paymentId: order?.payment_id || order?.paymentId || null,
+        paymentStatus: order?.payment_status || order?.paymentStatus || "",
+        paymentMethod: order?.payment_method || order?.paymentMethod || "",
+        paidAt: order?.paid_at || order?.paidAt || null
+    };
+}
+
+function normalizeApiPayment(payment) {
+    return {
+        id: payment?.id,
+        paymentReference: payment?.paymentReference || payment?.payment_reference || "",
+        orderIds: Array.isArray(payment?.orderIds) ? payment.orderIds : (Array.isArray(payment?.order_ids) ? payment.order_ids : []),
+        table: payment?.table ?? payment?.table_number ?? "-",
+        items: Array.isArray(payment?.items) ? payment.items.map((item) => ({
+            name: item.name || item.item_name || "-",
+            qty: Number(item.qty ?? item.quantity ?? 0),
+            price: Number(item.price ?? item.unit_price ?? 0)
+        })) : [],
+        amount: Number(payment?.amount || 0),
+        time: payment?.time || payment?.created_at || new Date().toISOString(),
+        method: payment?.method || "",
+        status: payment?.status || "paid",
+        reviewSubmittedAt: payment?.reviewSubmittedAt || payment?.review_submitted_at || null
+    };
+}
+
+function normalizeApiReview(review) {
+    return {
+        id: review?.id,
+        paymentId: review?.paymentId || review?.payment_id || null,
+        rating: Number(review?.rating || 0),
+        comment: review?.comment || "",
+        time: review?.time || review?.created_at || new Date().toISOString()
+    };
+}
+
+async function refreshCustomerData() {
+    const [customerState, orders, payments, reviews] = await Promise.all([
+        requestJson(API_ENDPOINTS.customerState, { method: "GET" }, "Unable to load customer state"),
+        requestJson(API_ENDPOINTS.orders, { method: "GET" }, "Unable to load orders"),
+        requestJson(API_ENDPOINTS.payments, { method: "GET" }, "Unable to load payments"),
+        requestJson(API_ENDPOINTS.reviews, { method: "GET" }, "Unable to load reviews")
+    ]);
+
+    state.customerState = {
+        orderingAllowed: Boolean(customerState.ordering_allowed),
+        pendingReview: Boolean(customerState.pending_review),
+        pendingReviewPaymentId: String(customerState.pending_review_payment_id || ""),
+        lockedAfterReview: Boolean(customerState.locked_after_review)
+    };
+    state.orders = (Array.isArray(orders.orders) ? orders.orders : []).map(normalizeApiOrder);
+    state.payments = (Array.isArray(payments.payments) ? payments.payments : []).map(normalizeApiPayment);
+    state.reviews = (Array.isArray(reviews.reviews) ? reviews.reviews : []).map(normalizeApiReview);
+}
+
+function syncCartWithSession() {
+    const sessionOwner = getCurrentSessionId() || getCurrentTableNumber() || "";
+    const storedCart = safeParseJSON(localStorage.getItem(STORAGE_KEYS.cart), []);
+    const cartOwner = localStorage.getItem(STORAGE_KEYS.cartOwnerId) || "";
+
+    if (sessionOwner && cartOwner && cartOwner !== sessionOwner) {
+        state.cart = [];
+        localStorage.setItem(STORAGE_KEYS.cart, JSON.stringify(state.cart));
+    } else {
+        state.cart = Array.isArray(storedCart) ? storedCart : [];
+    }
+
+    if (sessionOwner) {
+        localStorage.setItem(STORAGE_KEYS.cartOwnerId, sessionOwner);
+    }
+}
+
+function persistCart() {
+    const sessionOwner = getCurrentSessionId() || getCurrentTableNumber() || "";
+    if (sessionOwner) {
+        localStorage.setItem(STORAGE_KEYS.cartOwnerId, sessionOwner);
+    }
+    localStorage.setItem(STORAGE_KEYS.cart, JSON.stringify(state.cart));
+}
+
+function isOrderingLocked() {
+    return Boolean(state.customerState.lockedAfterReview);
+}
+
+function getPendingReviewPaymentId() {
+    return String(state.customerState.pendingReviewPaymentId || "");
+}
+
+function isOrderCreationDisabled() {
+    return isOrderingLocked() || Boolean(state.customerState.pendingReview) || !state.customerState.orderingAllowed;
+}
+
+function getOrderingDisabledMessage() {
+    if (state.customerState.pendingReview) {
+        return "Please submit the review before making another order";
+    }
+    if (state.customerState.lockedAfterReview) {
+        return "Ordering is closed after payment and review";
+    }
+    return "Ordering is not available for this session";
+}
+
+function getCurrentSessionOrders() {
+    return [...state.orders].sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+}
+
+function getCurrentSessionPayments() {
+    return [...state.payments].sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+}
+
+function getCurrentSessionReviews() {
+    return [...state.reviews].sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+}
+
+function getPaymentById(paymentId) {
+    return state.payments.find((payment) => String(payment.id) === String(paymentId)) || null;
+}
+
+function getReviewByPaymentId(paymentId) {
+    return state.reviews
+        .filter((review) => String(review.paymentId || "") === String(paymentId || ""))
+        .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0))[0] || null;
+}
+
+function showToast(msg) {
+    const toast = getById("toastMsg");
+    if (!toast) return;
+    toast.innerText = msg;
+    toast.classList.add("opacity-100");
+    toast.classList.remove("opacity-0");
+    window.setTimeout(() => {
+        toast.classList.remove("opacity-100");
+        toast.classList.add("opacity-0");
+    }, 1800);
+}
+
+function showActionFeedback(msg) {
+    showToast(msg);
+
+    const banner = getById("sessionStateBanner");
+    if (!banner) return;
+
+    banner.innerText = msg;
+    banner.classList.remove("hidden");
+}
+
+function setOptionButtonStyle(button, isActive) {
+    if (!button) return;
+
+    if (isActive) {
+        button.className = "rounded-full border border-[#7a4e2f] bg-[#7a4e2f] px-3 py-1 text-xs font-semibold text-white ring-2 ring-[#7a4e2f]/30 transition";
         return;
     }
 
-    const presetMenus = menuDatabase.map((item) => ({
-        ...item,
-        img: resolveMenuImage(item.name, item.image),
-        image: resolveMenuImage(item.name, item.image),
-        available: true
-    }));
-    saveMenusToStorage(presetMenus);
+    button.className = "rounded-full border border-[#e6d7c7] bg-[#fbf5ee] px-3 py-1 text-xs font-semibold text-[#5f4028] transition hover:bg-[#efe4d8]";
 }
 
-function normalizeMenuPrice(value) {
-    const price = Number(value);
-    return Number.isFinite(price) ? price : 0;
-}
+function setCategoryButtonStyle(button, isActive) {
+    if (!button) return;
 
-function normalizeAdminMenus(rawMenus) {
-    if (!Array.isArray(rawMenus)) return [];
-
-    return rawMenus
-        .filter((item) => item && item.available !== false)
-        .map((item, index) => ({
-            id: item.id || Date.now() + index,
-            name: item.name || "Unnamed Menu",
-            thaiName: item.thaiName || "",
-            price: normalizeMenuPrice(item.price),
-            category: item.category || "single",
-            desc: item.desc || "",
-            hasOptions: Array.isArray(item.optionKeys) && item.optionKeys.length > 0,
-            optionKeys: Array.isArray(item.optionKeys) ? item.optionKeys : [],
-            image: resolveMenuImage(item.name, item.img || item.image)
-        }));
-}
-
-function getRuntimeMenuDatabase() {
-    const storedMenus = safeParseJSON(localStorage.getItem("menus"), []);
-    const backupMenus = safeParseJSON(localStorage.getItem(MENUS_BACKUP_KEY), []);
-    const sourceMenus = Array.isArray(storedMenus) && storedMenus.length
-        ? storedMenus
-        : (Array.isArray(backupMenus) ? backupMenus : []);
-    const normalizedMenus = normalizeAdminMenus(sourceMenus);
-
-    if (!normalizedMenus.length) {
-        return menuDatabase;
+    if (isActive) {
+        button.className = "cat-btn btn btn-sm rounded-full border border-[#7a4e2f] bg-[#7a4e2f] text-[#fbf5ee] hover:bg-[#5f4028]";
+        return;
     }
-    // Keep customer menu fully in sync with Admin page when admin data exists.
-    return normalizedMenus;
+
+    button.className = "cat-btn btn btn-sm rounded-full border border-[#e6d7c7] bg-[#fbf5ee] text-[#7a4e2f] hover:bg-[#efe4d8]";
+}
+
+function setPaymentMethodButtonStyle(button, isActive) {
+    if (!button) return;
+
+    button.classList.toggle("border-[#7a4e2f]", isActive);
+    button.classList.toggle("bg-[#fff4e8]", isActive);
+    button.classList.toggle("ring-2", isActive);
+    button.classList.toggle("ring-[#7a4e2f]/20", isActive);
 }
 
 function getStatusClass(status) {
@@ -356,248 +459,45 @@ function getStatusClass(status) {
     return "bg-[#efe4d8] text-[#7a4e2f]";
 }
 
-function getCurrentSessionId() {
-    return localStorage.getItem("user_id") || "";
-}
-
-function getCurrentTableNumber() {
-    return localStorage.getItem("table_number") || "";
-}
-
-function normalizeTableKey(value) {
-    const raw = String(value || "").trim();
-    if (!raw) return "";
-    const digitsOnly = raw.replace(/\D+/g, "");
-    return digitsOnly || raw.toLowerCase();
-}
-
-function isCustomerSession() {
-    return String(localStorage.getItem("user_type") || "").toLowerCase() === "customer";
-}
-
-function getScopedStorageKey(prefix) {
-    const tableNumber = getCurrentTableNumber();
-    if (isCustomerSession() && tableNumber) {
-        return `${prefix}table_${tableNumber}`;
-    }
-    return `${prefix}${getCurrentSessionId() || tableNumber || "guest"}`;
-}
-
-function getOrderingLockKey() {
-    return getScopedStorageKey("ordering_locked_after_review_");
-}
-
-function getPendingReviewKey() {
-    return getScopedStorageKey("pending_review_payment_");
-}
-
-function isOrderingLocked() {
-    return localStorage.getItem(getOrderingLockKey()) === "1";
-}
-
-function isOrderCreationDisabled() {
-    return isOrderingLocked() || Boolean(getPendingReviewPaymentId());
-}
-
-function getOrderingDisabledMessage() {
-    return isOrderingLocked()
-        ? "Ordering is closed after review"
-        : "Please submit the review before making another order";
-}
-
-function setOrderingLocked(locked) {
-    if (locked) {
-        localStorage.setItem(getOrderingLockKey(), "1");
-        return;
-    }
-    localStorage.removeItem(getOrderingLockKey());
-}
-
-function getPendingReviewPaymentId() {
-    return localStorage.getItem(getPendingReviewKey()) || "";
-}
-
-function setPendingReviewPaymentId(paymentId) {
-    localStorage.setItem(getPendingReviewKey(), String(paymentId));
-}
-
-function clearPendingReviewPaymentId() {
-    localStorage.removeItem(getPendingReviewKey());
-}
-
-async function logoutCustomer() {
-    const lockKey = getOrderingLockKey();
-    const pendingKey = getPendingReviewKey();
-
-    try {
-        await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
-    } catch (err) {
-        console.warn("Logout API failed:", err);
-    }
-
-    localStorage.removeItem(lockKey);
-    localStorage.removeItem(pendingKey);
-    localStorage.removeItem("open_order_status");
-    localStorage.removeItem("open_payment_modal");
-    localStorage.removeItem("open_review_modal");
-    localStorage.removeItem("cart");
-    localStorage.removeItem("cart_owner_id");
-    localStorage.removeItem("user_type");
-    localStorage.removeItem("user_id");
-    localStorage.removeItem("table_number");
-
-    window.location.href = "index.html";
-}
-
-function syncCartWithSession() {
-    const sessionOwner = getCurrentSessionId() || getCurrentTableNumber() || "";
-    const storedCart = safeParseJSON(localStorage.getItem("cart"), []);
-    const cartOwner = localStorage.getItem("cart_owner_id") || "";
-
-    if (sessionOwner && cartOwner && cartOwner !== sessionOwner) {
-        cart = [];
-        localStorage.setItem("cart", JSON.stringify(cart));
-    } else {
-        cart = Array.isArray(storedCart) ? storedCart : [];
-    }
-
-    if (sessionOwner) {
-        localStorage.setItem("cart_owner_id", sessionOwner);
-    }
-}
-
-function getAllOrders() {
-    return safeParseJSON(localStorage.getItem("orders"), []) || [];
-}
-
-function saveAllOrders(orders) {
-    localStorage.setItem("orders", JSON.stringify(orders));
-}
-
-function getAllPayments() {
-    return safeParseJSON(localStorage.getItem("payments"), []) || [];
-}
-
-function saveAllPayments(payments) {
-    localStorage.setItem("payments", JSON.stringify(payments));
-}
-
-function getAllReviews() {
-    return safeParseJSON(localStorage.getItem("reviews"), []) || [];
-}
-
-function saveAllReviews(reviews) {
-    localStorage.setItem("reviews", JSON.stringify(reviews));
-}
-
-function matchesCurrentSession(record) {
-    if (!record) return false;
-
-    const sessionId = getCurrentSessionId();
-    const tableNumber = getCurrentTableNumber();
-    const normalizedTable = normalizeTableKey(tableNumber);
-    const recordTable = normalizeTableKey(record.table);
-
-    if (sessionId && record.userId) {
-        return String(record.userId) === String(sessionId);
-    }
-
-    if (sessionId && !record.userId) {
-        return false;
-    }
-
-    if (tableNumber) {
-        return recordTable && normalizedTable ? recordTable === normalizedTable : String(record.table) === String(tableNumber);
-    }
-
-    return true;
-}
-
-function getCurrentSessionOrders() {
-    return getAllOrders().filter(matchesCurrentSession);
-}
-
-function getCurrentSessionPayments() {
-    const payments = getAllPayments();
-    const scoped = payments.filter(matchesCurrentSession);
-    if (scoped.length > 0) return scoped;
-
-    const normalizedTable = normalizeTableKey(getCurrentTableNumber());
-    if (!normalizedTable) return scoped;
-
-    return payments.filter((payment) => normalizeTableKey(payment.table) === normalizedTable);
-}
-
-function getCurrentSessionReviews() {
-    const reviews = getAllReviews();
-    const scoped = reviews.filter(matchesCurrentSession);
-    if (scoped.length > 0) return scoped;
-
-    const paymentIdSet = new Set(getCurrentSessionPayments().map((payment) => String(payment.id)));
-    if (!paymentIdSet.size) return scoped;
-
-    return reviews.filter((review) => paymentIdSet.has(String(review.paymentId || "")));
-}
-
-function getReviewByPaymentId(paymentId) {
-    if (!paymentId) return null;
-    const reviews = getCurrentSessionReviews();
-    const target = String(paymentId);
-    const matched = reviews
-        .filter((review) => String(review.paymentId || "") === target)
-        .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-    return matched[0] || null;
-}
-
 function renderStars(rating) {
     const value = Math.max(0, Math.min(5, Number(rating) || 0));
-    const filled = "★".repeat(value);
-    const empty = "☆".repeat(5 - value);
-    return `${filled}${empty}`;
+    return `${"★".repeat(value)}${"☆".repeat(5 - value)}`;
 }
 
 function getOrderStatusClass(status) {
-    const normalized = String(status || "").toLowerCase();
-    if (normalized === "completed" || normalized === "served" || normalized === "serving" || normalized === "done") {
-        return "bg-[#dff3e4] text-[#1f7a3d]";
-    }
-    if (normalized === "cooking" || normalized === "preparing") return "bg-[#e5f0ff] text-[#1b4d8f]";
-    if (normalized === "ready") return "bg-[#eaf7ff] text-[#0f5d7f]";
-    if (normalized === "cancelled" || normalized === "canceled") return "bg-[#fde2e2] text-[#b42318]";
+    const normalized = normalizeStatus(status);
+    if (["completed", "served", "serving", "done"].includes(normalized)) return "bg-[#dff3e4] text-[#1f7a3d]";
+    if (["cooking", "preparing"].includes(normalized)) return "bg-[#e5f0ff] text-[#1b4d8f]";
+    if (["ready"].includes(normalized)) return "bg-[#eaf7ff] text-[#0f5d7f]";
+    if (["cancelled", "canceled"].includes(normalized)) return "bg-[#fde2e2] text-[#b42318]";
     return "bg-[#fff1cc] text-[#9a6a00]";
 }
 
 function isServedStatus(status) {
-    const normalized = String(status || "").toLowerCase();
-    return normalized === "serving" || normalized === "served" || normalized === "completed" || normalized === "done";
+    return ["serving", "served", "completed", "done"].includes(normalizeStatus(status));
 }
 
 function isCancelledStatus(status) {
-    const normalized = String(status || "").toLowerCase();
-    return normalized === "cancelled" || normalized === "canceled";
+    return ["cancelled", "canceled"].includes(normalizeStatus(status));
 }
 
 function isPaidOrder(order) {
-    return Boolean(order && (order.paymentId || order.paidAt || String(order.paymentStatus || "").toLowerCase() === "paid"));
+    return Boolean(order && (order.paymentId || order.paidAt || normalizeStatus(order.paymentStatus) === "paid"));
 }
 
-function formatOrderTime(isoString) {
-    if (!isoString) return "-";
-    const date = new Date(isoString);
-    if (Number.isNaN(date.getTime())) return isoString;
+function formatOrderTime(value) {
+    const date = new Date(value || 0);
+    if (Number.isNaN(date.getTime())) return "-";
     return date.toLocaleString();
 }
 
 function getOrderItemsText(order) {
-    const itemsArray = Array.isArray(order.items) ? order.items : [];
-    if (itemsArray.length) {
-        return itemsArray.map((item) => `${item.name} x${item.qty}`).join(", ");
-    }
-    return typeof order.items === "string" ? order.items : "-";
+    const items = Array.isArray(order?.items) ? order.items : [];
+    return items.length ? items.map((item) => `${item.name} x${item.qty}`).join(", ") : "-";
 }
 
 function getOrderPaymentText(order) {
-    if (isCancelledStatus(order.status)) return "Not required";
+    if (isCancelledStatus(order?.status)) return "Not required";
     if (isPaidOrder(order)) return `Paid (${order.paymentMethod || "Cash"})`;
     return "Waiting for payment";
 }
@@ -606,120 +506,106 @@ function getOutstandingOrders() {
     return getCurrentSessionOrders().filter((order) => !isPaidOrder(order) && !isCancelledStatus(order.status));
 }
 
-function areOrdersReadyForPayment(orders) {
-    return orders.length > 0 && orders.every((order) => isServedStatus(order.status));
-}
-
 function buildPaymentContext(orders) {
     const normalizedOrders = [...orders].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
-    const items = normalizedOrders.flatMap((order) => {
-        const sourceItems = Array.isArray(order.items) ? order.items : [];
-        return sourceItems.map((item) => ({
-            name: item.name,
-            qty: item.qty,
-            price: item.price || 0,
-            orderId: order.id,
-            optionsText: item.optionsText || "",
-            customerNote: item.customerNote || ""
-        }));
-    });
-
     return {
         orders: normalizedOrders,
-        items,
+        items: normalizedOrders.flatMap((order) => {
+            const orderItems = Array.isArray(order.items) ? order.items : [];
+            return orderItems.map((item) => ({
+                name: item.name,
+                qty: item.qty,
+                price: item.price || 0,
+                orderId: order.id
+            }));
+        }),
         orderIds: normalizedOrders.map((order) => order.id),
         total: normalizedOrders.reduce((sum, order) => sum + Number(order.total || 0), 0)
     };
 }
 
 function renderPaymentHistory() {
-    const container = document.getElementById("paymentHistoryContainer");
+    const container = getById("paymentHistoryContainer");
     if (!container) return;
 
-    const payments = (Array.isArray(getCurrentSessionPayments()) ? getCurrentSessionPayments() : [])
-        .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-
+    const payments = getCurrentSessionPayments();
     if (!payments.length) {
         container.innerHTML = `
-                <div class="text-center py-5 text-[#a97a52]">
-                    No payment/review history for this session
-                    <div class="text-xs mt-1">Table: ${escapeText(getCurrentTableNumber() || "-")} | User: ${escapeText(getCurrentSessionId() || "-")}</div>
-                </div>
-            `;
+            <div class="text-center py-5 text-[#a97a52]">
+                No payment/review history for this session
+                <div class="text-xs mt-1">Table: ${escapeText(getCurrentTableNumber() || "-")}</div>
+            </div>
+        `;
         return;
     }
 
     container.innerHTML = payments.map((payment) => {
         const orderLabel = Array.isArray(payment.orderIds) && payment.orderIds.length
             ? payment.orderIds.join(", ")
-            : (payment.orderId || "-");
+            : "-";
         const itemsText = Array.isArray(payment.items) && payment.items.length
             ? payment.items.map((item) => `${item.name} x${item.qty}`).join(", ")
             : "-";
         const review = getReviewByPaymentId(payment.id);
-        const hasReview = Boolean(review || payment.reviewSubmitted);
-        const reviewTime = review ? formatDateTime(review.time) : "-";
-        const reviewText = review && review.comment ? review.comment : "-";
-        const reviewRating = review ? renderStars(review.rating) : "Not rated";
+        const hasReview = Boolean(review || payment.reviewSubmittedAt);
 
         return `
-                <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
-                    <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                        <div class="font-bold text-[#5f4028]">Table ${escapeText(payment.table || "-")}</div>
-                        <div class="px-3 py-1 rounded-full text-xs font-bold ${getStatusClass(payment.status || "paid")}">
-                            ${escapeText(paymentStatusLabels[payment.status] || "Paid")}
-                        </div>
-                    </div>
-                    <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
-                        <div class="text-sm text-[#a97a52]">Order: ${escapeText(orderLabel)}</div>
-                        <div class="text-lg font-extrabold text-[#7a4e2f]">${escapeText(payment.amount)} Baht</div>
-                    </div>
-                    <div class="text-sm text-[#a97a52] mt-1">Date: ${escapeText(formatDateTime(payment.time))}</div>
-                    <div class="text-sm text-[#a97a52] mt-1">Method: ${escapeText(payment.method || "Cash")}</div>
-                    <div class="text-sm text-[#a97a52] mt-1">Items: ${escapeText(itemsText)}</div>
-                    <div class="mt-3 rounded-xl border border-[#e6d7c7] bg-[#fbf5ee] px-3 py-2">
-                        <div class="text-xs font-semibold text-[#7a4e2f] mb-1">Your Review</div>
-                        <div class="text-sm text-[#a97a52]">Rating: ${escapeText(reviewRating)}</div>
-                        <div class="text-sm text-[#a97a52] mt-1">Comment: ${escapeText(reviewText)}</div>
-                        <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${escapeText(reviewTime)}</div>
-                        <button class="btn btn-xs mt-2 rounded-full bg-[#a97a52] text-white border-none hover:bg-[#7a4e2f]" onclick="openReviewForPayment('${payment.id}')">${hasReview ? "Edit Review" : "Rate & Review"}</button>
+            <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                    <div class="font-bold text-[#5f4028]">Table ${escapeText(payment.table || "-")}</div>
+                    <div class="px-3 py-1 rounded-full text-xs font-bold ${getStatusClass(payment.status || "paid")}">
+                        ${escapeText(paymentStatusLabels[payment.status] || "Paid")}
                     </div>
                 </div>
-            `;
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
+                    <div class="text-sm text-[#a97a52]">Order: ${escapeText(orderLabel)}</div>
+                    <div class="text-lg font-extrabold text-[#7a4e2f]">${escapeText(payment.amount)} Baht</div>
+                </div>
+                <div class="text-sm text-[#a97a52] mt-1">Date: ${escapeText(formatDateTime(payment.time))}</div>
+                <div class="text-sm text-[#a97a52] mt-1">Method: ${escapeText(payment.method || "Cash")}</div>
+                <div class="text-sm text-[#a97a52] mt-1">Items: ${escapeText(itemsText)}</div>
+                <div class="mt-3 rounded-xl border border-[#e6d7c7] bg-[#fbf5ee] px-3 py-2">
+                    <div class="text-xs font-semibold text-[#7a4e2f] mb-1">Your Review</div>
+                    <div class="text-sm text-[#a97a52]">Rating: ${escapeText(review ? renderStars(review.rating) : "Not rated")}</div>
+                    <div class="text-sm text-[#a97a52] mt-1">Comment: ${escapeText(review?.comment || "-")}</div>
+                    <div class="text-xs text-[#b48a63] mt-1">Reviewed At: ${escapeText(formatDateTime(review?.time))}</div>
+                    <button class="btn btn-xs mt-2 rounded-full bg-[#a97a52] text-white border-none hover:bg-[#7a4e2f]" onclick="openReviewForPayment('${payment.id}')">${hasReview ? "Edit Review" : "Rate & Review"}</button>
+                </div>
+            </div>
+        `;
     }).join("");
 }
 
 function renderOrderStatus() {
-    const container = document.getElementById("orderStatusContainer");
+    const container = getById("orderStatusContainer");
     if (!container) return;
 
-    const orders = getCurrentSessionOrders().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-
+    const orders = getCurrentSessionOrders();
     if (!orders.length) {
         container.innerHTML = `<div class="text-center py-5 text-[#a97a52]">No orders found</div>`;
         return;
     }
 
     container.innerHTML = orders.map((order) => `
-            <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                    <div class="font-bold text-[#5f4028]">Order #${order.id}</div>
-                    <div class="px-3 py-1 rounded-full text-xs font-bold ${getOrderStatusClass(order.status)}">
-                        ${String(order.status || "pending").toUpperCase()}
-                    </div>
+        <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4 mb-3">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                <div class="font-bold text-[#5f4028]">Order #${order.id}</div>
+                <div class="px-3 py-1 rounded-full text-xs font-bold ${getOrderStatusClass(order.status)}">
+                    ${String(order.status || "pending").toUpperCase()}
                 </div>
-                <div class="text-sm text-[#a97a52]">Table: ${order.table || "-"}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Time: ${formatOrderTime(order.time)}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Items: ${getOrderItemsText(order)}</div>
-                <div class="text-sm text-[#a97a52] mt-1">Payment: ${getOrderPaymentText(order)}</div>
-                <div class="text-sm font-semibold text-[#7a4e2f] mt-2">Total: ${order.total || 0} Baht</div>
             </div>
-        `).join("");
+            <div class="text-sm text-[#a97a52]">Table: ${order.table || "-"}</div>
+            <div class="text-sm text-[#a97a52] mt-1">Time: ${formatOrderTime(order.time)}</div>
+            <div class="text-sm text-[#a97a52] mt-1">Items: ${getOrderItemsText(order)}</div>
+            <div class="text-sm text-[#a97a52] mt-1">Payment: ${getOrderPaymentText(order)}</div>
+            <div class="text-sm font-semibold text-[#7a4e2f] mt-2">Total: ${order.total || 0} Baht</div>
+        </div>
+    `).join("");
 }
 
 function renderCartPreview() {
-    const preview = document.getElementById("cartPreview");
-    const previewCard = document.getElementById("cartPreviewCard");
+    const preview = getById("cartPreview");
+    const previewCard = getById("cartPreviewCard");
     if (!preview || !previewCard) return;
 
     if (isOrderCreationDisabled()) {
@@ -727,55 +613,55 @@ function renderCartPreview() {
         return;
     }
 
-    if (cart.length === 0) {
-        preview.innerHTML = `<div class="text-[#a97a52]">No items in cart.</div>`;
+    if (!state.cart.length) {
         previewCard.classList.add("hidden");
+        preview.innerHTML = `<div class="text-[#a97a52]">No items in cart.</div>`;
         return;
     }
 
     previewCard.classList.remove("hidden");
-    preview.innerHTML = cart.map((item) => `
-            <div class="flex items-center justify-between border-b border-[#e6d7c7] py-2">
-                <div>
-                    <div class="font-semibold">
-                        ${item.name}
-                        ${item.thaiName ? `<span class="ml-1 text-xs font-medium text-[#a97a52]">(${item.thaiName})</span>` : ""}
-                    </div>
-                    <div class="text-xs text-[#a97a52]">x${item.quantity}</div>
+    preview.innerHTML = state.cart.map((item) => `
+        <div class="flex items-center justify-between border-b border-[#e6d7c7] py-2">
+            <div>
+                <div class="font-semibold">
+                    ${escapeText(item.name)}
+                    ${item.thaiName ? `<span class="ml-1 text-xs font-medium text-[#a97a52]">(${escapeText(item.thaiName)})</span>` : ""}
                 </div>
-                <div class="font-semibold">${item.price * item.quantity} Baht</div>
+                <div class="text-xs text-[#a97a52]">x${Number(item.quantity || 0)}</div>
             </div>
-        `).join("");
+            <div class="font-semibold">${Number(item.price || 0) * Number(item.quantity || 0)} Baht</div>
+        </div>
+    `).join("");
 }
 
 function updateCartUI() {
-    const cartCountSpan = document.getElementById("cartCount");
-    const cartTotalSpan = document.getElementById("cartTotalPrice");
-    const modalContainer = document.getElementById("cartItemsContainer");
-    const modalTotalSpan = document.getElementById("modalTotalPrice");
+    const cartCountSpan = getById("cartCount");
+    const cartTotalSpan = getById("cartTotalPrice");
+    const modalContainer = getById("cartItemsContainer");
+    const modalTotalSpan = getById("modalTotalPrice");
 
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const totalItems = state.cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    const total = state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
 
     if (cartCountSpan) cartCountSpan.innerText = String(totalItems);
     if (cartTotalSpan) cartTotalSpan.innerText = `${total} Baht`;
 
     if (modalContainer) {
-        if (cart.length === 0) {
+        if (!state.cart.length) {
             modalContainer.innerHTML = '<div class="text-center text-[#7a4e2f] py-5">No items yet. Please add a menu item.</div>';
         } else {
-            modalContainer.innerHTML = cart.map((item) => `
-                    <div class="flex justify-between gap-3 py-2 border-b border-[#e6d7c7] text-sm">
-                        <div>
-                            <strong>${item.name}</strong>
-                            ${item.thaiName ? `<span class="ml-1 text-[0.7rem] text-[#a97a52]">(${item.thaiName})</span>` : ""}
-                            x${item.quantity}<br>
-                            <span class="text-[0.7rem] text-[#a97a52]">${item.optionsText || "Standard"}</span>
-                            ${item.customerNote ? `<br><span class="text-[0.75rem] text-[#7a4e2f]">Note: ${item.customerNote}</span>` : ""}
-                        </div>
-                        <div>${item.price * item.quantity} Baht</div>
+            modalContainer.innerHTML = state.cart.map((item) => `
+                <div class="flex justify-between gap-3 py-2 border-b border-[#e6d7c7] text-sm">
+                    <div>
+                        <strong>${escapeText(item.name)}</strong>
+                        ${item.thaiName ? `<span class="ml-1 text-[0.7rem] text-[#a97a52]">(${escapeText(item.thaiName)})</span>` : ""}
+                        x${Number(item.quantity || 0)}<br>
+                        <span class="text-[0.7rem] text-[#a97a52]">${escapeText(item.optionsText || "Standard")}</span>
+                        ${item.customerNote ? `<br><span class="text-[0.75rem] text-[#7a4e2f]">Note: ${escapeText(item.customerNote)}</span>` : ""}
                     </div>
-                `).join("");
+                    <div>${Number(item.price || 0) * Number(item.quantity || 0)} Baht</div>
+                </div>
+            `).join("");
         }
     }
 
@@ -783,11 +669,7 @@ function updateCartUI() {
         modalTotalSpan.innerText = `${total} Baht`;
     }
 
-    const sessionOwner = getCurrentSessionId() || getCurrentTableNumber() || "";
-    if (sessionOwner) {
-        localStorage.setItem("cart_owner_id", sessionOwner);
-    }
-    localStorage.setItem("cart", JSON.stringify(cart));
+    persistCart();
     renderCartPreview();
 }
 
@@ -797,17 +679,15 @@ function addToCart(menuItem, selectedOptions = null, quantity = 1, customerNote 
         return;
     }
 
-    const optionsDisplay = formatOptionsText(selectedOptions);
-
-    cart.push({
+    state.cart.push({
         id: menuItem.id,
+        menuId: menuItem.id,
         name: menuItem.name,
         thaiName: menuItem.thaiName || "",
         price: menuItem.price,
         quantity,
-        optionsText: optionsDisplay || "Standard",
-        customerNote: customerNote || "",
-        timestamp: Date.now()
+        optionsText: formatOptionsText(selectedOptions) || "Standard",
+        customerNote: customerNote || ""
     });
 
     updateCartUI();
@@ -815,14 +695,14 @@ function addToCart(menuItem, selectedOptions = null, quantity = 1, customerNote 
 }
 
 function getFilteredMenus() {
-    let filtered = [...getRuntimeMenuDatabase()];
+    let filtered = [...state.menus];
 
-    if (currentCategory !== "all") {
-        filtered = filtered.filter((menu) => menu.category === currentCategory);
+    if (state.currentCategory !== "all") {
+        filtered = filtered.filter((menu) => menu.category === state.currentCategory);
     }
 
-    if (searchKeyword.trim() !== "") {
-        const keyword = searchKeyword.trim().toLowerCase();
+    if (state.searchKeyword.trim()) {
+        const keyword = state.searchKeyword.trim().toLowerCase();
         filtered = filtered.filter((menu) =>
             menu.name.toLowerCase().includes(keyword) ||
             (menu.thaiName && menu.thaiName.toLowerCase().includes(keyword)) ||
@@ -835,35 +715,31 @@ function getFilteredMenus() {
 }
 
 function updateSearchResultText(total) {
-    const resultText = document.getElementById("searchResultText");
+    const resultText = getById("searchResultText");
     if (!resultText) return;
 
-    if (searchKeyword.trim() === "") {
-        if (currentCategory === "all") {
-            resultText.innerText = "";
-        } else {
-            resultText.innerText = `Category: ${currentCategory} • ${total} items`;
-        }
+    if (!state.searchKeyword.trim()) {
+        resultText.innerText = state.currentCategory === "all" ? "" : `Category: ${state.currentCategory} • ${total} items`;
         return;
     }
 
-    resultText.innerText = `Results for "${searchKeyword}" • ${total} items`;
+    resultText.innerText = `Results for "${state.searchKeyword}" • ${total} items`;
 }
 
 function formatOptionsText(selectedOptions) {
-    if (!Array.isArray(selectedOptions) || selectedOptions.length === 0) return "";
+    if (!Array.isArray(selectedOptions) || !selectedOptions.length) return "";
     return selectedOptions
         .map((option) => `${option.label.replace(/^[^A-Za-z0-9]+\s*/g, "")}: ${option.value}`)
         .join(" • ");
 }
 
 function renderItemOptions(menu) {
-    const wrapper = document.getElementById("itemOptionsWrapper");
-    const container = document.getElementById("itemOptionsContainer");
+    const wrapper = getById("itemOptionsWrapper");
+    const container = getById("itemOptionsContainer");
     if (!wrapper || !container) return;
 
     container.innerHTML = "";
-    currentSelections = [];
+    state.currentSelections = [];
 
     const keys = menu.optionKeys || [];
     if (!keys.length) {
@@ -875,10 +751,10 @@ function renderItemOptions(menu) {
 
     keys.forEach((key) => {
         const set = optionSets[key];
-        if (!set || !set.choices || set.choices.length === 0) return;
+        if (!set || !Array.isArray(set.choices) || !set.choices.length) return;
 
         const defaultValue = set.default || set.choices[0].value;
-        currentSelections.push({ key, label: set.label, value: defaultValue });
+        state.currentSelections.push({ key, label: set.label, value: defaultValue });
 
         const group = document.createElement("div");
         group.className = "p-1";
@@ -891,45 +767,22 @@ function renderItemOptions(menu) {
         buttons.className = "mt-2 flex flex-wrap gap-2";
 
         set.choices.forEach((choice) => {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.dataset.optionKey = key;
-            btn.dataset.optionValue = choice.value;
-            const isSelected = choice.value === defaultValue;
+            const button = document.createElement("button");
+            button.type = "button";
+            button.dataset.optionKey = key;
+            button.dataset.optionValue = choice.value;
+            button.textContent = choice.th ? `${choice.value} (${choice.th})` : choice.value;
+            setOptionButtonStyle(button, choice.value === defaultValue);
 
-            btn.className = [
-                "px-3",
-                "py-1",
-                "rounded-full",
-                "border",
-                "text-xs",
-                "font-semibold",
-                "transition"
-            ].join(" ");
+            button.addEventListener("click", () => {
+                buttons.querySelectorAll("button[data-option-key]").forEach((node) => setOptionButtonStyle(node, false));
+                setOptionButtonStyle(button, true);
 
-            if (isSelected) {
-                btn.classList.add("bg-[#7a4e2f]", "text-white", "border-[#7a4e2f]", "ring-2", "ring-[#7a4e2f]/30");
-            } else {
-                btn.classList.add("bg-[#fbf5ee]", "text-[#5f4028]", "border-[#e6d7c7]", "hover:bg-[#efe4d8]");
-            }
-
-            btn.textContent = choice.th ? `${choice.value} (${choice.th})` : choice.value;
-
-            btn.addEventListener("click", () => {
-                const groupButtons = buttons.querySelectorAll("button[data-option-key]");
-                groupButtons.forEach((button) => {
-                    button.classList.remove("bg-[#7a4e2f]", "text-white", "border-[#7a4e2f]", "ring-2", "ring-[#7a4e2f]/30");
-                    button.classList.add("bg-[#fbf5ee]", "text-[#5f4028]", "border-[#e6d7c7]");
-                });
-
-                btn.classList.remove("bg-[#fbf5ee]", "text-[#5f4028]", "border-[#e6d7c7]");
-                btn.classList.add("bg-[#7a4e2f]", "text-white", "border-[#7a4e2f]", "ring-2", "ring-[#7a4e2f]/30");
-
-                const target = currentSelections.find((option) => option.key === key);
+                const target = state.currentSelections.find((option) => option.key === key);
                 if (target) target.value = choice.value;
             });
 
-            buttons.appendChild(btn);
+            buttons.appendChild(button);
         });
 
         group.appendChild(label);
@@ -939,59 +792,49 @@ function renderItemOptions(menu) {
 }
 
 function openItemModal(menu) {
-    if (isOrderingLocked()) {
-        showToast("Ordering is closed after review");
+    if (isOrderCreationDisabled()) {
+        showToast(getOrderingDisabledMessage());
         return;
     }
 
-    currentMenuItem = menu;
-    currentQty = 1;
-    currentSelections = [];
+    state.currentMenuItem = menu;
+    state.currentQty = 1;
 
     const thaiLabel = menu.thaiName
-        ? `<span class="text-xs text-[#a97a52] font-medium ml-1">(${menu.thaiName})</span>`
+        ? `<span class="text-xs text-[#a97a52] font-medium ml-1">(${escapeText(menu.thaiName)})</span>`
         : "";
 
-    document.getElementById("itemModalTitle").innerHTML = `${menu.name} ${thaiLabel}`;
-    const itemModalPrice = document.getElementById("itemModalPrice");
-    if (itemModalPrice) itemModalPrice.innerText = `${menu.price} Baht`;
-    document.getElementById("itemModalDesc").innerText = menu.desc || "Special from the Chill n Fill kitchen";
-    document.getElementById("itemModalImage").src = resolveMenuImage(menu.name, menu.image);
-    document.getElementById("itemModalNote").value = "";
-    document.getElementById("itemQtyValue").innerText = "1";
+    getById("itemModalTitle").innerHTML = `${escapeText(menu.name)} ${thaiLabel}`;
+    getById("itemModalPrice").innerText = `${menu.price} Baht`;
+    getById("itemModalDesc").innerText = menu.desc || "Special from the Chill n Fill kitchen";
+    getById("itemModalImage").src = resolveMenuImage(menu.name, menu.image);
+    getById("itemModalNote").value = "";
+    getById("itemQtyValue").innerText = "1";
 
     renderItemOptions(menu);
-    const itemModal = document.getElementById("itemModal");
-    if (itemModal) {
-        itemModal.classList.remove("hidden");
-        itemModal.classList.add("flex");
-    }
+    openModal(getById("itemModal"));
 }
 
 function closeItemModal() {
-    const itemModal = document.getElementById("itemModal");
-    if (!itemModal) return;
-    itemModal.classList.add("hidden");
-    itemModal.classList.remove("flex");
+    closeModal(getById("itemModal"));
 }
 
 function renderMenu() {
-    const grid = document.getElementById("menuGrid");
+    const grid = getById("menuGrid");
     if (!grid) return;
 
     const filtered = getFilteredMenus();
-    const orderingLocked = isOrderCreationDisabled();
+    const orderingDisabled = isOrderCreationDisabled();
 
     grid.innerHTML = "";
     updateSearchResultText(filtered.length);
 
-    if (filtered.length === 0) {
+    if (!filtered.length) {
         grid.innerHTML = `
-                <div class="text-center p-7 bg-[#fbf5ee] border border-dashed border-[#e6d7c7] rounded-3xl text-[#a97a52] md:col-span-2 xl:col-span-3">
-                    No menu items found<br>
-                    Try another keyword
-                </div>
-            `;
+            <div class="text-center p-7 bg-[#fbf5ee] border border-dashed border-[#e6d7c7] rounded-3xl text-[#a97a52] md:col-span-2 xl:col-span-3">
+                No menu items found
+            </div>
+        `;
         return;
     }
 
@@ -1000,213 +843,152 @@ function renderMenu() {
         card.className = [
             "menu-card",
             "group",
-            "rounded-[30px]",
+            "rounded-3xl",
             "border",
             "border-[#e6d7c7]",
             "bg-[#fbf5ee]",
             "p-4",
-            "shadow-[0_10px_30px_rgba(95,64,40,0.08)]",
+            "shadow-sm",
             "flex",
             "flex-col",
             "gap-4",
-            orderingLocked ? "opacity-90" : "cursor-pointer transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(95,64,40,0.14)]"
-        ].join(" ").trim();
+            orderingDisabled ? "opacity-90" : "cursor-pointer transition duration-200 hover:-translate-y-1 hover:shadow-lg"
+        ].join(" ");
+
         card.innerHTML = `
-                <div class="overflow-hidden rounded-[22px] border border-[#e6d7c7] bg-[#efe4d8]">
-                    <img src="${resolveMenuImage(menu.name, menu.image)}" alt="${menu.name}" class="menu-image h-48 w-full object-cover transition duration-300 group-hover:scale-[1.03]">
+            <div class="overflow-hidden rounded-2xl border border-[#e6d7c7] bg-[#efe4d8]">
+                <img src="${resolveMenuImage(menu.name, menu.image)}" alt="${escapeText(menu.name)}" class="menu-image h-48 w-full object-cover transition duration-300 group-hover:scale-[1.03]">
+            </div>
+            <div class="menu-row flex items-center justify-between gap-4 px-1">
+                <div class="min-w-0">
+                    <h3 class="truncate text-xl font-bold text-[#5f4028] sm:text-2xl">${escapeText(menu.name)}</h3>
                 </div>
-                <div class="menu-row flex items-center justify-between gap-4 px-1">
-                    <div class="min-w-0">
-                        <h3 class="truncate text-xl font-bold text-[#5f4028] sm:text-2xl">
-                            ${menu.name}
-                        </h3>
-                    </div>
-                    <div class="shrink-0 text-right text-xl font-extrabold text-[#7a4e2f] sm:text-2xl">
-                        ${menu.price} Baht
-                    </div>
-                </div>
-            `;
+                <div class="shrink-0 text-right text-xl font-extrabold text-[#7a4e2f] sm:text-2xl">${menu.price} Baht</div>
+            </div>
+        `;
 
         grid.appendChild(card);
 
-        if (orderingLocked) {
-            return;
+        if (!orderingDisabled) {
+            card.tabIndex = 0;
+            card.setAttribute("role", "button");
+            card.addEventListener("click", () => openItemModal(menu));
+            card.addEventListener("keydown", (event) => {
+                if (!["Enter", " "].includes(event.key)) return;
+                event.preventDefault();
+                openItemModal(menu);
+            });
         }
-
-        card.addEventListener("click", () => {
-            openItemModal(menu);
-        });
-
-        card.tabIndex = 0;
-        card.setAttribute("role", "button");
-        card.setAttribute("aria-label", `Open ${menu.name}`);
-        card.addEventListener("keydown", (event) => {
-            if (event.key !== "Enter" && event.key !== " ") return;
-            event.preventDefault();
-            openItemModal(menu);
-        });
     });
-}
-
-function persistOrderToLocal() {
-    if (!cart.length) return false;
-    if (isOrderCreationDisabled()) {
-        showToast(getOrderingDisabledMessage());
-        return false;
-    }
-
-    const tableNumber = getCurrentTableNumber() || "-";
-    const sessionId = getCurrentSessionId() || "";
-    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const orders = getAllOrders();
-
-    orders.push({
-        id: Date.now(),
-        table: tableNumber,
-        userId: sessionId,
-        items: cart.map((item) => ({
-            name: item.name,
-            qty: item.quantity,
-            price: item.price,
-            optionsText: item.optionsText || "",
-            customerNote: item.customerNote || ""
-        })),
-        total,
-        time: new Date().toISOString(),
-        status: "pending"
-    });
-
-    saveAllOrders(orders);
-    return true;
 }
 
 function renderPaymentSummary(context) {
-    const container = document.getElementById("paymentSummaryContainer");
+    const container = getById("paymentSummaryContainer");
     if (!container) return;
 
-    if (!context || !context.orders || !context.orders.length) {
+    if (!context?.orders?.length) {
         container.innerHTML = "";
         return;
     }
 
     container.innerHTML = `
-            <div class="rounded-[24px] border border-[#e6d7c7] bg-[#fffaf5] p-4">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <div class="text-sm text-[#a97a52]">Orders ready for payment</div>
-                        <div class="text-lg font-extrabold text-[#5f4028]">${context.orders.length} order${context.orders.length > 1 ? "s" : ""}</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-sm text-[#a97a52]">Total</div>
-                        <div class="text-2xl font-extrabold text-[#7a4e2f]">${context.total} Baht</div>
-                    </div>
+        <div class="rounded-3xl border border-[#e6d7c7] bg-[#fffaf5] p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <div class="text-sm text-[#a97a52]">Orders ready for payment</div>
+                    <div class="text-lg font-extrabold text-[#5f4028]">${context.orders.length} order${context.orders.length > 1 ? "s" : ""}</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-[#a97a52]">Total</div>
+                    <div class="text-2xl font-extrabold text-[#7a4e2f]">${context.total} Baht</div>
                 </div>
             </div>
-            ${context.orders.map((order) => `
-                <div class="rounded-[24px] border border-[#e6d7c7] bg-[#fffaf5] p-4">
-                    <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                        <div class="font-bold text-[#5f4028]">Order #${order.id}</div>
-                        <div class="text-sm font-semibold text-[#7a4e2f]">${order.total || 0} Baht</div>
-                    </div>
-                    <div class="text-sm text-[#a97a52]">${getOrderItemsText(order)}</div>
+        </div>
+        ${context.orders.map((order) => `
+            <div class="rounded-3xl border border-[#e6d7c7] bg-[#fffaf5] p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                    <div class="font-bold text-[#5f4028]">Order #${order.id}</div>
+                    <div class="text-sm font-semibold text-[#7a4e2f]">${order.total || 0} Baht</div>
                 </div>
-            `).join("")}
-        `;
+                <div class="text-sm text-[#a97a52]">${getOrderItemsText(order)}</div>
+            </div>
+        `).join("")}
+    `;
 }
 
 function renderPaymentBlocked(message) {
-    const container = document.getElementById("paymentSummaryContainer");
+    const container = getById("paymentSummaryContainer");
     if (!container) return;
     container.innerHTML = `
-            <div class="rounded-[24px] border border-[#d7b58f] bg-[#fff4e8] p-4">
-                <div class="text-sm font-semibold text-[#7a4e2f]">${message}</div>
-            </div>
-        `;
+        <div class="rounded-3xl border border-[#d7b58f] bg-[#fff4e8] p-4">
+            <div class="text-sm font-semibold text-[#7a4e2f]">${escapeText(message)}</div>
+        </div>
+    `;
 }
 
 function updatePaymentMethodUI() {
-    const qrCodePanel = document.getElementById("qrCodePanel");
-    const confirmPaymentBtn = document.getElementById("confirmPaymentBtn");
+    const qrCodePanel = getById("qrCodePanel");
+    const confirmPaymentBtn = getById("confirmPaymentBtn");
 
     document.querySelectorAll(".payment-method-btn").forEach((button) => {
-        const isSelected = button.dataset.method === currentPaymentMethod;
-        button.classList.toggle("border-[#7a4e2f]", isSelected);
-        button.classList.toggle("bg-[#fff4e8]", isSelected);
-        button.classList.toggle("ring-2", isSelected);
-        button.classList.toggle("ring-[#7a4e2f]/20", isSelected);
+        setPaymentMethodButtonStyle(button, button.dataset.method === state.currentPaymentMethod);
     });
 
-    if (qrCodePanel) {
-        qrCodePanel.classList.toggle("hidden", currentPaymentMethod !== "QR Code");
-    }
+    qrCodePanel?.classList.toggle("hidden", state.currentPaymentMethod !== "QR Code");
 
     if (confirmPaymentBtn) {
-        const actionText = currentPaymentMethod
-            ? `Confirm ${currentPaymentMethod} Payment`
-            : "Confirm Payment";
-        confirmPaymentBtn.innerText = paymentActionAllowed ? actionText : "Payment Not Available";
-        confirmPaymentBtn.disabled = !paymentActionAllowed;
-        confirmPaymentBtn.classList.toggle("opacity-60", !paymentActionAllowed);
-        confirmPaymentBtn.classList.toggle("cursor-not-allowed", !paymentActionAllowed);
+        confirmPaymentBtn.disabled = !state.currentPaymentContext?.orders?.length;
+        confirmPaymentBtn.classList.toggle("opacity-60", !state.currentPaymentContext?.orders?.length);
+        confirmPaymentBtn.classList.toggle("cursor-not-allowed", !state.currentPaymentContext?.orders?.length);
     }
 }
 
 function resetPaymentFlowState() {
-    currentPaymentMethod = "";
-    currentPaymentContext = null;
-    paymentActionAllowed = false;
-    paymentBlockingMessage = "";
+    state.currentPaymentMethod = "";
+    state.currentPaymentContext = null;
     renderPaymentSummary(null);
     updatePaymentMethodUI();
 }
 
-function findPaymentById(paymentId) {
-    return getAllPayments().find((payment) => String(payment.id) === String(paymentId)) || null;
-}
-
 function openReviewModal(payment = null) {
-    const reviewModal = document.getElementById("reviewModal");
-    const reviewSummaryText = document.getElementById("reviewSummaryText");
-    if (!reviewModal) return;
+    const resolvedPayment = payment || getPaymentById(state.currentReviewPaymentId || getPendingReviewPaymentId());
+    const existingReview = resolvedPayment ? getReviewByPaymentId(resolvedPayment.id) : null;
 
-    const resolvedPayment = payment || findPaymentById(getPendingReviewPaymentId());
-    currentReviewPaymentId = resolvedPayment ? String(resolvedPayment.id) : "";
-    const existingReview = currentReviewPaymentId ? getReviewByPaymentId(currentReviewPaymentId) : null;
+    state.currentReviewPaymentId = resolvedPayment ? String(resolvedPayment.id) : "";
+    state.currentRating = Number(existingReview?.rating || 0);
 
-    if (reviewSummaryText) {
-        if (resolvedPayment) {
-            reviewSummaryText.innerText = `Payment received: ${resolvedPayment.amount} Baht via ${resolvedPayment.method || "Cash"}. Please leave a review to finish this session.`;
-        } else {
-            reviewSummaryText.innerText = "Tell us about your experience after payment.";
-        }
+    const summary = getById("reviewSummaryText");
+    if (summary) {
+        summary.innerText = resolvedPayment
+            ? `Payment received: ${resolvedPayment.amount} Baht via ${resolvedPayment.method || "Cash"}. Please leave a review to finish this session.`
+            : "Tell us about your experience after payment.";
     }
 
-    currentRating = existingReview ? Math.max(0, Math.min(5, Number(existingReview.rating) || 0)) : 0;
-    const reviewTextarea = document.getElementById("reviewTextarea");
-    if (reviewTextarea) reviewTextarea.value = existingReview && existingReview.comment ? existingReview.comment : "";
+    const textarea = getById("reviewTextarea");
+    if (textarea) textarea.value = existingReview?.comment || "";
+
     document.querySelectorAll("#starRating .star").forEach((star, index) => {
-        if (index < currentRating) {
-            star.classList.add("text-[#f5b342]");
-        } else {
-            star.classList.remove("text-[#f5b342]");
-        }
+        star.classList.toggle("text-[#f5b342]", index < state.currentRating);
     });
-    openModal(reviewModal);
+
+    openModal(getById("reviewModal"));
 }
 
 function applyOrderingState() {
-    const locked = isOrderingLocked();
-    const orderCreationDisabled = isOrderCreationDisabled();
-    const pendingReviewId = getPendingReviewPaymentId();
-    const banner = document.getElementById("sessionStateBanner");
-    const cartBar = document.getElementById("cartBar");
-    const previewCard = document.getElementById("cartPreviewCard");
+    const banner = getById("sessionStateBanner");
+    const cartBar = getById("cartBar");
+    const openCartBtn = getById("openCartModal");
+    const openCartInlineBtn = getById("openCartInlineBtn");
+    const clearCartBtn = getById("clearCartBtn");
+    const itemAddBtn = getById("itemAddBtn");
+    const openPaymentBtn = getById("openPaymentBtn");
+    const disabled = isOrderCreationDisabled();
 
     if (banner) {
-        if (locked) {
+        if (state.customerState.lockedAfterReview) {
             banner.innerText = "Payment and review are complete for this session. New orders are disabled.";
             banner.classList.remove("hidden");
-        } else if (pendingReviewId) {
+        } else if (state.customerState.pendingReview) {
             banner.innerText = "Payment is already completed. Please submit the review to finish this session.";
             banner.classList.remove("hidden");
         } else {
@@ -1215,54 +997,35 @@ function applyOrderingState() {
         }
     }
 
-    if (openPaymentBtn) {
-        openPaymentBtn.disabled = false;
-        openPaymentBtn.classList.toggle("opacity-60", locked);
-        openPaymentBtn.classList.toggle("cursor-not-allowed", locked);
+    [openCartBtn, openCartInlineBtn, clearCartBtn, itemAddBtn].forEach((button) => {
+        if (!button) return;
+        button.disabled = disabled;
+        button.classList.toggle("opacity-60", disabled);
+        button.classList.toggle("cursor-not-allowed", disabled);
+    });
+
+    if (itemAddBtn) {
+        itemAddBtn.innerText = state.customerState.lockedAfterReview
+            ? "Ordering Closed"
+            : (state.customerState.pendingReview ? "Leave Review First" : "Add to Cart");
     }
 
     if (openCartBtn) {
-        openCartBtn.disabled = orderCreationDisabled;
-        openCartBtn.innerText = locked ? "Session Closed" : (orderCreationDisabled ? "Leave Review First" : "View Cart");
-        openCartBtn.classList.toggle("opacity-60", orderCreationDisabled);
-        openCartBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
+        openCartBtn.innerText = state.customerState.lockedAfterReview
+            ? "Session Closed"
+            : (state.customerState.pendingReview ? "Leave Review First" : "View Cart");
     }
 
-    if (openCartInlineBtn) {
-        openCartInlineBtn.disabled = orderCreationDisabled;
-        openCartInlineBtn.innerText = locked ? "Session Closed" : (orderCreationDisabled ? "Leave Review First" : "View Cart");
-        openCartInlineBtn.classList.toggle("opacity-60", orderCreationDisabled);
-        openCartInlineBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
-    }
-
-    if (clearCartBtn) {
-        clearCartBtn.disabled = orderCreationDisabled;
-        clearCartBtn.classList.toggle("opacity-60", orderCreationDisabled);
-        clearCartBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
-    }
-
-    if (fakeOrderBtn) {
-        fakeOrderBtn.disabled = orderCreationDisabled;
-        fakeOrderBtn.classList.toggle("opacity-60", orderCreationDisabled);
-        fakeOrderBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
-    }
-
-    if (itemAddBtn) {
-        itemAddBtn.disabled = orderCreationDisabled;
-        itemAddBtn.innerText = locked ? "Ordering Closed" : (orderCreationDisabled ? "Leave Review First" : "Add to Cart");
-        itemAddBtn.classList.toggle("opacity-60", orderCreationDisabled);
-        itemAddBtn.classList.toggle("cursor-not-allowed", orderCreationDisabled);
+    if (openPaymentBtn) {
+        openPaymentBtn.disabled = false;
+        openPaymentBtn.classList.remove("opacity-60", "cursor-not-allowed");
     }
 
     if (cartBar) {
-        cartBar.classList.toggle("opacity-75", orderCreationDisabled);
+        cartBar.classList.toggle("opacity-75", disabled);
     }
 
-    if (previewCard && orderCreationDisabled) {
-        previewCard.classList.add("hidden");
-    }
-
-    if (orderCreationDisabled) {
+    if (disabled) {
         closeItemModal();
     }
 
@@ -1270,23 +1033,26 @@ function applyOrderingState() {
     updateCartUI();
 }
 
-function openPaymentSelectionModal() {
-    currentPaymentMethod = "";
-    currentPaymentContext = null;
-    paymentActionAllowed = false;
-    paymentBlockingMessage = "";
+async function openPaymentSelectionModal() {
+    if (!(await ensureValidCustomerSession())) return;
 
-    if (isOrderingLocked()) {
-        paymentBlockingMessage = "Ordering is closed after review";
-        renderPaymentBlocked(paymentBlockingMessage);
-        showActionFeedback(paymentBlockingMessage);
-        updatePaymentMethodUI();
-        openModal(paymentModal);
+    try {
+        await refreshCustomerData();
+        renderPaymentHistory();
+        renderOrderStatus();
+        applyOrderingState();
+    } catch (error) {
+        showActionFeedback(error.message || "Unable to load payment data");
         return;
     }
 
-    const pendingReviewId = getPendingReviewPaymentId();
-    if (pendingReviewId) {
+    if (state.customerState.lockedAfterReview) {
+        showActionFeedback("Payment is complete for this session. Showing payment history.");
+        await openPaymentHistoryModalNow();
+        return;
+    }
+
+    if (state.customerState.pendingReview) {
         openReviewModal();
         showActionFeedback("Please submit review before another payment/order");
         return;
@@ -1294,241 +1060,347 @@ function openPaymentSelectionModal() {
 
     const outstandingOrders = getOutstandingOrders();
     if (!outstandingOrders.length) {
-        paymentBlockingMessage = "No unpaid orders for this session";
-        renderPaymentBlocked(paymentBlockingMessage);
-        showActionFeedback(paymentBlockingMessage);
-        updatePaymentMethodUI();
-        openModal(paymentModal);
+        showActionFeedback("No unpaid orders. Showing payment history.");
+        await openPaymentHistoryModalNow();
         return;
     }
 
-    if (!areOrdersReadyForPayment(outstandingOrders)) {
-        paymentBlockingMessage = "Payment is available after all food is served";
-        renderPaymentBlocked(paymentBlockingMessage);
-        showActionFeedback(paymentBlockingMessage);
-        updatePaymentMethodUI();
-        openModal(paymentModal);
-        return;
+    state.currentPaymentMethod = "";
+
+    if (!outstandingOrders.every((order) => isServedStatus(order.status))) {
+        state.currentPaymentContext = null;
+        renderPaymentBlocked("Payment is available only when all unpaid orders are in Serving status.");
+    } else {
+        state.currentPaymentContext = buildPaymentContext(outstandingOrders);
+        renderPaymentSummary(state.currentPaymentContext);
     }
 
-    currentPaymentContext = buildPaymentContext(outstandingOrders);
-    paymentActionAllowed = true;
-    renderPaymentSummary(currentPaymentContext);
     updatePaymentMethodUI();
-    openModal(paymentModal);
+    openModal(getById("paymentModal"));
 }
 
-function confirmPaymentSelection() {
-    if (!paymentActionAllowed) {
-        showActionFeedback(paymentBlockingMessage || "Payment is not available right now");
-        return;
-    }
-
-    if (!currentPaymentContext || !currentPaymentContext.orders.length) {
+async function confirmPaymentSelection() {
+    if (!state.currentPaymentContext?.orders?.length) {
         showActionFeedback("No unpaid orders for this session");
         return;
     }
 
-    if (!currentPaymentMethod) {
+    if (!state.currentPaymentMethod) {
         showToast("Please choose a payment method");
         return;
     }
 
-    const paymentId = Date.now();
-    const now = new Date().toISOString();
-    const orderIdSet = new Set(currentPaymentContext.orderIds.map((orderId) => String(orderId)));
+    const confirmPaymentBtn = getById("confirmPaymentBtn");
+    if (confirmPaymentBtn) confirmPaymentBtn.disabled = true;
 
-    const paymentRecord = {
-        id: paymentId,
-        orderId: currentPaymentContext.orderIds.join(", "),
-        orderIds: [...currentPaymentContext.orderIds],
-        table: getCurrentTableNumber() || "-",
-        userId: getCurrentSessionId() || "",
-        items: currentPaymentContext.items.map((item) => ({
-            name: item.name,
-            qty: item.qty,
-            price: item.price || 0,
-            orderId: item.orderId
-        })),
-        amount: currentPaymentContext.total,
-        time: now,
-        method: currentPaymentMethod,
-        status: "paid"
-    };
+    try {
+        const result = await requestJson(API_ENDPOINTS.payments, {
+            method: "POST",
+            headers: customerApiHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({
+                order_ids: state.currentPaymentContext.orderIds,
+                method: state.currentPaymentMethod
+            })
+        }, "Unable to process payment");
 
-    const payments = getAllPayments();
-    saveAllPayments([paymentRecord, ...payments]);
-
-    const updatedOrders = getAllOrders().map((order) => {
-        if (!orderIdSet.has(String(order.id))) return order;
-        return {
-            ...order,
-            paymentId,
-            paymentStatus: "paid",
-            paymentMethod: currentPaymentMethod,
-            paidAt: now
-        };
-    });
-
-    saveAllOrders(updatedOrders);
-    setPendingReviewPaymentId(paymentId);
-    renderPaymentHistory();
-    renderOrderStatus();
-    closeModal(paymentModal);
-    resetPaymentFlowState();
-    openReviewModal(paymentRecord);
-    applyOrderingState();
-    showToast("Payment recorded");
+        await refreshCustomerData();
+        renderPaymentHistory();
+        renderOrderStatus();
+        closeModal(getById("paymentModal"));
+        resetPaymentFlowState();
+        state.currentReviewPaymentId = String(result.payment_id || result.payment?.id || getPendingReviewPaymentId());
+        openReviewModal(getPaymentById(state.currentReviewPaymentId) || result.payment || null);
+        applyOrderingState();
+        showToast("Payment recorded");
+    } catch (error) {
+        showActionFeedback(error.message || "Unable to process payment");
+    } finally {
+        if (confirmPaymentBtn) confirmPaymentBtn.disabled = false;
+    }
 }
 
-function submitReview() {
-    const reviewTextarea = document.getElementById("reviewTextarea");
-    const reviewText = reviewTextarea ? reviewTextarea.value.trim() : "";
-
-    if (!reviewText && currentRating === 0) {
+async function submitReview() {
+    const reviewText = String(getById("reviewTextarea")?.value || "").trim();
+    if (!reviewText && !state.currentRating) {
         showToast("Please add a rating or review before submitting");
         return;
     }
 
-    const now = new Date().toISOString();
-    const paymentId = currentReviewPaymentId || getPendingReviewPaymentId() || "";
-
-    const reviews = getAllReviews();
-    const reviewPayload = {
-        rating: currentRating || 0,
-        comment: reviewText,
-        time: now,
-        table: getCurrentTableNumber() || "-",
-        userId: getCurrentSessionId() || "",
-        paymentId: paymentId || null
-    };
-    const existingReviewIndex = paymentId
-        ? reviews.findIndex((review) =>
-            String(review.paymentId || "") === String(paymentId) &&
-            matchesCurrentSession(review)
-        )
-        : -1;
-    if (existingReviewIndex >= 0) {
-        reviews[existingReviewIndex] = {
-            ...reviews[existingReviewIndex],
-            ...reviewPayload
-        };
-    } else {
-        reviews.push(reviewPayload);
-    }
-    saveAllReviews(reviews);
-
-    if (paymentId) {
-        const updatedPayments = getAllPayments().map((payment) => {
-            if (String(payment.id) !== String(paymentId)) return payment;
-            return {
-                ...payment,
-                reviewSubmitted: true,
-                reviewSubmittedAt: now
-            };
-        });
-        saveAllPayments(updatedPayments);
-
-        const updatedOrders = getAllOrders().map((order) => {
-            if (String(order.paymentId) !== String(paymentId)) return order;
-            return {
-                ...order,
-                reviewSubmittedAt: now
-            };
-        });
-        saveAllOrders(updatedOrders);
+    const paymentId = state.currentReviewPaymentId || getPendingReviewPaymentId();
+    if (!paymentId) {
+        showToast("Payment not found for review");
+        return;
     }
 
-    setOrderingLocked(true);
-    clearPendingReviewPaymentId();
-    currentReviewPaymentId = "";
-    cart = [];
-    updateCartUI();
-    closeModal(reviewModal);
-    renderPaymentHistory();
-    renderOrderStatus();
-    applyOrderingState();
-    showToast("Thanks for your review");
+    const submitReviewBtn = getById("submitReviewBtn");
+    if (submitReviewBtn) submitReviewBtn.disabled = true;
+
+    try {
+        await requestJson(API_ENDPOINTS.reviews, {
+            method: "POST",
+            headers: customerApiHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({
+                payment_id: paymentId,
+                rating: state.currentRating || 0,
+                comment: reviewText
+            })
+        }, "Unable to submit review");
+
+        await refreshCustomerData();
+        state.cart = [];
+        updateCartUI();
+        closeModal(getById("reviewModal"));
+        renderPaymentHistory();
+        renderOrderStatus();
+        applyOrderingState();
+        showToast("Thanks for your review");
+    } catch (error) {
+        showToast(error.message || "Unable to submit review");
+    } finally {
+        if (submitReviewBtn) submitReviewBtn.disabled = false;
+    }
 }
 
-const cartModal = document.getElementById("cartModal");
-const paymentHistoryModal = document.getElementById("paymentHistoryModal");
-const paymentModal = document.getElementById("paymentModal");
-const reviewModal = document.getElementById("reviewModal");
-const orderStatusModal = document.getElementById("orderStatusModal");
+async function logoutCustomer() {
+    try {
+        await fetch(API_ENDPOINTS.logout, { method: "POST", credentials: "same-origin" });
+    } catch {
+    }
 
-const openCartBtn = document.getElementById("openCartModal");
-const openCartInlineBtn = document.getElementById("openCartInlineBtn");
-const closeCartBtn = document.getElementById("closeModalBtn");
-const openPaymentHistoryBtn = document.getElementById("openPaymentHistoryBtn");
-const openOrderStatusBtn = document.getElementById("openOrderStatusBtn");
-const openPaymentBtn = document.getElementById("openPaymentBtn");
-const closePaymentHistoryBtn = document.getElementById("closePaymentHistoryBtn");
-const closePaymentBtn = document.getElementById("closePaymentBtn");
-const closeOrderStatusBtn = document.getElementById("closeOrderStatusBtn");
-const clearCartBtn = document.getElementById("clearCartBtn");
-const fakeOrderBtn = document.getElementById("fakeOrderBtn");
-const confirmPaymentBtn = document.getElementById("confirmPaymentBtn");
-const searchInput = document.getElementById("menuSearch");
-const catBtns = document.querySelectorAll(".cat-btn");
-const closeItemModalBtn = document.getElementById("closeItemModalBtn");
-const itemQtyMinus = document.getElementById("itemQtyMinus");
-const itemQtyPlus = document.getElementById("itemQtyPlus");
-const itemQtyValue = document.getElementById("itemQtyValue");
-const itemAddBtn = document.getElementById("itemAddBtn");
-const tableDisplay = document.getElementById("tableDisplay");
-const logoutBtn = document.getElementById("logoutBtn");
-const submitReviewBtn = document.getElementById("submitReviewBtn");
+    localStorage.removeItem(STORAGE_KEYS.cart);
+    localStorage.removeItem(STORAGE_KEYS.cartOwnerId);
+    localStorage.removeItem(STORAGE_KEYS.userType);
+    localStorage.removeItem(STORAGE_KEYS.userId);
+    localStorage.removeItem(STORAGE_KEYS.tableNumber);
+    window.location.href = PAGE_PATHS.home;
+}
 
 function openModal(modalEl) {
     if (!modalEl) return;
     modalEl.classList.remove("hidden");
-    modalEl.classList.add("flex");
-    modalEl.classList.add("modal-open");
+    modalEl.classList.add("flex", "modal-open");
 }
 
 function closeModal(modalEl) {
     if (!modalEl) return;
     modalEl.classList.add("hidden");
-    modalEl.classList.remove("flex");
-    modalEl.classList.remove("modal-open");
+    modalEl.classList.remove("flex", "modal-open");
 }
 
-function openOrderStatusModal() {
-    if (orderStatusModal) {
-        openModal(orderStatusModal);
-    }
+async function openOrderStatusModal() {
     try {
+        await refreshCustomerData();
         renderOrderStatus();
-    } catch (err) {
-        const container = document.getElementById("orderStatusContainer");
-        if (container) {
-            container.innerHTML = `<div class="text-center py-5 text-[#a97a52]">Unable to load order status</div>`;
+        openModal(getById("orderStatusModal"));
+    } catch (error) {
+        showToast(error.message || "Unable to load order status");
+    }
+}
+
+async function openPaymentHistoryModalNow() {
+    try {
+        await refreshCustomerData();
+        renderPaymentHistory();
+        openModal(getById("paymentHistoryModal"));
+    } catch (error) {
+        showToast(error.message || "Unable to load payment history");
+    }
+}
+
+function bindCategoryButtons() {
+    document.querySelectorAll(".cat-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+            document.querySelectorAll(".cat-btn").forEach((node) => setCategoryButtonStyle(node, false));
+            setCategoryButtonStyle(button, true);
+            state.currentCategory = button.dataset.cat || "all";
+            renderMenu();
+        });
+    });
+}
+
+function bindSearchInput() {
+    const searchInput = getById("menuSearch");
+    searchInput?.addEventListener("input", (event) => {
+        state.searchKeyword = String(event.target.value || "");
+        renderMenu();
+    });
+}
+
+function bindItemModalActions() {
+    getById("closeItemModalBtn")?.addEventListener("click", closeItemModal);
+
+    getById("itemQtyMinus")?.addEventListener("click", () => {
+        if (state.currentQty > 1) {
+            state.currentQty -= 1;
+            getById("itemQtyValue").innerText = String(state.currentQty);
+        }
+    });
+
+    getById("itemQtyPlus")?.addEventListener("click", () => {
+        state.currentQty += 1;
+        getById("itemQtyValue").innerText = String(state.currentQty);
+    });
+
+    getById("itemAddBtn")?.addEventListener("click", () => {
+        if (!state.currentMenuItem) return;
+        const note = String(getById("itemModalNote")?.value || "").trim();
+        const options = state.currentSelections.length ? state.currentSelections.map((option) => ({ ...option })) : null;
+        addToCart(state.currentMenuItem, options, state.currentQty, note);
+        if (!isOrderCreationDisabled()) {
+            closeItemModal();
+        }
+    });
+}
+
+function bindCartButtons() {
+    getById("openCartModal")?.addEventListener("click", () => {
+        if (isOrderCreationDisabled()) {
+            showToast(getOrderingDisabledMessage());
+            return;
+        }
+        window.location.href = PAGE_PATHS.cart;
+    });
+
+    getById("openCartInlineBtn")?.addEventListener("click", () => {
+        if (isOrderCreationDisabled()) {
+            showToast(getOrderingDisabledMessage());
+            return;
+        }
+        window.location.href = PAGE_PATHS.cart;
+    });
+
+    getById("clearCartBtn")?.addEventListener("click", () => {
+        if (isOrderCreationDisabled()) {
+            showToast(getOrderingDisabledMessage());
+            return;
+        }
+
+        if (!state.cart.length) {
+            showToast("Cart is already empty");
+            return;
+        }
+
+        state.cart = [];
+        updateCartUI();
+        showToast("Cleared all items");
+    });
+}
+
+function bindModalActions() {
+    getById("openPaymentHistoryBtn")?.addEventListener("click", openPaymentHistoryModalNow);
+    getById("openOrderStatusBtn")?.addEventListener("click", (event) => {
+        event.preventDefault();
+        openOrderStatusModal();
+    });
+    getById("openPaymentBtn")?.addEventListener("click", (event) => {
+        event.preventDefault();
+        openPaymentSelectionModal();
+    });
+    getById("logoutBtn")?.addEventListener("click", logoutCustomer);
+
+    getById("closePaymentHistoryBtn")?.addEventListener("click", () => closeModal(getById("paymentHistoryModal")));
+    getById("closePaymentBtn")?.addEventListener("click", () => {
+        closeModal(getById("paymentModal"));
+        resetPaymentFlowState();
+    });
+    getById("closeOrderStatusBtn")?.addEventListener("click", () => closeModal(getById("orderStatusModal")));
+
+    document.querySelectorAll(".payment-method-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.currentPaymentMethod = button.dataset.method || "";
+            updatePaymentMethodUI();
+        });
+    });
+
+    getById("confirmPaymentBtn")?.addEventListener("click", confirmPaymentSelection);
+    getById("submitReviewBtn")?.addEventListener("click", submitReview);
+
+    document.querySelectorAll("#starRating .star").forEach((star) => {
+        star.addEventListener("click", () => {
+            state.currentRating = Number(star.dataset.value || 0);
+            document.querySelectorAll("#starRating .star").forEach((node, index) => {
+                node.classList.toggle("text-[#f5b342]", index < state.currentRating);
+            });
+        });
+    });
+}
+
+function bindWindowEvents() {
+    window.addEventListener("click", (event) => {
+        if (event.target === getById("paymentHistoryModal")) closeModal(getById("paymentHistoryModal"));
+        if (event.target === getById("paymentModal")) {
+            closeModal(getById("paymentModal"));
+            resetPaymentFlowState();
+        }
+        if (event.target === getById("orderStatusModal")) closeModal(getById("orderStatusModal"));
+        if (event.target === getById("itemModal")) closeItemModal();
+        if (event.target === getById("reviewModal")) closeModal(getById("reviewModal"));
+    });
+
+    window.addEventListener("storage", (event) => {
+        const eventKey = event.key || "";
+        if (![STORAGE_KEYS.cart, STORAGE_KEYS.cartOwnerId, STORAGE_KEYS.userId, STORAGE_KEYS.tableNumber].includes(eventKey)) {
+            return;
+        }
+
+        syncCartWithSession();
+        updateCartUI();
+    });
+}
+
+async function refreshMenuPageState() {
+    await Promise.all([loadMenusFromApi(), refreshCustomerData()]);
+    renderMenu();
+    renderPaymentHistory();
+    renderOrderStatus();
+    applyOrderingState();
+}
+
+async function initMenuPage() {
+    syncCartWithSession();
+    updateCartUI();
+
+    if (getCurrentTableNumber()) {
+        const tableDisplay = getById("tableDisplay");
+        if (tableDisplay) {
+            tableDisplay.textContent = `Table ${getCurrentTableNumber()}`;
+            tableDisplay.classList.remove("hidden");
         }
     }
-}
 
-function openPaymentHistoryModalNow() {
-    if (!paymentHistoryModal) {
-        showToast("Payment history modal is unavailable");
+    bindCategoryButtons();
+    bindSearchInput();
+    bindItemModalActions();
+    bindCartButtons();
+    bindModalActions();
+    bindWindowEvents();
+
+    if (!(await ensureValidCustomerSession())) {
         return;
     }
 
-    openModal(paymentHistoryModal);
-
     try {
-        renderPaymentHistory();
+        await refreshMenuPageState();
     } catch (error) {
-        console.error("Unable to render payment history", error);
-        const container = document.getElementById("paymentHistoryContainer");
-        if (container) {
-            container.innerHTML = `
-                    <div class="text-center py-5 text-[#a97a52]">
-                        Unable to load payment/review history right now.
-                    </div>
-                `;
-        }
-        showToast("Unable to load payment history");
+        showActionFeedback(error.message || "Unable to load menu");
+    }
+
+    window.setInterval(() => {
+        if (!getCurrentSessionId() || !getCurrentTableNumber()) return;
+        refreshCustomerData()
+            .then(() => {
+                renderPaymentHistory();
+                renderOrderStatus();
+                applyOrderingState();
+                if (state.customerState.pendingReview && !isOrderingLocked()) {
+                    openReviewModal();
+                }
+            })
+            .catch(() => {});
+    }, REFRESH_INTERVAL_MS);
+
+    if (state.customerState.pendingReview && !isOrderingLocked()) {
+        openReviewModal();
     }
 }
 
@@ -1536,259 +1408,16 @@ window.openOrderStatusModal = openOrderStatusModal;
 window.openPaymentHistoryModalNow = openPaymentHistoryModalNow;
 window.openMenuPaymentModal = openPaymentSelectionModal;
 window.openReviewForPayment = function openReviewForPayment(paymentId) {
-    const payment = findPaymentById(paymentId);
+    const payment = getPaymentById(paymentId);
     if (!payment) {
         showToast("Payment not found for this session");
         return;
     }
     openReviewModal(payment);
 };
-seedPresetMenusToSharedStorage();
-syncCartWithSession();
 
-if (tableDisplay) {
-    const tableNumber = getCurrentTableNumber();
-    if (tableNumber) {
-        tableDisplay.textContent = `Table ${tableNumber}`;
-        tableDisplay.classList.remove("hidden");
-    }
-}
-
-if (openCartBtn) {
-    openCartBtn.addEventListener("click", () => {
-        if (isOrderCreationDisabled()) {
-            showToast(getOrderingDisabledMessage());
-            return;
-        }
-        window.location.href = "cart.html";
-    });
-}
-
-if (openCartInlineBtn) {
-    openCartInlineBtn.addEventListener("click", () => {
-        if (isOrderCreationDisabled()) {
-            showToast(getOrderingDisabledMessage());
-            return;
-        }
-        window.location.href = "cart.html";
-    });
-}
-
-if (closeCartBtn) {
-    closeCartBtn.addEventListener("click", () => {
-        closeModal(cartModal);
-    });
-}
-
-if (closeItemModalBtn) {
-    closeItemModalBtn.addEventListener("click", closeItemModal);
-}
-
-if (openPaymentHistoryBtn) {
-    openPaymentHistoryBtn.addEventListener("click", openPaymentHistoryModalNow);
-}
-
-if (openOrderStatusBtn) {
-    openOrderStatusBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        openOrderStatusModal();
-    });
-}
-
-if (logoutBtn) {
-    logoutBtn.addEventListener("click", logoutCustomer);
-}
-
-if (closePaymentHistoryBtn) {
-    closePaymentHistoryBtn.addEventListener("click", () => {
-        closeModal(paymentHistoryModal);
-    });
-}
-
-if (openPaymentBtn) {
-    openPaymentBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        openPaymentSelectionModal();
-    });
-}
-
-if (closePaymentBtn) {
-    closePaymentBtn.addEventListener("click", () => {
-        closeModal(paymentModal);
-        resetPaymentFlowState();
-    });
-}
-
-document.querySelectorAll(".payment-method-btn").forEach((button) => {
-    button.addEventListener("click", () => {
-        currentPaymentMethod = button.dataset.method || "";
-        updatePaymentMethodUI();
-    });
-});
-
-if (confirmPaymentBtn) {
-    confirmPaymentBtn.addEventListener("click", confirmPaymentSelection);
-}
-
-if (closeOrderStatusBtn) {
-    closeOrderStatusBtn.addEventListener("click", () => {
-        closeModal(orderStatusModal);
-    });
-}
-
-if (itemQtyMinus) {
-    itemQtyMinus.addEventListener("click", () => {
-        if (currentQty > 1) {
-            currentQty -= 1;
-            itemQtyValue.innerText = String(currentQty);
-        }
-    });
-}
-
-if (itemQtyPlus) {
-    itemQtyPlus.addEventListener("click", () => {
-        currentQty += 1;
-        itemQtyValue.innerText = String(currentQty);
-    });
-}
-
-if (itemAddBtn) {
-    itemAddBtn.addEventListener("click", () => {
-        if (!currentMenuItem) return;
-        const note = document.getElementById("itemModalNote").value.trim();
-        const options = currentSelections.length ? currentSelections.map((option) => ({ ...option })) : null;
-        addToCart(currentMenuItem, options, currentQty, note);
-        if (!isOrderCreationDisabled()) {
-            closeItemModal();
-        }
-    });
-}
-
-if (clearCartBtn) {
-    clearCartBtn.addEventListener("click", () => {
-        if (isOrderCreationDisabled()) {
-            showToast(getOrderingDisabledMessage());
-            return;
-        }
-        if (cart.length > 0) {
-            cart = [];
-            updateCartUI();
-            showToast("Cleared all items");
-        } else {
-            showToast("Cart is already empty");
-        }
-    });
-}
-
-if (fakeOrderBtn) {
-    fakeOrderBtn.addEventListener("click", () => {
-        if (isOrderCreationDisabled()) {
-            showToast(getOrderingDisabledMessage());
-            return;
-        }
-        if (!cart.length) {
-            showToast("Please add items before ordering");
-            return;
-        }
-
-        const persisted = persistOrderToLocal();
-        if (!persisted) return;
-
-        cart = [];
-        updateCartUI();
-        openOrderStatusModal();
-        showToast("Order sent to kitchen");
-    });
-}
-
-document.querySelectorAll("#starRating .star").forEach((star) => {
-    star.addEventListener("click", () => {
-        currentRating = parseInt(star.dataset.value || "0", 10);
-        document.querySelectorAll("#starRating .star").forEach((item, index) => {
-            if (index < currentRating) {
-                item.classList.add("text-[#f5b342]");
-            } else {
-                item.classList.remove("text-[#f5b342]");
-            }
-        });
-    });
-});
-
-if (submitReviewBtn) {
-    submitReviewBtn.addEventListener("click", submitReview);
-}
-
-catBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-        catBtns.forEach((button) => {
-            button.classList.remove("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-[#7a4e2f]");
-            button.classList.add("bg-[#fbf5ee]", "text-[#7a4e2f]", "border-[#e6d7c7]");
-        });
-        btn.classList.remove("bg-[#fbf5ee]", "text-[#7a4e2f]", "border-[#e6d7c7]");
-        btn.classList.add("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-[#7a4e2f]");
-        currentCategory = btn.getAttribute("data-cat");
-        renderMenu();
-    });
-});
-
-if (searchInput) {
-    searchInput.addEventListener("input", function () {
-        searchKeyword = this.value;
-        renderMenu();
-    });
-}
-
-window.addEventListener("click", (event) => {
-    if (event.target === cartModal) closeModal(cartModal);
-    if (event.target === paymentHistoryModal) closeModal(paymentHistoryModal);
-    if (event.target === paymentModal) {
-        closeModal(paymentModal);
-        resetPaymentFlowState();
-    }
-    if (event.target === orderStatusModal) closeModal(orderStatusModal);
-    if (event.target === document.getElementById("itemModal")) closeItemModal();
-});
-
-window.addEventListener("storage", (event) => {
-    const eventKey = event.key || "";
-    if (
-        !["orders", "payments", "reviews", "cart", "cart_owner_id", "menus"].includes(eventKey) &&
-        !eventKey.startsWith("ordering_locked_after_review_") &&
-        !eventKey.startsWith("pending_review_payment_")
-    ) {
-        return;
-    }
-
-    syncCartWithSession();
-    renderPaymentHistory();
-    renderOrderStatus();
-    applyOrderingState();
-});
-
-const shouldOpenStatus = localStorage.getItem("open_order_status");
-if (shouldOpenStatus === "1") {
-    localStorage.removeItem("open_order_status");
-    openOrderStatusModal();
-}
-
-const shouldOpenPaymentModal = localStorage.getItem("open_payment_modal");
-if (shouldOpenPaymentModal === "1") {
-    localStorage.removeItem("open_payment_modal");
-    openPaymentSelectionModal();
-}
-
-const shouldOpenReviewModal = localStorage.getItem("open_review_modal");
-if (shouldOpenReviewModal === "1") {
-    localStorage.removeItem("open_review_modal");
-    openReviewModal();
-}
-
-renderMenu();
-updateCartUI();
-renderPaymentHistory();
-renderOrderStatus();
-applyOrderingState();
-
-if (getPendingReviewPaymentId() && !isOrderingLocked()) {
-    openReviewModal();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initMenuPage);
+} else {
+    initMenuPage();
 }

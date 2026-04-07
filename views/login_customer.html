@@ -1,28 +1,29 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
-
+<html lang="th" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="color-scheme" content="light">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="0; url=login.html#customer">
-    <title>Redirecting...</title>
+    <title>Chill n Fill – Redirect</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+<body class="min-h-screen bg-[#f3eadf] p-6 font-['Sarabun'] text-[#5f4028] flex items-center justify-center">
+    <!-- Main content -->
+    <main class="w-full max-w-sm">
+        <section class="card w-full border border-[#e6d7c7] bg-[#fbf5ee] p-6 text-center shadow-xl">
+            <h1 class="mb-2 text-xl font-bold">Redirecting...</h1>
+            <p class="text-sm text-[#a97a52]">
+                Customer login is on the main page.
+                Redirecting to <a href="login.html#customer" class="underline">login.html</a>...
+            </p>
+        </section>
+    </main>
 
-<body class="min-h-screen flex items-center justify-center bg-[#f3eadf] text-[#5f4028] font-['Sarabun'] p-6">
-    <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl p-6 text-center">
-        <h1 class="text-xl font-bold mb-2">Redirecting…</h1>
-        <p class="text-sm text-[#a97a52]">
-            Login is on the main page.
-            Redirecting to <a href="login.html#customer" class="underline">login.html</a>...
-        </p>
-    </div>
     <script>
         window.location.replace('login.html#customer');
     </script>
 </body>
-
 </html>

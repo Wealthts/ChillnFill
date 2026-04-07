@@ -1,17 +1,37 @@
-function getOrders() {
-    return JSON.parse(localStorage.getItem("orders") || "[]");
+/*
+ * Cook Page Script
+ * 1. STATE VARIABLES
+ * 2. HELPER FUNCTIONS
+ * 3. HTML BUILDERS
+ * 4. RENDER FUNCTIONS
+ * 5. API FUNCTIONS
+ * 6. EVENT BINDINGS
+ */
+
+const REFRESH_TIME_MS = 5000;
+
+let orderList = [];
+let reviewList = [];
+let dashboardData = {};
+let currentSection = "orders";
+
+function getElement(id) {
+    return document.getElementById(id);
 }
 
-function saveOrders(orders) {
-    localStorage.setItem("orders", JSON.stringify(orders));
+function textValue(value) {
+    if (value === undefined || value === null) return "";
+    return String(value);
 }
 
-function getReviews() {
-    return JSON.parse(localStorage.getItem("reviews") || "[]");
+function numberValue(value) {
+    const output = Number(value);
+    if (Number.isFinite(output)) return output;
+    return 0;
 }
 
-function escapeHtml(text) {
-    return String(text || "")
+function escapeHtml(value) {
+    return textValue(value)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
@@ -19,263 +39,546 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 
-function getStatusClass(status) {
-    const s = String(status || "pending").toLowerCase();
-    if (s === "serving") return "bg-[#dff3e4] text-[#1f7a3d]";
-    if (s === "cooking") return "bg-[#e5f0ff] text-[#1b4d8f]";
-    return "bg-[#fff1cc] text-[#9a6a00]";
+function normalizeStatus(status, fallback) {
+    const output = textValue(status || fallback || "pending").trim().toLowerCase();
+    if (!output) return fallback || "pending";
+    return output;
 }
 
-function isServedOrderStatus(status) {
-    const normalized = String(status || "").toLowerCase();
-    return ["serving", "served", "completed", "done"].includes(normalized);
-}
-
-function formatTime(value) {
+function formatDateTime(value) {
     const date = new Date(value || 0);
     if (Number.isNaN(date.getTime())) return "-";
     return date.toLocaleString();
 }
 
-function renderCookIdentity() {
-    const cookName = localStorage.getItem("cook_name") || "Cook";
-    const cookId = localStorage.getItem("cook_id") || "-";
-    const el = document.getElementById("cookIdentity");
-    if (el) {
-        el.innerText = `${cookName} (ID: ${cookId})`;
-    }
+function getCookId() {
+    return localStorage.getItem("cook_id") || "";
 }
 
-function renderOrders() {
-    const container = document.getElementById("ordersContainer");
-    if (!container) return;
+function getCookName() {
+    return localStorage.getItem("cook_name") || "Cook";
+}
 
-    const orders = getOrders().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-    if (!orders.length) {
-        container.innerHTML = `<div class="rounded-[24px] border border-[#e6d7c7] bg-[#fbf5ee] p-6 text-center text-[#a97a52]">No orders yet</div>`;
+function clearCookSession() {
+    localStorage.removeItem("user_type");
+    localStorage.removeItem("cook_id");
+    localStorage.removeItem("cook_name");
+}
+
+function goToStaffPage() {
+    window.location.href = "staff.html";
+}
+
+function handleUnauthorized(response) {
+    if (!response || response.status !== 401) return false;
+    clearCookSession();
+    goToStaffPage();
+    return true;
+}
+
+function getOrderItems(order) {
+    if (order && Array.isArray(order.items)) return order.items;
+    return [];
+}
+
+function getAssignedCookId(item) {
+    return textValue((item && (item.cookId || item.cook_id)) || "").trim();
+}
+
+function getItemQuantity(item) {
+    if (!item) return 0;
+    if (item.qty !== undefined && item.qty !== null) return numberValue(item.qty);
+    return numberValue(item.quantity);
+}
+
+function isFinalStatus(status) {
+    const output = normalizeStatus(status, "pending");
+    return output === "completed" || output === "cancelled";
+}
+
+function isServedStatus(status) {
+    const output = normalizeStatus(status, "pending");
+    return output === "serving" || output === "served" || output === "completed" || output === "done";
+}
+
+function getStatusColor(status) {
+    const output = normalizeStatus(status, "pending");
+
+    if (output === "completed" || output === "serving") {
+        return "bg-[#dff3e4] text-[#1f7a3d]";
+    }
+    if (output === "cooking") {
+        return "bg-[#e5f0ff] text-[#1b4d8f]";
+    }
+    if (output === "cancelled") {
+        return "bg-[#fde2e2] text-[#b42318]";
+    }
+    return "bg-[#fff1cc] text-[#9a6a00]";
+}
+
+function getStatusBadgeHtml(status) {
+    return '<div class="px-3 py-1 rounded-full text-xs font-bold ' + getStatusColor(status) + '">' + escapeHtml(textValue(status).toUpperCase()) + '</div>';
+}
+
+function getEmptyBoxHtml(message) {
+    return '<div class="rounded-3xl border border-[#e6d7c7] bg-[#fbf5ee] p-6 text-center text-[#a97a52]">' + escapeHtml(message) + '</div>';
+}
+
+function setSectionButtonStyle(button, isActive) {
+    if (!button) return;
+
+    if (isActive) {
+        button.className = "btn btn-sm rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none";
         return;
     }
 
-    container.innerHTML = orders.map((order) => {
-        const items = Array.isArray(order.items) ? order.items : [];
-        const itemsHtml = items.length
-            ? items.map((item) => `<div>- ${escapeHtml(item.name)} x${Number(item.qty || 0)}</div>`).join("")
-            : "-";
-        const status = String(order.status || "pending").toLowerCase();
+    button.className = "btn btn-sm rounded-full bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7]";
+}
 
-        return `
-            <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-                <div class="card-body">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <div class="font-bold text-lg">Order #${escapeHtml(order.id)}</div>
-                            <div class="text-sm text-[#a97a52]">Table ${escapeHtml(order.table || "-")} • ${formatTime(order.time)}</div>
-                        </div>
-                        <div class="px-3 py-1 rounded-full text-xs font-bold ${getStatusClass(status)}">${status.toUpperCase()}</div>
-                    </div>
+function showCookIdentity() {
+    const identityBox = getElement("cookIdentity");
+    if (!identityBox) return;
+    identityBox.innerText = getCookName() + " (ID: " + (getCookId() || "-") + ")";
+}
 
-                    <div class="mt-2 text-sm text-[#5f4028]">${itemsHtml}</div>
-                    <div class="mt-2 font-semibold">Total: ${Number(order.total || 0)} Baht</div>
+function buildOrderItemHtml(item) {
+    const itemId = textValue(item && item.id);
+    const itemName = textValue(item && item.name) || "Unknown menu";
+    const quantity = getItemQuantity(item);
+    const notes = textValue(item && item.notes).trim();
+    const itemStatus = normalizeStatus(item && item.status, "pending");
+    const selectedStatus = itemStatus === "completed" ? "serving" : itemStatus;
+    const assignedCookId = getAssignedCookId(item);
+    const myCookId = getCookId();
+    const isMyItem = assignedCookId && assignedCookId === myCookId;
+    const canClaim = !isFinalStatus(itemStatus) && (!assignedCookId || assignedCookId === myCookId) && !isMyItem;
+    const canEdit = Boolean(assignedCookId) && assignedCookId === myCookId;
 
-                    <div class="mt-3 flex items-center gap-3">
-                        <span class="text-sm font-semibold">Status</span>
-                        <select class="select select-sm bg-[#fffaf5] border-[#e6d7c7]" data-order-id="${escapeHtml(order.id)}">
-                            <option value="pending" ${status === "pending" ? "selected" : ""}>Pending</option>
-                            <option value="cooking" ${status === "cooking" ? "selected" : ""}>Cooking</option>
-                            <option value="serving" ${status === "serving" ? "selected" : ""}>Serving</option>
-                        </select>
-                    </div>
+    let assignedText = "Unassigned";
+    if (assignedCookId) {
+        if (assignedCookId === myCookId) {
+            assignedText = "Assigned to you";
+        } else {
+            assignedText = "Assigned to " + assignedCookId;
+        }
+    }
+
+    let notesHtml = "";
+    if (notes) {
+        notesHtml = '<div class="mt-1 text-xs text-[#a97a52]">' + escapeHtml(notes) + '</div>';
+    }
+
+    let claimButtonHtml = "";
+    if (canClaim) {
+        claimButtonHtml = '<button class="btn btn-sm rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none" data-claim-item-id="' + escapeHtml(itemId) + '">Claim Item</button>';
+    }
+
+    return `
+        <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <div class="font-medium text-[#5f4028]">${escapeHtml(itemName)} x${quantity}</div>
+                    <div class="mt-1 text-xs font-semibold ${assignedCookId ? "text-[#7a4e2f]" : "text-[#a97a52]"}">${escapeHtml(assignedText)}</div>
+                    ${notesHtml}
                 </div>
+                ${getStatusBadgeHtml(selectedStatus)}
             </div>
-        `;
-    }).join("");
+            <div class="mt-3 flex flex-wrap items-center gap-3">
+                ${claimButtonHtml}
+                <span class="text-sm font-semibold text-[#5f4028]">Status</span>
+                <select class="select select-sm border-[#e6d7c7] bg-[#fffaf5]" data-item-id="${escapeHtml(itemId)}" ${canEdit ? "" : "disabled"}>
+                    <option value="pending" ${selectedStatus === "pending" ? "selected" : ""}>Pending</option>
+                    <option value="cooking" ${selectedStatus === "cooking" ? "selected" : ""}>Cooking</option>
+                    <option value="serving" ${selectedStatus === "serving" ? "selected" : ""}>Serving</option>
+                    <option value="cancelled" ${selectedStatus === "cancelled" ? "selected" : ""}>Cancelled</option>
+                </select>
+            </div>
+        </div>
+    `;
+}
 
-    container.querySelectorAll("select[data-order-id]").forEach((selectEl) => {
-        selectEl.addEventListener("change", (event) => {
-            const orderId = selectEl.dataset.orderId;
-            const nextStatus = event.target.value;
-            updateOrderStatus(orderId, nextStatus);
+function buildOrderCardHtml(order) {
+    const items = getOrderItems(order);
+    const myCookId = getCookId();
+    let myItems = 0;
+    let unassignedItems = 0;
+
+    for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        const itemStatus = normalizeStatus(item && item.status, "pending");
+
+        if (getAssignedCookId(item) === myCookId) {
+            myItems += 1;
+        }
+
+        if (!getAssignedCookId(item) && !isFinalStatus(itemStatus)) {
+            unassignedItems += 1;
+        }
+    }
+
+    let itemsHtml = '<div class="text-sm text-[#a97a52]">No items found</div>';
+    if (items.length > 0) {
+        itemsHtml = items.map(buildOrderItemHtml).join("");
+    }
+
+    const orderId = textValue(order && order.id) || "-";
+    const tableNumber = textValue(order && order.table) || "-";
+    const orderTime = formatDateTime(order && order.time);
+    const orderStatus = normalizeStatus(order && order.status, "pending");
+    const total = numberValue(order && order.total);
+
+    return `
+        <div class="card border border-[#e6d7c7] bg-[#fbf5ee] shadow-sm">
+            <div class="card-body">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <div class="text-lg font-bold text-[#5f4028]">Order #${escapeHtml(orderId)}</div>
+                        <div class="text-sm text-[#a97a52]">Table ${escapeHtml(tableNumber)} | ${escapeHtml(orderTime)}</div>
+                        <div class="mt-1 text-xs text-[#a97a52]">My items: ${myItems} | Unassigned items: ${unassignedItems}</div>
+                    </div>
+                    ${getStatusBadgeHtml(orderStatus)}
+                </div>
+                <div class="mt-4 grid gap-3">${itemsHtml}</div>
+                <div class="mt-3 font-semibold text-[#5f4028]">Total: ${total} Baht</div>
+            </div>
+        </div>
+    `;
+}
+
+function buildDashboardBoxHtml(title, value, extraText) {
+    let extraHtml = "";
+    if (extraText) {
+        extraHtml = '<div class="mt-1 text-xs text-[#a97a52]">' + escapeHtml(extraText) + '</div>';
+    }
+
+    return `
+        <div class="card border border-[#e6d7c7] bg-[#fbf5ee] shadow-sm">
+            <div class="card-body">
+                <div class="text-sm text-[#a97a52]">${escapeHtml(title)}</div>
+                <div class="text-2xl font-extrabold text-[#5f4028]">${escapeHtml(value)}</div>
+                ${extraHtml}
+            </div>
+        </div>
+    `;
+}
+
+function buildReviewCardHtml(review) {
+    return `
+        <div class="card border border-[#e6d7c7] bg-[#fbf5ee] shadow-sm">
+            <div class="card-body">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="font-bold text-[#5f4028]">Rating ${numberValue(review && review.rating)} / 5</div>
+                    <div class="text-xs text-[#a97a52]">${escapeHtml(formatDateTime(review && (review.created_at || review.time)))}</div>
+                </div>
+                <div class="mt-2 text-sm text-[#5f4028]">${escapeHtml((review && review.comment) || "-")}</div>
+                <div class="mt-1 text-xs text-[#a97a52]">Table: ${escapeHtml((review && review.table) || "-")}</div>
+            </div>
+        </div>
+    `;
+}
+
+function bindOrderButtons() {
+    const ordersContainer = getElement("ordersContainer");
+    if (!ordersContainer) return;
+
+    const claimButtons = ordersContainer.querySelectorAll("button[data-claim-item-id]");
+    claimButtons.forEach(function (button) {
+        button.addEventListener("click", async function () {
+            await claimItem(button.dataset.claimItemId);
+        });
+    });
+
+    const statusSelects = ordersContainer.querySelectorAll("select[data-item-id]");
+    statusSelects.forEach(function (selectBox) {
+        selectBox.addEventListener("change", async function (event) {
+            await updateItemStatus(selectBox.dataset.itemId, event.target.value);
         });
     });
 }
 
-function renderDashboard() {
-    const container = document.getElementById("cookDashboardContainer");
-    if (!container) return;
+function renderOrders(isLoading) {
+    const ordersContainer = getElement("ordersContainer");
+    if (!ordersContainer) return;
 
-    const orders = getOrders();
-    const servedOrders = orders.filter((order) => isServedOrderStatus(order.status));
+    if (isLoading && orderList.length === 0) {
+        ordersContainer.innerHTML = getEmptyBoxHtml("Loading orders...");
+        return;
+    }
 
-    let servedMenusCount = 0;
-    const menuCounts = {};
-
-    servedOrders.forEach((order) => {
-        const items = Array.isArray(order.items) ? order.items : [];
-        items.forEach((item) => {
-            const qty = Number(item.qty || 0);
-            servedMenusCount += qty;
-            const name = String(item.name || "").trim();
-            if (!name) return;
-            menuCounts[name] = (menuCounts[name] || 0) + qty;
-        });
+    const sortedOrders = orderList.slice().sort(function (a, b) {
+        return new Date((b && b.time) || 0).getTime() - new Date((a && a.time) || 0).getTime();
     });
 
-    let topMenu = "-";
+    if (sortedOrders.length === 0) {
+        ordersContainer.innerHTML = getEmptyBoxHtml("No kitchen orders right now");
+        return;
+    }
+
+    ordersContainer.innerHTML = sortedOrders.map(buildOrderCardHtml).join("");
+    bindOrderButtons();
+}
+
+function getTopServedMenu(orders) {
+    const menuCount = {};
+    let topMenuName = "-";
     let topMenuCount = 0;
-    Object.entries(menuCounts).forEach(([name, count]) => {
-        if (count > topMenuCount) {
-            topMenu = name;
-            topMenuCount = count;
-        }
-    });
 
-    container.innerHTML = `
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-          <div class="card-body">
-            <div class="text-sm text-[#a97a52]">Served Menus</div>
-            <div class="text-2xl font-extrabold text-[#5f4028]">${servedMenusCount}</div>
-          </div>
+    for (let i = 0; i < orders.length; i += 1) {
+        const items = getOrderItems(orders[i]);
+
+        for (let j = 0; j < items.length; j += 1) {
+            const item = items[j];
+            if (!isServedStatus(item && item.status)) continue;
+
+            const itemName = textValue(item && item.name).trim();
+            if (!itemName) continue;
+
+            menuCount[itemName] = (menuCount[itemName] || 0) + getItemQuantity(item);
+        }
+    }
+
+    const menuNames = Object.keys(menuCount);
+    for (let i = 0; i < menuNames.length; i += 1) {
+        const menuName = menuNames[i];
+        if (menuCount[menuName] > topMenuCount) {
+            topMenuName = menuName;
+            topMenuCount = menuCount[menuName];
+        }
+    }
+
+    return {
+        name: topMenuName,
+        count: topMenuCount
+    };
+}
+
+function renderDashboard() {
+    const dashboardContainer = getElement("cookDashboardContainer");
+    if (!dashboardContainer) return;
+
+    const summary = dashboardData.summary || {};
+    const recentOrders = Array.isArray(dashboardData.recent_orders) ? dashboardData.recent_orders : [];
+    const topMenu = getTopServedMenu(recentOrders);
+
+    dashboardContainer.innerHTML = `
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            ${buildDashboardBoxHtml("Pending Orders", numberValue(summary.pending))}
+            ${buildDashboardBoxHtml("Cooking Orders", numberValue(summary.cooking))}
+            ${buildDashboardBoxHtml("Serving Orders", numberValue(summary.serving))}
+            ${buildDashboardBoxHtml("Top Menu Served", topMenu.name, topMenu.count ? topMenu.count + " servings" : "No served menu yet")}
         </div>
-        <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-          <div class="card-body">
-            <div class="text-sm text-[#a97a52]">Top Menu Served</div>
-            <div class="text-2xl font-extrabold text-[#5f4028]">${escapeHtml(topMenu)}</div>
-            <div class="text-xs text-[#a97a52]">${topMenuCount ? `${topMenuCount} servings` : "No served menu yet"}</div>
-          </div>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            ${buildDashboardBoxHtml("Completed Orders", numberValue(summary.completed))}
+            ${buildDashboardBoxHtml("Active Cooks", numberValue(summary.active_cooks) + " / " + numberValue(summary.total_cooks))}
         </div>
-      </div>
     `;
 }
 
 function renderReviews() {
-    const container = document.getElementById("cookReviewsContainer");
-    if (!container) return;
+    const reviewsContainer = getElement("cookReviewsContainer");
+    if (!reviewsContainer) return;
 
-    const reviews = getReviews().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-    const avg = reviews.length
-        ? (reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1)
-        : "0.0";
+    const sortedReviews = reviewList.slice().sort(function (a, b) {
+        return new Date((b && (b.created_at || b.time)) || 0).getTime() - new Date((a && (a.created_at || a.time)) || 0).getTime();
+    });
 
-    if (!reviews.length) {
-        container.innerHTML = `
-          <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-            <div class="card-body">
-              <div class="text-sm text-[#a97a52]">Average Rating</div>
-              <div class="text-2xl font-extrabold text-[#5f4028]">${avg}</div>
-              <div class="text-sm text-[#a97a52] mt-2">No reviews yet</div>
-            </div>
-          </div>
-        `;
+    let averageRating = 0;
+    if (sortedReviews.length > 0) {
+        let totalRating = 0;
+        for (let i = 0; i < sortedReviews.length; i += 1) {
+            totalRating += numberValue(sortedReviews[i] && sortedReviews[i].rating);
+        }
+        averageRating = totalRating / sortedReviews.length;
+    }
+
+    if (sortedReviews.length === 0) {
+        reviewsContainer.innerHTML = buildDashboardBoxHtml("Average Rating", averageRating.toFixed(1), "No reviews yet");
         return;
     }
 
-    container.innerHTML = `
-      <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow mb-4">
-        <div class="card-body">
-          <div class="text-sm text-[#a97a52]">Average Rating</div>
-          <div class="text-2xl font-extrabold text-[#5f4028]">${avg} / 5</div>
+    const reviewCards = sortedReviews.map(buildReviewCardHtml).join("");
+    reviewsContainer.innerHTML = `
+        <div class="mb-4">
+            ${buildDashboardBoxHtml("Average Rating", averageRating.toFixed(1) + " / 5")}
         </div>
-      </div>
-      ${reviews.map((review) => `
-        <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow">
-          <div class="card-body">
-            <div class="flex items-center justify-between gap-3">
-              <div class="font-bold text-[#5f4028]">⭐ ${Number(review.rating || 0)} / 5</div>
-              <div class="text-xs text-[#a97a52]">${formatTime(review.time)}</div>
-            </div>
-            <div class="text-sm text-[#5f4028] mt-2">${escapeHtml(review.comment || "-")}</div>
-            <div class="text-xs text-[#a97a52] mt-1">Table: ${escapeHtml(review.table || "-")}</div>
-          </div>
-        </div>
-      `).join("")}
+        ${reviewCards}
     `;
 }
 
-function updateOrderStatus(orderId, nextStatus) {
-    const orders = getOrders();
-    const idx = orders.findIndex((order) => String(order.id) === String(orderId));
-    if (idx === -1) return;
+function showSection(sectionName) {
+    currentSection = sectionName || "orders";
 
-    orders[idx].status = nextStatus;
-    saveOrders(orders);
-    renderOrders();
+    const ordersSection = getElement("cookOrdersSection");
+    const dashboardSection = getElement("cookDashboardSection");
+    const reviewsSection = getElement("cookReviewsSection");
+
+    if (ordersSection) ordersSection.classList.toggle("hidden", currentSection !== "orders");
+    if (dashboardSection) dashboardSection.classList.toggle("hidden", currentSection !== "dashboard");
+    if (reviewsSection) reviewsSection.classList.toggle("hidden", currentSection !== "reviews");
+
+    setSectionButtonStyle(getElement("showOrdersBtn"), currentSection === "orders");
+    setSectionButtonStyle(getElement("showDashboardBtn"), currentSection === "dashboard");
+    setSectionButtonStyle(getElement("showReviewsBtn"), currentSection === "reviews");
+}
+
+async function requestJson(url, options, errorMessage) {
+    const fetchOptions = Object.assign({ credentials: "same-origin" }, options || {});
+    const response = await fetch(url, fetchOptions);
+
+    let data = {};
+    try {
+        data = await response.json();
+    } catch (error) {
+        data = {};
+    }
+
+    if (handleUnauthorized(response)) {
+        return null;
+    }
+
+    if (!response.ok || !data.success) {
+        throw new Error(textValue(data.message) || errorMessage || "Request failed");
+    }
+
+    return data;
+}
+
+async function loadOrders() {
+    renderOrders(true);
+
+    try {
+        const result = await requestJson("/api/orders", {}, "Unable to load orders");
+        if (!result) return;
+        orderList = Array.isArray(result.orders) ? result.orders : [];
+    } catch (error) {
+        console.error("loadOrders failed:", error);
+    }
+
+    renderOrders(false);
     renderDashboard();
+}
+
+async function loadDashboard() {
+    try {
+        const result = await requestJson("/api/cook/dashboard", {}, "Unable to load dashboard");
+        if (!result) return;
+        dashboardData = result;
+        renderDashboard();
+    } catch (error) {
+        console.error("loadDashboard failed:", error);
+    }
+}
+
+async function loadReviews() {
+    try {
+        const result = await requestJson("/api/reviews", {}, "Unable to load reviews");
+        if (!result) return;
+        reviewList = Array.isArray(result.reviews) ? result.reviews : [];
+        renderReviews();
+    } catch (error) {
+        console.error("loadReviews failed:", error);
+    }
+}
+
+async function claimItem(itemId) {
+    if (!itemId) return;
+
+    try {
+        const url = "/api/order-items/" + encodeURIComponent(itemId) + "/claim";
+        const result = await requestJson(url, { method: "POST" }, "Unable to claim item");
+        if (!result) return;
+        await loadOrders();
+    } catch (error) {
+        console.error("claimItem failed:", error);
+        window.alert(error.message || "Unable to claim item");
+    }
+}
+
+async function updateItemStatus(itemId, nextStatus) {
+    if (!itemId || !nextStatus) return;
+
+    try {
+        const url = "/api/order-items/" + encodeURIComponent(itemId) + "/status";
+        const result = await requestJson(url, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: nextStatus })
+        }, "Unable to update item status");
+
+        if (!result) return;
+        await loadOrders();
+    } catch (error) {
+        console.error("updateItemStatus failed:", error);
+        window.alert(error.message || "Unable to update item status");
+        await loadOrders();
+    }
 }
 
 async function logoutCook() {
     try {
         await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
-    } catch (err) {
-        console.warn("Logout API failed:", err);
+    } catch (error) {
+        console.warn("Logout API failed:", error);
     }
-    localStorage.removeItem("user_type");
-    localStorage.removeItem("cook_id");
-    localStorage.removeItem("cook_name");
-    window.location.href = "staff.html";
+
+    clearCookSession();
+    goToStaffPage();
 }
 
-function showSection(section) {
-    const ordersSection = document.getElementById("cookOrdersSection");
-    const dashboardSection = document.getElementById("cookDashboardSection");
-    const reviewsSection = document.getElementById("cookReviewsSection");
+function refreshAllData() {
+    loadOrders();
+    loadDashboard();
+    loadReviews();
+}
 
-    if (ordersSection) ordersSection.classList.toggle("hidden", section !== "orders");
-    if (dashboardSection) dashboardSection.classList.toggle("hidden", section !== "dashboard");
-    if (reviewsSection) reviewsSection.classList.toggle("hidden", section !== "reviews");
+function bindPageButtons() {
+    const logoutButton = getElement("logoutCookBtn");
+    if (logoutButton) logoutButton.addEventListener("click", logoutCook);
 
-    const showOrdersBtn = document.getElementById("showOrdersBtn");
-    const showDashboardBtn = document.getElementById("showDashboardBtn");
-    const showReviewsBtn = document.getElementById("showReviewsBtn");
+    const ordersButton = getElement("showOrdersBtn");
+    if (ordersButton) {
+        ordersButton.addEventListener("click", function () {
+            showSection("orders");
+            loadOrders();
+        });
+    }
 
-    [showOrdersBtn, showDashboardBtn, showReviewsBtn].forEach((button) => {
-        if (!button) return;
-        button.classList.remove("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-none");
-        button.classList.add("bg-[#efe4d8]", "text-[#5f4028]", "border", "border-[#e6d7c7]");
-    });
+    const dashboardButton = getElement("showDashboardBtn");
+    if (dashboardButton) {
+        dashboardButton.addEventListener("click", function () {
+            showSection("dashboard");
+            loadDashboard();
+        });
+    }
 
-    const activeBtn = section === "orders" ? showOrdersBtn : section === "dashboard" ? showDashboardBtn : showReviewsBtn;
-    if (activeBtn) {
-        activeBtn.classList.remove("bg-[#efe4d8]", "text-[#5f4028]", "border", "border-[#e6d7c7]");
-        activeBtn.classList.add("bg-[#7a4e2f]", "text-[#fbf5ee]", "border-none");
+    const reviewsButton = getElement("showReviewsBtn");
+    if (reviewsButton) {
+        reviewsButton.addEventListener("click", function () {
+            showSection("reviews");
+            loadReviews();
+        });
     }
 }
 
-function initCookPage() {
-    const userType = (localStorage.getItem("user_type") || "").toLowerCase();
+function startCookPage() {
+    const userType = normalizeStatus(localStorage.getItem("user_type"), "");
     if (userType !== "cook") {
-        window.location.href = "staff.html";
+        goToStaffPage();
         return;
     }
 
-    renderCookIdentity();
-    renderOrders();
+    showCookIdentity();
+    renderOrders(false);
     renderDashboard();
     renderReviews();
     showSection("orders");
-
-    const logoutBtn = document.getElementById("logoutCookBtn");
-    if (logoutBtn) logoutBtn.addEventListener("click", logoutCook);
-
-    const showOrdersBtn = document.getElementById("showOrdersBtn");
-    const showDashboardBtn = document.getElementById("showDashboardBtn");
-    const showReviewsBtn = document.getElementById("showReviewsBtn");
-
-    if (showOrdersBtn) showOrdersBtn.addEventListener("click", () => showSection("orders"));
-    if (showDashboardBtn) showDashboardBtn.addEventListener("click", () => {
-        renderDashboard();
-        showSection("dashboard");
-    });
-    if (showReviewsBtn) showReviewsBtn.addEventListener("click", () => {
-        renderReviews();
-        showSection("reviews");
-    });
-
-    setInterval(() => {
-        renderOrders();
-        renderDashboard();
-        renderReviews();
-    }, 2000);
+    bindPageButtons();
+    refreshAllData();
+    setInterval(refreshAllData, REFRESH_TIME_MS);
 }
 
-initCookPage();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startCookPage);
+} else {
+    startCookPage();
+}

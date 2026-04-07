@@ -1,47 +1,44 @@
 <!DOCTYPE html>
 <html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="color-scheme" content="light">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="api-base" content="/api/">
+    <title>Chill n Fill – In-House Ordering</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-[#f3eadf] p-4 font-['Sarabun'] text-[#5f4028] flex items-center justify-center">
+    <!-- Main content -->
+    <main class="w-full max-w-md">
+        <section class="card w-full rounded-2xl border border-[#e6d7c7] bg-[#fbf5ee] p-6 shadow-xl sm:p-10">
+            <!-- Header -->
+            <h1 class="mb-2 text-center text-2xl font-bold text-[#5f4028] sm:text-3xl">Chill n Fill</h1>
+            <p class="mb-6 text-center text-sm text-[#a97a52] sm:mb-8">In-House Ordering</p>
 
-    <head>
-        <meta charset="UTF-8">
-        <meta name="color-scheme" content="light">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="api-base" content="/api/">
-        <title>ChillnFill - In-House Ordering</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
-        <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap"
-            rel="stylesheet">
-    </head>
-
-    <body class="min-h-screen flex justify-center items-center p-4 bg-[#f3eadf] text-[#5f4028] font-['Sarabun']">
-
-        <div class="card bg-[#fbf5ee] border border-[#e6d7c7] rounded-2xl p-6 sm:p-10 shadow-xl max-w-md w-full">
-            <h1 class="text-center text-[#5f4028] text-2xl sm:text-3xl font-bold mb-2">
-                Chill n Fill
-            </h1>
-            <p class="text-center text-sm text-[#a97a52] mb-6 sm:mb-8">
-                In-House Ordering
-            </p>
+            <!-- Messages -->
             <div id="message-container"></div>
 
-            <!-- Role Buttons -->
-            <div class="flex flex-col sm:flex-row sm:flex-wrap gap-4 mb-6 sm:mb-8" id="role-buttons">
-                <button id="btn-role-customer" type="button"
-                    class="btn btn-lg w-full sm:flex-1 min-w-0 border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:bg-[#5f4028] hover:border-[#5f4028] shadow-md text-sm sm:text-base">
+            <!-- Role buttons -->
+            <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:flex-wrap" id="role-buttons">
+                <button id="btn-role-customer" type="button" class="btn btn-lg w-full min-w-0 border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] shadow-md hover:border-[#5f4028] hover:bg-[#5f4028] sm:flex-1 sm:text-base">
                     Customer
                 </button>
-                <a id="btn-role-staff" href="staff.html"
-                    class="btn btn-lg w-full sm:flex-1 min-w-0 border-[#a97a52] bg-[#a97a52] text-[#f3eadf] hover:bg-[#7a4e2f] hover:border-[#7a4e2f] shadow-md text-sm sm:text-base">
+                <a id="btn-role-staff" href="staff.html" class="btn btn-lg w-full min-w-0 border-[#a97a52] bg-[#a97a52] text-[#f3eadf] shadow-md hover:border-[#7a4e2f] hover:bg-[#7a4e2f] sm:flex-1 sm:text-base">
                     Staff
                 </a>
             </div>
 
-            <!-- Customer Login Form -->
+            <!-- Customer login form -->
             <div id="customer-form" class="login-form hidden">
-                <h2 class="text-center text-[#a97a52] text-xl font-semibold mb-5">Customer Login</h2>
+                <h2 class="mb-5 text-center text-xl font-semibold text-[#a97a52]">Customer Login</h2>
+
+                <!-- Table picker -->
                 <div class="mb-2">
                     <div class="mb-3 text-center text-sm font-semibold text-[#7a4e2f]">Select Table</div>
-                    <div class="grid grid-cols-5 gap-3 justify-items-center" id="table-picker">
+                    <div class="grid grid-cols-5 justify-items-center gap-3" id="table-picker">
                         <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="1">1</button>
                         <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="2">2</button>
                         <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="3">3</button>
@@ -53,18 +50,19 @@
                         <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="9">9</button>
                         <button type="button" class="table-picker-btn h-[58px] w-[58px] rounded-full bg-[#7a4e2f] text-[#f3eadf] font-bold shadow-[0_8px_18px_rgba(94,59,36,0.2)] transition hover:bg-[#5f4028]" data-table-select="10">10</button>
                     </div>
+
+                    <!-- Hidden selected table value -->
                     <input type="hidden" id="table-number">
                 </div>
-                <button id="btn-customer-back" type="button"
-                    class="btn w-full mt-2 border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
+
+                <!-- Back button -->
+                <button id="btn-customer-back" type="button" class="btn mt-2 w-full border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
                     Back
                 </button>
             </div>
+        </section>
+    </main>
 
-        </div>
-
-        <script src="../js/script.js?v=6"></script>
-
-    </body>
-
+    <script src="../js/script.js?v=20260408_1"></script>
+</body>
 </html>

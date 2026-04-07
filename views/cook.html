@@ -9,36 +9,51 @@
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-[#f3eadf] text-[#5f4028] font-['Sarabun'] min-h-screen p-6">
-  <div class="mx-auto w-full max-w-4xl">
-    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-3xl font-bold">Cook Orders</h1>
-        <div id="cookIdentity" class="text-sm text-[#a97a52]"></div>
-      </div>
-      <button id="logoutCookBtn" class="btn rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">Logout</button>
-    </div>
+<body class="min-h-screen bg-[#f3eadf] p-4 font-['Sarabun'] text-[#5f4028] md:p-6">
+    <main class="mx-auto w-full max-w-5xl">
+        <!-- Page header -->
+        <section class="mb-6 rounded-3xl border border-[#e6d7c7] bg-[#fbf5ee] p-5 shadow-sm">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-[0.25em] text-[#a97a52]">Kitchen</p>
+                    <h1 class="mt-1 text-3xl font-bold">Cook Orders</h1>
+                    <p id="cookIdentity" class="mt-2 text-sm text-[#a97a52]"></p>
+                </div>
+                <button id="logoutCookBtn" class="btn rounded-full border-none bg-[#7a4e2f] text-[#fbf5ee] hover:bg-[#5f4028]">
+                    Logout
+                </button>
+            </div>
+        </section>
 
-    <div class="mb-4 flex flex-wrap gap-2">
-      <button id="showOrdersBtn" class="btn btn-sm rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none">Orders</button>
-      <button id="showDashboardBtn" class="btn btn-sm rounded-full bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7]">Dashboard</button>
-      <button id="showReviewsBtn" class="btn btn-sm rounded-full bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7]">Reviews</button>
-    </div>
+        <!-- Simple page navigation -->
+        <section class="mb-4 flex flex-wrap gap-2">
+            <button id="showOrdersBtn" class="btn btn-sm rounded-full border-none bg-[#7a4e2f] text-[#fbf5ee]">
+                Orders
+            </button>
+            <button id="showDashboardBtn" class="btn btn-sm rounded-full border border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028]">
+                Dashboard
+            </button>
+            <button id="showReviewsBtn" class="btn btn-sm rounded-full border border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028]">
+                Reviews
+            </button>
+        </section>
 
-    <section id="cookOrdersSection">
-      <div id="ordersContainer" class="space-y-4"></div>
-    </section>
+        <!-- Orders section -->
+        <section id="cookOrdersSection">
+            <div id="ordersContainer" class="space-y-4"></div>
+        </section>
 
-    <section id="cookDashboardSection" class="hidden">
-      <div id="cookDashboardContainer" class="space-y-4"></div>
-    </section>
+        <!-- Dashboard section -->
+        <section id="cookDashboardSection" class="hidden">
+            <div id="cookDashboardContainer" class="space-y-4"></div>
+        </section>
 
-    <section id="cookReviewsSection" class="hidden">
-      <div id="cookReviewsContainer" class="space-y-4"></div>
-    </section>
-  </div>
+        <!-- Reviews section -->
+        <section id="cookReviewsSection" class="hidden">
+            <div id="cookReviewsContainer" class="space-y-4"></div>
+        </section>
+    </main>
 
-  <script src="../js/autosync.js"></script>
-  <script src="../js/cook.js?v=20260328_2"></script>
+    <script src="../js/cook.js?v=20260408_3"></script>
 </body>
 </html>
