@@ -270,7 +270,8 @@ function normalizeApiOrder(order) {
             qty: Number(item.qty ?? item.quantity ?? 0),
             price: Number(item.price ?? item.unit_price ?? 0),
             optionsText: item.notes || "",
-            customerNote: item.notes || ""
+            customerNote: item.notes || "",
+            status: item.status || "pending"
         })),
         total: Number(order?.total ?? order?.total_amount ?? 0),
         time: order?.time || order?.created_at || new Date().toISOString(),
@@ -492,7 +493,9 @@ function formatOrderTime(value) {
 }
 
 function getOrderItemsText(order) {
-    const items = Array.isArray(order?.items) ? order.items : [];
+    const items = Array.isArray(order?.items)
+        ? order.items.filter((item) => !isCancelledStatus(item?.status))
+        : [];
     return items.length ? items.map((item) => `${item.name} x${item.qty}`).join(", ") : "-";
 }
 
@@ -512,7 +515,9 @@ function buildPaymentContext(orders) {
         orders: normalizedOrders,
         items: normalizedOrders.flatMap((order) => {
             const orderItems = Array.isArray(order.items) ? order.items : [];
-            return orderItems.map((item) => ({
+            return orderItems
+                .filter((item) => !isCancelledStatus(item?.status))
+                .map((item) => ({
                 name: item.name,
                 qty: item.qty,
                 price: item.price || 0,
@@ -1088,7 +1093,7 @@ async function openPaymentSelectionModal() {
 
     if (!outstandingOrders.every((order) => isServedStatus(order.status))) {
         state.currentPaymentContext = null;
-        renderPaymentBlocked("Payment is available only when all unpaid orders are in Serving status.");
+        renderPaymentBlocked("Payment is available only when all unpaid orders are in Serving or Completed status.");
     } else {
         state.currentPaymentContext = buildPaymentContext(outstandingOrders);
         renderPaymentSummary(state.currentPaymentContext);

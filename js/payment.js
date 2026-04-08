@@ -103,7 +103,8 @@ function normalizeApiOrder(order) {
         items: items.map((item) => ({
             name: item.name || item.item_name || "-",
             qty: Number(item.qty ?? item.quantity ?? 0),
-            price: Number(item.price ?? item.unit_price ?? 0)
+            price: Number(item.price ?? item.unit_price ?? 0),
+            status: item.status || "pending"
         })),
         total: Number(order?.total ?? order?.total_amount ?? 0),
         time: order?.time || order?.created_at || new Date().toISOString(),
@@ -213,8 +214,8 @@ function isPaidOrder(order) {
     );
 }
 
-function isServingOrder(order) {
-    return normalizeStatus(order?.status) === "serving";
+function isReadyForPaymentOrder(order) {
+    return ["serving", "served", "completed", "done"].includes(normalizeStatus(order?.status));
 }
 
 function getOutstandingOrders() {
@@ -232,8 +233,11 @@ function buildPaymentContext(orders) {
 }
 
 function getOrderItemsText(order) {
-    return Array.isArray(order?.items) && order.items.length
-        ? order.items.map((item) => `${item.name} x${item.qty}`).join(", ")
+    const items = Array.isArray(order?.items)
+        ? order.items.filter((item) => !isCancelled(item?.status))
+        : [];
+    return items.length
+        ? items.map((item) => `${item.name} x${item.qty}`).join(", ")
         : "-";
 }
 
@@ -560,11 +564,11 @@ async function refreshPaymentPageState() {
         return;
     }
 
-    const blockedOrders = outstandingOrders.filter((order) => !isServingOrder(order));
+    const blockedOrders = outstandingOrders.filter((order) => !isReadyForPaymentOrder(order));
     if (blockedOrders.length) {
         toggleButton(pageUi.confirmPaymentButton, true);
         renderOutstandingSummary(buildPaymentContext(outstandingOrders));
-        showNotice("Payment is available only when all unpaid orders are in Serving status.");
+        showNotice("Payment is available only when all unpaid orders are in Serving or Completed status.");
         return;
     }
 

@@ -505,11 +505,17 @@ function mapOrderItemRow(item) {
 
 function mapOrderRow(order, items = []) {
   const mappedItems = items.map(mapOrderItemRow);
+  const computedTotal = mappedItems.length
+    ? mappedItems
+      .filter((item) => item.status !== "cancelled")
+      .reduce((sum, item) => sum + toNumber(item.subtotal, toNumber(item.unit_price, 0) * toInt(item.quantity, 0)), 0)
+    : toNumber(order.total_amount, 0);
   return {
     ...order,
     table: order.table_number,
     userId: order.session_id,
-    total: toNumber(order.total_amount, 0),
+    total_amount: computedTotal,
+    total: computedTotal,
     time: order.created_at,
     cookId: order.cook_id || "",
     items: mappedItems
@@ -536,7 +542,12 @@ function computeOrderRollup(items = [], fallbackStatus = "pending") {
         .sort();
       completedAt = completionTimes[completionTimes.length - 1] || toMysqlDate(new Date());
     } else if (activeItems.every((item) => ["serving", "completed"].includes(item.status))) {
-      status = "serving";
+      status = "completed";
+      const completionTimes = activeItems
+        .map((item) => toMysqlDate(item.completed_at))
+        .filter(Boolean)
+        .sort();
+      completedAt = completionTimes[completionTimes.length - 1] || toMysqlDate(new Date());
     } else if (activeItems.some((item) => ["cooking", "serving", "completed"].includes(item.status))) {
       status = "cooking";
     } else {
@@ -561,9 +572,15 @@ async function refreshOrderSummary(orderId, executor = pool) {
   if (!existingOrder) return null;
 
   const rollup = computeOrderRollup(itemRows, existingOrder.status);
+  const mappedItems = itemRows.map(mapOrderItemRow);
+  const computedTotal = mappedItems.length
+    ? mappedItems
+      .filter((item) => item.status !== "cancelled")
+      .reduce((sum, item) => sum + toNumber(item.subtotal, toNumber(item.unit_price, 0) * toInt(item.quantity, 0)), 0)
+    : toNumber(existingOrder.total_amount, 0);
   await executor.query(
-    "UPDATE orders SET cook_id = ?, status = ?, completed_at = ? WHERE id = ?",
-    [rollup.cookId, rollup.status, rollup.completedAt, normalizedOrderId]
+    "UPDATE orders SET cook_id = ?, status = ?, completed_at = ?, total_amount = ? WHERE id = ?",
+    [rollup.cookId, rollup.status, rollup.completedAt, computedTotal, normalizedOrderId]
   );
 
   const [updatedOrderRows] = await executor.query("SELECT * FROM orders WHERE id = ? LIMIT 1", [normalizedOrderId]);
@@ -638,6 +655,7 @@ async function hydratePaymentsWithOrderDetails(paymentRows, executor = pool) {
         SELECT order_id, item_name, quantity, unit_price
         FROM order_items
         WHERE order_id IN (?)
+          AND LOWER(COALESCE(status, 'pending')) NOT IN ('cancelled', 'canceled')
         ORDER BY order_id ASC, order_item_id ASC
       `,
       [orderIds]
@@ -2956,12 +2974,28 @@ app.post("/api/payments", async function (req, res) {
       [sessionId]
     );
 
-    const notReadyOrders = allOutstandingOrders.filter((order) => normalizeOrderStatus(order.status, "pending") !== "serving");
+    const notReadyOrders = allOutstandingOrders.filter(
+      (order) => !["serving", "completed"].includes(normalizeOrderStatus(order.status, "pending"))
+    );
     if (notReadyOrders.length > 0) {
-      return res.status(409).json({ success: false, message: "Payment is allowed only for orders with serving status" });
+      return res.status(409).json({ success: false, message: "Payment is allowed only for orders with serving or completed status" });
     }
 
-    const amount = unpaidOrders.reduce((sum, order) => sum + toNumber(order.total_amount, 0), 0);
+    const [chargeRows] = await pool.query(
+      `
+        SELECT order_id, SUM(subtotal) AS charge_total
+        FROM order_items
+        WHERE order_id IN (?)
+          AND LOWER(COALESCE(status, 'pending')) NOT IN ('cancelled', 'canceled')
+        GROUP BY order_id
+      `,
+      [orderIds]
+    );
+    const chargeByOrderId = new Map(chargeRows.map((row) => [toInt(row.order_id, 0), toNumber(row.charge_total, 0)]));
+    const amount = unpaidOrders.reduce((sum, order) => {
+      const orderId = toInt(order.id, 0);
+      return sum + (chargeByOrderId.get(orderId) ?? toNumber(order.total_amount, 0));
+    }, 0);
     const paymentRef = Date.now().toString();
 
     const conn = await pool.getConnection();

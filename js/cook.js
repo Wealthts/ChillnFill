@@ -134,6 +134,23 @@ function getStatusBadgeHtml(status) {
     return '<div class="px-3 py-1 rounded-full text-xs font-bold ' + getStatusColor(status) + '">' + escapeHtml(textValue(status).toUpperCase()) + '</div>';
 }
 
+function getCookStatusSelectOptions(currentStatus) {
+    const normalized = normalizeStatus(currentStatus, "pending");
+    const options = ["pending", "cooking", "serving", "cancelled"];
+
+    if (!options.includes(normalized)) {
+        options.unshift(normalized);
+    }
+
+    return options
+        .map(function (status) {
+            const selected = status === normalized ? " selected" : "";
+            const label = status.charAt(0).toUpperCase() + status.slice(1);
+            return '<option value="' + escapeHtml(status) + '"' + selected + ">" + escapeHtml(label) + "</option>";
+        })
+        .join("");
+}
+
 function getEmptyBoxHtml(message) {
     return '<div class="rounded-3xl border border-[#e6d7c7] bg-[#fbf5ee] p-6 text-center text-[#a97a52]">' + escapeHtml(message) + '</div>';
 }
@@ -160,11 +177,12 @@ function buildOrderItemHtml(item) {
     const itemName = textValue(item && item.name) || "Unknown menu";
     const quantity = getItemQuantity(item);
     const notes = textValue(item && item.notes).trim();
-    const itemStatus = normalizeStatus(item && item.status, "pending");
+    const rawItemStatus = normalizeStatus(item && item.status, "pending");
     const assignedCookId = getAssignedCookId(item);
     const myCookId = getCookId();
     const isMyItem = assignedCookId && assignedCookId === myCookId;
-    const canClaim = !isFinalStatus(itemStatus) && (!assignedCookId || assignedCookId === myCookId) && !isMyItem;
+    const displayItemStatus = assignedCookId ? rawItemStatus : "pending";
+    const canClaim = !isFinalStatus(rawItemStatus) && !assignedCookId && !isMyItem;
 
     let assignedText = "Unassigned";
     if (assignedCookId) {
@@ -185,9 +203,24 @@ function buildOrderItemHtml(item) {
         claimButtonHtml = '<button class="btn btn-sm rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none" data-claim-item-id="' + escapeHtml(itemId) + '">Claim Item</button>';
     }
 
+    const canEditStatus = isMyItem && !isFinalStatus(rawItemStatus);
+    let statusFieldHtml = "";
+    if (isMyItem) {
+        const statusFieldDisabled = canEditStatus ? "" : " disabled";
+        const statusFieldDataAttr = canEditStatus ? ' data-item-status-id="' + escapeHtml(itemId) + '"' : "";
+        statusFieldHtml = `
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-[#5f4028]">Status</span>
+                <select class="select select-sm min-h-8 h-8 border-[#e6d7c7] bg-[#fffaf5]"${statusFieldDataAttr}${statusFieldDisabled}>
+                    ${getCookStatusSelectOptions(displayItemStatus)}
+                </select>
+            </div>
+        `;
+    }
+
     let actionsHtml = "";
-    if (claimButtonHtml) {
-        actionsHtml = '<div class="mt-3 flex flex-wrap items-center gap-3">' + claimButtonHtml + '</div>';
+    if (claimButtonHtml || statusFieldHtml) {
+        actionsHtml = '<div class="mt-3 flex flex-wrap items-center gap-3">' + claimButtonHtml + statusFieldHtml + "</div>";
     }
 
     return `
@@ -199,7 +232,7 @@ function buildOrderItemHtml(item) {
                     <div class="mt-1 text-xs font-semibold ${assignedCookId ? "text-[#7a4e2f]" : "text-[#a97a52]"}">${escapeHtml(assignedText)}</div>
                     ${notesHtml}
                 </div>
-                ${getStatusBadgeHtml(itemStatus)}
+                ${getStatusBadgeHtml(displayItemStatus)}
             </div>
             ${actionsHtml}
         </div>
@@ -277,6 +310,17 @@ function bindOrderButtons() {
     claimButtons.forEach(function (button) {
         button.addEventListener("click", async function () {
             await claimItem(button.dataset.claimItemId);
+        });
+    });
+
+    const statusSelects = ordersContainer.querySelectorAll("select[data-item-status-id]");
+    statusSelects.forEach(function (select) {
+        select.addEventListener("change", async function () {
+            const itemId = select.dataset.itemStatusId;
+            const nextStatus = normalizeStatus(select.value, "");
+            if (!itemId || !nextStatus) return;
+            select.disabled = true;
+            await updateItemStatus(itemId, nextStatus);
         });
     });
 }
@@ -476,6 +520,24 @@ async function claimItem(itemId) {
     } catch (error) {
         console.error("claimItem failed:", error);
         showErrorAlert(error.message || "Unable to claim item");
+    }
+}
+
+async function updateItemStatus(itemId, nextStatus) {
+    if (!itemId || !nextStatus) return;
+
+    try {
+        const url = "/api/order-items/" + encodeURIComponent(itemId) + "/status";
+        const result = await requestJson(url, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: nextStatus })
+        }, "Unable to update item status");
+        if (!result) return;
+        await loadOrders();
+    } catch (error) {
+        console.error("updateItemStatus failed:", error);
+        showErrorAlert(error.message || "Unable to update item status");
     }
 }
 
