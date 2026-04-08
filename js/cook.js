@@ -147,12 +147,10 @@ function buildOrderItemHtml(item) {
     const quantity = getItemQuantity(item);
     const notes = textValue(item && item.notes).trim();
     const itemStatus = normalizeStatus(item && item.status, "pending");
-    const selectedStatus = itemStatus === "completed" ? "serving" : itemStatus;
     const assignedCookId = getAssignedCookId(item);
     const myCookId = getCookId();
     const isMyItem = assignedCookId && assignedCookId === myCookId;
     const canClaim = !isFinalStatus(itemStatus) && (!assignedCookId || assignedCookId === myCookId) && !isMyItem;
-    const canEdit = Boolean(assignedCookId) && assignedCookId === myCookId;
 
     let assignedText = "Unassigned";
     if (assignedCookId) {
@@ -173,6 +171,11 @@ function buildOrderItemHtml(item) {
         claimButtonHtml = '<button class="btn btn-sm rounded-full bg-[#7a4e2f] text-[#fbf5ee] border-none" data-claim-item-id="' + escapeHtml(itemId) + '">Claim Item</button>';
     }
 
+    let actionsHtml = "";
+    if (claimButtonHtml) {
+        actionsHtml = '<div class="mt-3 flex flex-wrap items-center gap-3">' + claimButtonHtml + '</div>';
+    }
+
     return `
         <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
@@ -182,40 +185,15 @@ function buildOrderItemHtml(item) {
                     <div class="mt-1 text-xs font-semibold ${assignedCookId ? "text-[#7a4e2f]" : "text-[#a97a52]"}">${escapeHtml(assignedText)}</div>
                     ${notesHtml}
                 </div>
-                ${getStatusBadgeHtml(selectedStatus)}
+                ${getStatusBadgeHtml(itemStatus)}
             </div>
-            <div class="mt-3 flex flex-wrap items-center gap-3">
-                ${claimButtonHtml}
-                <span class="text-sm font-semibold text-[#5f4028]">Status</span>
-                <select class="select select-sm border-[#e6d7c7] bg-[#fffaf5]" data-item-id="${escapeHtml(itemId)}" ${canEdit ? "" : "disabled"}>
-                    <option value="pending" ${selectedStatus === "pending" ? "selected" : ""}>Pending</option>
-                    <option value="cooking" ${selectedStatus === "cooking" ? "selected" : ""}>Cooking</option>
-                    <option value="serving" ${selectedStatus === "serving" ? "selected" : ""}>Serving</option>
-                    <option value="cancelled" ${selectedStatus === "cancelled" ? "selected" : ""}>Cancelled</option>
-                </select>
-            </div>
+            ${actionsHtml}
         </div>
     `;
 }
 
 function buildOrderCardHtml(order) {
     const items = getOrderItems(order);
-    const myCookId = getCookId();
-    let myItems = 0;
-    let unassignedItems = 0;
-
-    for (let i = 0; i < items.length; i += 1) {
-        const item = items[i];
-        const itemStatus = normalizeStatus(item && item.status, "pending");
-
-        if (getAssignedCookId(item) === myCookId) {
-            myItems += 1;
-        }
-
-        if (!getAssignedCookId(item) && !isFinalStatus(itemStatus)) {
-            unassignedItems += 1;
-        }
-    }
 
     let itemsHtml = '<div class="text-sm text-[#a97a52]">No items found</div>';
     if (items.length > 0) {
@@ -235,7 +213,6 @@ function buildOrderCardHtml(order) {
                     <div>
                         <div class="text-lg font-bold text-[#5f4028]">Order #${escapeHtml(orderId)}</div>
                         <div class="text-sm text-[#a97a52]">Table ${escapeHtml(tableNumber)} | ${escapeHtml(orderTime)}</div>
-                        <div class="mt-1 text-xs text-[#a97a52]">My items: ${myItems} | Unassigned items: ${unassignedItems}</div>
                     </div>
                     ${getStatusBadgeHtml(orderStatus)}
                 </div>
@@ -286,13 +263,6 @@ function bindOrderButtons() {
     claimButtons.forEach(function (button) {
         button.addEventListener("click", async function () {
             await claimItem(button.dataset.claimItemId);
-        });
-    });
-
-    const statusSelects = ordersContainer.querySelectorAll("select[data-item-id]");
-    statusSelects.forEach(function (selectBox) {
-        selectBox.addEventListener("change", async function (event) {
-            await updateItemStatus(selectBox.dataset.itemId, event.target.value);
         });
     });
 }
@@ -492,26 +462,6 @@ async function claimItem(itemId) {
     } catch (error) {
         console.error("claimItem failed:", error);
         window.alert(error.message || "Unable to claim item");
-    }
-}
-
-async function updateItemStatus(itemId, nextStatus) {
-    if (!itemId || !nextStatus) return;
-
-    try {
-        const url = "/api/order-items/" + encodeURIComponent(itemId) + "/status";
-        const result = await requestJson(url, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: nextStatus })
-        }, "Unable to update item status");
-
-        if (!result) return;
-        await loadOrders();
-    } catch (error) {
-        console.error("updateItemStatus failed:", error);
-        window.alert(error.message || "Unable to update item status");
-        await loadOrders();
     }
 }
 
