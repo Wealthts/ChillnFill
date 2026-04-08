@@ -531,7 +531,7 @@ function applyInitialRoute() {
 async function bootstrapAdminSession() {
   try {
     const session = await apiRequest(ADMIN_SESSION_API, { method: "GET" });
-    if (session?.user_type === "admin") {
+    if (session?.user_type === "admin" || session?.admin_logged_in) {
       localStorage.setItem("admin_logged_in", "true");
       localStorage.setItem("user_type", "admin");
       return true;
@@ -652,7 +652,7 @@ async function updateCook() {
 }
 
 async function loadMenu() {
-  const data = await apiRequest(MENUS_API_BASE);
+  const data = await apiRequest(`${MENUS_API_BASE}?include_disabled=1`);
   state.menus = (Array.isArray(data.menus) ? data.menus : []).map(normalizeMenu);
 
   const div = document.getElementById("menu");
@@ -832,11 +832,15 @@ async function toggleMenu(index) {
   const menu = state.menus[index];
   if (!menu) return;
 
-  await apiRequest(`${MENUS_API_BASE}/${menu.id}/status`, {
-    method: "PATCH",
-    body: JSON.stringify({ available: !menu.available })
-  });
-  await loadMenu();
+  try {
+    await apiRequest(`${MENUS_API_BASE}/${menu.id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ available: !menu.available })
+    });
+    await loadMenu();
+  } catch (error) {
+    await showErrorDialog(error.message || "Unable to update menu status");
+  }
 }
 
 async function loadOrders() {

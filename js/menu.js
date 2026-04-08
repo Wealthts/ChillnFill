@@ -256,7 +256,8 @@ async function loadMenusFromApi() {
         desc: menu.desc || "",
         hasOptions: Array.isArray(menu.optionKeys) && menu.optionKeys.length > 0,
         optionKeys: Array.isArray(menu.optionKeys) ? menu.optionKeys : [],
-        image: resolveMenuImage(menu.name, menu.img || menu.image)
+        image: resolveMenuImage(menu.name, menu.img || menu.image),
+        available: menu?.available !== false
     }));
 }
 
@@ -700,7 +701,7 @@ function addToCart(menuItem, selectedOptions = null, quantity = 1, customerNote 
 }
 
 function getFilteredMenus() {
-    let filtered = [...state.menus];
+    let filtered = state.menus.filter((menu) => menu?.available !== false);
 
     if (state.currentCategory !== "all") {
         filtered = filtered.filter((menu) => menu.category === state.currentCategory);

@@ -186,7 +186,9 @@ function mapMenuRow(row) {
 }
 
 function ensureAdminSession(req, res) {
-  if (req.session?.user_type !== "admin") {
+  const isAdminUserType = req.session?.user_type === "admin";
+  const hasAdminSession = Boolean(req.session?.admin_logged_in);
+  if (!isAdminUserType && !hasAdminSession) {
     res.status(401).json({ success: false, message: "Admin login required" });
     return false;
   }
@@ -1529,7 +1531,12 @@ app.get("/admin/product", async function (req, res) {
 
 app.get("/api/menu", async function (req, res) {
   try {
-    const [rows] = await pool.query("SELECT * FROM menu ORDER BY sort_order ASC, id ASC");
+    const isAdmin = req.session?.user_type === "admin" || Boolean(req.session?.admin_logged_in);
+    const includeDisabledParam = toText(req.query?.include_disabled).toLowerCase();
+    const includeDisabled = ["1", "true", "yes"].includes(includeDisabledParam) && isAdmin;
+    const [rows] = includeDisabled
+      ? await pool.query("SELECT * FROM menu ORDER BY sort_order ASC, id ASC")
+      : await pool.query("SELECT * FROM menu WHERE is_available = 1 ORDER BY sort_order ASC, id ASC");
     return res.json({ success: true, menus: rows.map(mapMenuRow) });
   } catch (err) {
     return res.status(500).json({ success: false, message: `Error: ${err.message}` });
@@ -1767,7 +1774,12 @@ app.get("/api/session", async function (req, res) {
       return;
     }
 
-    res.json({ logged_in: Boolean(req.session?.user_type), user_type: req.session?.user_type || null });
+    res.json({
+      logged_in: Boolean(req.session?.user_type),
+      user_type: req.session?.user_type || null,
+      admin_logged_in: Boolean(req.session?.admin_logged_in),
+      admin_username: req.session?.admin_username || null
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
