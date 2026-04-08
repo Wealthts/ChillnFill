@@ -29,6 +29,7 @@ const state = {
 };
 
 let dashboardFilter = getDefaultDashboardFilter();
+let dashboardDatePickers = [];
 
 const optionLabelMap = {
   spice: "Spiciness",
@@ -397,6 +398,57 @@ function getDashboardFilterCardHtml(rangeLabel) {
       </div>
     </div>
   `;
+}
+
+function destroyDashboardDatePickers() {
+  dashboardDatePickers.forEach((picker) => {
+    if (picker && typeof picker.destroy === "function") {
+      picker.destroy();
+    }
+  });
+  dashboardDatePickers = [];
+}
+
+function initDashboardDatePickers() {
+  const startInput = document.getElementById("dashboardStartDate");
+  const endInput = document.getElementById("dashboardEndDate");
+  if (!startInput || !endInput) return;
+  if (typeof window.flatpickr !== "function") return;
+
+  const sharedOptions = {
+    dateFormat: "Y-m-d",
+    altInput: true,
+    altFormat: "d/m/Y",
+    altInputClass: "input input-bordered bg-[#fffaf5] border-[#e6d7c7] w-full",
+    allowInput: false,
+    disableMobile: true
+  };
+
+  let endPicker = null;
+  const startPicker = window.flatpickr(startInput, {
+    ...sharedOptions,
+    defaultDate: startInput.value || null,
+    onChange: function (selectedDates, dateText) {
+      startInput.value = dateText || "";
+      if (endPicker) {
+        endPicker.set("minDate", dateText || null);
+      }
+    }
+  });
+
+  endPicker = window.flatpickr(endInput, {
+    ...sharedOptions,
+    defaultDate: endInput.value || null,
+    onChange: function (selectedDates, dateText) {
+      endInput.value = dateText || "";
+      startPicker.set("maxDate", dateText || null);
+    }
+  });
+
+  if (startInput.value) endPicker.set("minDate", startInput.value);
+  if (endInput.value) startPicker.set("maxDate", endInput.value);
+
+  dashboardDatePickers = [startPicker, endPicker];
 }
 
 function bindOrderActionButtons(container) {
@@ -936,6 +988,7 @@ async function loadDashboard() {
 
   const div = document.getElementById("dashboard");
   if (!div) return;
+  destroyDashboardDatePickers();
 
   const hasFilter = Boolean(dashboardFilter.start || dashboardFilter.end);
   const rangeLabel = hasFilter
@@ -954,6 +1007,7 @@ async function loadDashboard() {
     ${getDashboardFilterCardHtml(rangeLabel)}
     <div class='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>${statCardsHtml}</div>
   `;
+  initDashboardDatePickers();
 }
 
 async function loadAll() {
