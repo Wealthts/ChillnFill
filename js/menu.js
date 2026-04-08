@@ -950,12 +950,31 @@ function resetPaymentFlowState() {
     updatePaymentMethodUI();
 }
 
+function isModalOpen(modalEl) {
+    return Boolean(modalEl && !modalEl.classList.contains("hidden"));
+}
+
+function maybeAutoOpenPendingReviewModal() {
+    if (!state.customerState.pendingReview || isOrderingLocked()) return;
+    const reviewModal = getById("reviewModal");
+    if (isModalOpen(reviewModal)) return;
+    openReviewModal();
+}
+
 function openReviewModal(payment = null) {
     const resolvedPayment = payment || getPaymentById(state.currentReviewPaymentId || getPendingReviewPaymentId());
     const existingReview = resolvedPayment ? getReviewByPaymentId(resolvedPayment.id) : null;
+    const nextPaymentId = resolvedPayment ? String(resolvedPayment.id) : "";
+    const reviewModal = getById("reviewModal");
+    const shouldKeepDraft = isModalOpen(reviewModal)
+        && nextPaymentId
+        && String(state.currentReviewPaymentId || "") === nextPaymentId
+        && !existingReview;
 
-    state.currentReviewPaymentId = resolvedPayment ? String(resolvedPayment.id) : "";
-    state.currentRating = Number(existingReview?.rating || 0);
+    state.currentReviewPaymentId = nextPaymentId;
+    if (!shouldKeepDraft) {
+        state.currentRating = Number(existingReview?.rating || 0);
+    }
 
     const summary = getById("reviewSummaryText");
     if (summary) {
@@ -965,13 +984,13 @@ function openReviewModal(payment = null) {
     }
 
     const textarea = getById("reviewTextarea");
-    if (textarea) textarea.value = existingReview?.comment || "";
+    if (textarea && !shouldKeepDraft) textarea.value = existingReview?.comment || "";
 
     document.querySelectorAll("#starRating .star").forEach((star, index) => {
         star.classList.toggle("text-[#f5b342]", index < state.currentRating);
     });
 
-    openModal(getById("reviewModal"));
+    openModal(reviewModal);
 }
 
 function applyOrderingState() {
@@ -1163,8 +1182,40 @@ async function submitReview() {
 
 async function logoutCustomer() {
     try {
-        await fetch(API_ENDPOINTS.logout, { method: "POST", credentials: "same-origin" });
+        await refreshCustomerData();
+        if (state.customerState.pendingReview && !isOrderingLocked()) {
+            state.currentReviewPaymentId = String(getPendingReviewPaymentId() || state.currentReviewPaymentId || "");
+            openReviewModal();
+            showToast("Please submit your review before logout");
+            return;
+        }
     } catch {
+    }
+
+    try {
+        const response = await fetch(API_ENDPOINTS.logout, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: customerApiHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({
+                session_id: getCurrentSessionId(),
+                table_number: Number(getCurrentTableNumber() || 0)
+            })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.success === false) {
+            const message = String(result.message || "Unable to logout");
+            if (result.pending_review || /review/i.test(message)) {
+                await refreshCustomerData().catch(() => {});
+                state.currentReviewPaymentId = String(result.pending_review_payment_id || getPendingReviewPaymentId() || state.currentReviewPaymentId || "");
+                openReviewModal();
+            }
+            showToast(message);
+            return;
+        }
+    } catch {
+        showToast("Unable to logout right now");
+        return;
     }
 
     localStorage.removeItem(STORAGE_KEYS.cart);
@@ -1392,16 +1443,12 @@ async function initMenuPage() {
                 renderPaymentHistory();
                 renderOrderStatus();
                 applyOrderingState();
-                if (state.customerState.pendingReview && !isOrderingLocked()) {
-                    openReviewModal();
-                }
+                maybeAutoOpenPendingReviewModal();
             })
             .catch(() => {});
     }, REFRESH_INTERVAL_MS);
 
-    if (state.customerState.pendingReview && !isOrderingLocked()) {
-        openReviewModal();
-    }
+    maybeAutoOpenPendingReviewModal();
 }
 
 window.openOrderStatusModal = openOrderStatusModal;

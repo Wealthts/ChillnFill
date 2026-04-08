@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="color-scheme" content="light">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chill n Fill – Reserve Table</title>
+    <title>Chill n Fill – Table Status</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,13 +14,13 @@
     <main class="mx-auto flex w-full max-w-5xl flex-col items-center gap-4">
         <!-- Header -->
         <h1 class="m-0 text-[1.8rem] font-bold leading-tight text-[#5f4028]">Choose a Table</h1>
-        <p class="text-sm text-[#a97a52]">Select a table number and confirm your reservation. Status updates now come from the live API.</p>
+        <p class="text-sm text-[#a97a52]">Select an available table to continue to customer login. Status updates come from the live API.</p>
 
         <div class="flex flex-wrap items-center justify-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#7a4e2f]">
             <span class="rounded-full bg-[#7a4e2f] px-3 py-1 text-[#f3eadf]">Available</span>
-            <span class="rounded-full bg-[#b5655a] px-3 py-1 text-[#fff7f2]">Reserved</span>
             <span class="rounded-full bg-[#d79b49] px-3 py-1 text-[#fff9ef]">Occupied</span>
             <span class="rounded-full bg-[#7b8794] px-3 py-1 text-white">Maintenance</span>
+            <span class="rounded-full bg-[#d8d1c7] px-3 py-1 text-[#7a6a5a]">Inactive</span>
         </div>
 
         <!-- Table buttons -->
@@ -38,43 +38,6 @@
         </section>
     </main>
 
-    <!-- Booking modal -->
-    <div class="fixed inset-0 hidden items-center justify-center bg-black/35 backdrop-blur-[5px]" id="bookingModal">
-        <div class="w-[min(420px,calc(100%-32px))] rounded-[24px] border border-[#e6d7c7] bg-[#fbf5ee] p-7 text-center shadow-[0_15px_35px_rgba(94,59,36,0.18)]">
-            <!-- Modal header -->
-            <h3 class="mb-4 text-[20px] font-semibold text-[#5f4028]">Reserve Table <span id="tableNum"></span></h3>
-
-            <!-- Modal form -->
-            <label for="name" class="sr-only">Your name</label>
-            <input class="my-2 w-full rounded-[12px] border border-[#e6d7c7] bg-[#fffaf5] p-2.5" type="text" id="name" placeholder="Your name" aria-label="Your name" />
-            <label for="time" class="sr-only">Reservation time</label>
-            <input class="my-2 w-full rounded-[12px] border border-[#e6d7c7] bg-[#fffaf5] p-2.5" type="time" id="time" aria-label="Reservation time" />
-
-            <!-- Modal actions -->
-            <div class="mt-3 flex justify-center gap-4">
-                <button class="cursor-pointer rounded-full border-0 bg-[#7a4e2f] px-7 py-2.5 font-bold text-[#f3eadf] transition hover:bg-[#5f4028]" id="btn-booking-confirm">Confirm</button>
-                <button class="cursor-pointer rounded-full border border-[#e6d7c7] bg-[#efe4d8] px-7 py-2.5 font-bold text-[#7a4e2f] transition hover:bg-[#f3eadf]" id="btn-booking-cancel">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Confirm modal -->
-    <div class="fixed inset-0 hidden items-center justify-center bg-black/35 backdrop-blur-[5px]" id="confirmModal">
-        <div class="w-[min(420px,calc(100%-32px))] rounded-[24px] border border-[#e6d7c7] bg-[#fbf5ee] p-7 text-center shadow-[0_15px_35px_rgba(94,59,36,0.18)]">
-            <!-- Modal header -->
-            <h3 class="mb-4 text-[20px] font-semibold text-[#5f4028]">Confirm Reservation</h3>
-
-            <!-- Modal content -->
-            <p id="confirmText" class="mb-6 whitespace-pre-line text-[15px] leading-relaxed text-[#7a4e2f]"></p>
-
-            <!-- Modal actions -->
-            <div class="flex justify-center gap-4">
-                <button class="cursor-pointer rounded-full border-0 bg-[#7a4e2f] px-7 py-2.5 font-bold text-[#f3eadf] transition hover:bg-[#5f4028]" id="btn-confirm-yes">Yes</button>
-                <button class="cursor-pointer rounded-full border border-[#e6d7c7] bg-[#efe4d8] px-7 py-2.5 font-bold text-[#7a4e2f] transition hover:bg-[#f3eadf]" id="btn-confirm-no">No</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="../js/table.js?v=20260408_2"></script>
+    <script src="../js/table.js?v=20260408_3"></script>
 </body>
 </html>

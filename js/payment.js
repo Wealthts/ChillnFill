@@ -165,14 +165,32 @@ function showNotice(message = "") {
     pageUi.paymentNotice.classList.toggle("hidden", !message);
 }
 
-function showReviewCard(message, review = null) {
+function isElementVisible(element) {
+    return Boolean(element && !element.classList.contains("hidden"));
+}
+
+function showReviewCard(message, review = null, options = {}) {
+    const keepDraft = Boolean(options.keepDraft);
+    const draftComment = typeof options.draftComment === "string" ? options.draftComment : null;
+    const draftRating = Number(options.draftRating || 0);
+
     if (pageUi.reviewSummaryText) {
         pageUi.reviewSummaryText.innerText = message;
     }
 
     pageUi.reviewCard?.classList.remove("hidden");
-    pageUi.reviewTextarea.value = review?.comment || "";
-    setStarRating(review?.rating || 0);
+    if (!keepDraft) {
+        if (pageUi.reviewTextarea) {
+            pageUi.reviewTextarea.value = review?.comment || "";
+        }
+        setStarRating(review?.rating || 0);
+        return;
+    }
+
+    if (pageUi.reviewTextarea && draftComment !== null) {
+        pageUi.reviewTextarea.value = draftComment;
+    }
+    setStarRating(draftRating || state.rating || 0);
 }
 
 function hideReviewCard() {
@@ -472,6 +490,11 @@ function bindActionButtons() {
 }
 
 async function refreshPaymentPageState() {
+    const previousReviewPaymentId = String(state.reviewPaymentId || "");
+    const previousDraftComment = String(pageUi.reviewTextarea?.value || "");
+    const previousDraftRating = Number(state.rating || 0);
+    const reviewCardVisible = isElementVisible(pageUi.reviewCard);
+
     await refreshData();
 
     const paidPayments = [...state.payments]
@@ -480,7 +503,6 @@ async function refreshPaymentPageState() {
 
     state.paymentContext = null;
     state.paymentMethod = "";
-    state.reviewPaymentId = state.customerState.pendingReviewPaymentId || "";
     document.querySelectorAll(".payment-method-btn").forEach((button) => {
         button.classList.remove("border-[#7a4e2f]", "bg-[#fff4e8]", "ring-2", "ring-[#7a4e2f]/20");
     });
@@ -500,13 +522,25 @@ async function refreshPaymentPageState() {
     if (state.customerState.pendingReview) {
         toggleButton(pageUi.confirmPaymentButton, true);
         renderPaidHistory(paidPayments);
-        const review = getReviewByPaymentId(state.customerState.pendingReviewPaymentId);
-        const payment = getPaymentById(state.customerState.pendingReviewPaymentId);
+        const pendingReviewPaymentId = String(state.customerState.pendingReviewPaymentId || "");
+        const review = getReviewByPaymentId(pendingReviewPaymentId);
+        const payment = getPaymentById(pendingReviewPaymentId);
+        const keepDraft = reviewCardVisible
+            && pendingReviewPaymentId
+            && previousReviewPaymentId === pendingReviewPaymentId
+            && !review;
+
+        state.reviewPaymentId = pendingReviewPaymentId;
         showReviewCard(
             payment
                 ? `Payment received: ${payment.amount} Baht via ${payment.method || "Cash"}. Please leave a review to finish this session.`
                 : "Payment completed. Please leave a review to finish this session.",
-            review
+            review,
+            {
+                keepDraft,
+                draftComment: previousDraftComment,
+                draftRating: previousDraftRating
+            }
         );
         showNotice("Payment already completed. Please leave a review.");
         return;
@@ -558,10 +592,8 @@ async function ensureValidCustomerSession() {
 }
 
 function bindAutoRefresh() {
-    window.setInterval(() => {
-        if (!getSessionId() || !getTableNumber()) return;
-        refreshPaymentPageState().catch(() => {});
-    }, REFRESH_INTERVAL_MS);
+    // Auto-refresh disabled by request: keep form inputs stable while typing/selecting rating.
+    return;
 }
 
 async function initPaymentPage() {

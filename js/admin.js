@@ -131,40 +131,49 @@ function getStatusClass(status) {
   return "bg-[#efe4d8] text-[#5f4028]";
 }
 
+function normalizeStatus(status, fallback = "pending") {
+  const normalized = String(status || fallback).trim().toLowerCase();
+  return normalized || fallback;
+}
+
+function isFinalItemStatus(status) {
+  const normalized = normalizeStatus(status);
+  return normalized === "completed" || normalized === "cancelled";
+}
+
 function getOrderStatusOptions(selectedStatus) {
-  const normalized = String(selectedStatus || "pending").toLowerCase();
-  return ["pending", "cooking", "serving"]
-    .map((status) => `<option value="${status}" ${normalized === status ? "selected" : ""}>${status.toUpperCase()}</option>`)
+  const normalized = normalizeStatus(selectedStatus, "pending");
+  return ["pending", "cooking", "serving", "cancelled"]
+    .map((status) => `<option value="${status}" ${normalized === status ? "selected" : ""}>${status.charAt(0).toUpperCase()}${status.slice(1)}</option>`)
     .join("");
 }
 
 function getOrderItemSummary(item) {
+  const itemId = String(item.id ?? item.order_item_id ?? item.item_id ?? "");
+  const itemStatus = normalizeStatus(item.status, "pending");
+  const selectedStatus = itemStatus === "completed" ? "serving" : itemStatus;
   const qty = Number(item.qty ?? item.quantity ?? 0);
-  const price = Number(item.price ?? item.unit_price ?? 0);
   const assignedCook = String(item.cook_id || item.cookId || "").trim();
   const notes = String(item.notes || "").trim();
+
+  const assignedText = assignedCook ? `Assigned to ${assignedCook}` : "Unassigned";
+
   return `
-    <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-3">
+    <div class="rounded-2xl border border-[#e6d7c7] bg-[#fffaf5] p-4">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div class="font-semibold text-[#5f4028]">${escapeHtml(item.name || "-")} x${qty}</div>
-          <div class="text-xs text-[#a97a52] mt-1">Cook: ${escapeHtml(assignedCook || "-")}</div>
-          <div class="text-xs text-[#a97a52] mt-1">Price: ${price} Baht</div>
-          ${notes ? `<div class="text-xs text-[#7a4e2f] mt-1">Notes: ${escapeHtml(notes)}</div>` : ""}
-          <div class="text-xs text-[#a97a52] mt-1">Started: ${escapeHtml(formatDateTime(item.started_at))}</div>
-          <div class="text-xs text-[#a97a52] mt-1">Completed: ${escapeHtml(formatDateTime(item.completed_at))}</div>
+          <div class="font-medium text-[#5f4028]">${escapeHtml(item.name || "-")} x${qty}</div>
+          <div class="mt-1 text-xs text-[#a97a52]">Item ID: ${escapeHtml(itemId || "-")}</div>
+          <div class="mt-1 text-xs font-semibold ${assignedCook ? "text-[#7a4e2f]" : "text-[#a97a52]"}">${escapeHtml(assignedText)}</div>
+          ${notes ? `<div class="mt-1 text-xs text-[#a97a52]">${escapeHtml(notes)}</div>` : ""}
         </div>
-        <div class="min-w-[190px]">
-          <div class="text-xs font-semibold mb-1">Item Status</div>
-          <div class="flex gap-2">
-            <select class="select select-sm flex-1 bg-[#fffaf5] border-[#e6d7c7]" data-admin-item-status-id="${item.id}">
-              ${getOrderStatusOptions(item.status || "pending")}
-            </select>
-            <button class="btn btn-sm bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" data-admin-save-item-status="${item.id}">
-              Save
-            </button>
-          </div>
-        </div>
+        <div class="px-3 py-1 rounded-full text-xs font-bold ${getStatusClass(selectedStatus)}">${escapeHtml(String(selectedStatus).toUpperCase())}</div>
+      </div>
+      <div class="mt-3 flex flex-wrap items-center gap-3">
+        <span class="text-sm font-semibold text-[#5f4028]">Status</span>
+        <select class="select select-sm border-[#e6d7c7] bg-[#fffaf5]" data-admin-item-status-id="${escapeHtml(itemId)}">
+          ${getOrderStatusOptions(selectedStatus)}
+        </select>
       </div>
     </div>
   `;
@@ -272,35 +281,26 @@ function getMenuCardHtml(menu, index) {
 
 function getOrderCardHtml(order) {
   const items = Array.isArray(order.items) ? order.items : [];
+  const activeItems = items.filter((item) => !isFinalItemStatus(item?.status));
+  const assignedItems = activeItems.filter((item) => String(item?.cook_id || item?.cookId || "").trim()).length;
+  const unassignedItems = activeItems.length - assignedItems;
   const itemsHtml = items.length
     ? items.map((item) => getOrderItemSummary(item)).join("")
     : "<div class='text-sm text-[#a97a52]'>No items found</div>";
 
   return `
-    <div class="card bg-[#fbf5ee] border border-[#e6d7c7] shadow mb-4">
+    <div class="card border border-[#e6d7c7] bg-[#fbf5ee] shadow-sm mb-4">
       <div class="card-body">
-        <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div class="font-bold text-lg">Order #${escapeHtml(order.id)}</div>
-            <div class="text-sm text-[#a97a52] mt-1">Table: ${escapeHtml(order.table || "-")}</div>
-            <div class="text-sm text-[#a97a52] mt-1">${escapeHtml(formatDateTime(order.time))}</div>
-            <div class="text-sm text-[#a97a52] mt-1">Cook: ${escapeHtml(order.cookId || order.cook_id || "-")}</div>
-            <div class="text-sm font-semibold text-[#7a4e2f] mt-2">Total: ${Number(order.total || 0)} Baht</div>
+            <div class="text-lg font-bold text-[#5f4028]">Order #${escapeHtml(order.id)}</div>
+            <div class="text-sm text-[#a97a52]">Table ${escapeHtml(order.table || "-")} | ${escapeHtml(formatDateTime(order.time))}</div>
+            <div class="mt-1 text-xs text-[#a97a52]">Assigned items: ${assignedItems} | Unassigned items: ${unassignedItems}</div>
           </div>
-          <div class="min-w-[220px]">
-            <div class="px-3 py-1 rounded-full text-xs font-bold inline-flex ${getStatusClass(order.status)}">${escapeHtml(String(order.status || "pending").toUpperCase())}</div>
-            <div class="mt-3 text-xs font-semibold">Order Status</div>
-            <div class="flex gap-2 mt-1">
-              <select class="select select-sm flex-1 bg-[#fffaf5] border-[#e6d7c7]" data-admin-order-status-id="${order.id}">
-                ${getOrderStatusOptions(order.status || "pending")}
-              </select>
-              <button class="btn btn-sm bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" data-admin-save-order-status="${order.id}">
-                Save
-              </button>
-            </div>
-          </div>
+          <div class="px-3 py-1 rounded-full text-xs font-bold inline-flex ${getStatusClass(order.status)}">${escapeHtml(String(order.status || "pending").toUpperCase())}</div>
         </div>
         <div class="mt-4 grid gap-3">${itemsHtml}</div>
+        <div class="mt-3 font-semibold text-[#5f4028]">Total: ${Number(order.total || 0)} Baht</div>
       </div>
     </div>
   `;
@@ -361,20 +361,10 @@ function getDashboardFilterCardHtml(rangeLabel) {
 function bindOrderActionButtons(container) {
   if (!container) return;
 
-  container.querySelectorAll("[data-admin-save-order-status]").forEach((button) => {
-    button.addEventListener("click", async () => {
+  container.querySelectorAll("select[data-admin-item-status-id]").forEach((selectEl) => {
+    selectEl.addEventListener("change", async (event) => {
       try {
-        await updateAdminOrderStatus(button.getAttribute("data-admin-save-order-status"));
-      } catch (err) {
-        alert(err.message || "Unable to update order status");
-      }
-    });
-  });
-
-  container.querySelectorAll("[data-admin-save-item-status]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      try {
-        await updateAdminOrderItemStatus(button.getAttribute("data-admin-save-item-status"));
+        await updateAdminOrderItemStatus(selectEl.getAttribute("data-admin-item-status-id"), event.target.value);
       } catch (err) {
         alert(err.message || "Unable to update item status");
       }
@@ -393,13 +383,14 @@ async function updateAdminOrderStatus(orderId) {
   await loadOrders();
 }
 
-async function updateAdminOrderItemStatus(itemId) {
+async function updateAdminOrderItemStatus(itemId, statusValue = "") {
   const selectEl = document.querySelector(`[data-admin-item-status-id="${itemId}"]`);
-  if (!selectEl) return;
+  const nextStatus = String(statusValue || selectEl?.value || "").trim().toLowerCase();
+  if (!nextStatus) return;
 
   await apiRequest(`/api/order-items/${encodeURIComponent(itemId)}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ status: selectEl.value })
+    body: JSON.stringify({ status: nextStatus })
   });
   await loadOrders();
 }
@@ -986,16 +977,15 @@ async function initAdminPage() {
   bindEnter(["editMenuName", "editMenuPrice", "editMenuDesc"], updateMenu);
 
   const app = document.getElementById("app");
+  if (app) {
+    app.classList.remove("hidden");
+  }
 
   if (!(await bootstrapAdminSession())) {
     window.location.href = "staff.html";
     return;
   }
 
-  if (app) {
-    app.classList.remove("hidden");
-    app.style.display = "block";
-  }
   applyInitialRoute();
   await loadAll();
 

@@ -178,6 +178,7 @@ function buildOrderItemHtml(item) {
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <div class="font-medium text-[#5f4028]">${escapeHtml(itemName)} x${quantity}</div>
+                    <div class="mt-1 text-xs text-[#a97a52]">Item ID: ${escapeHtml(itemId || "-")}</div>
                     <div class="mt-1 text-xs font-semibold ${assignedCookId ? "text-[#7a4e2f]" : "text-[#a97a52]"}">${escapeHtml(assignedText)}</div>
                     ${notesHtml}
                 </div>

@@ -127,8 +127,9 @@ CREATE TABLE `orders` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `order_items` (
-  `id` INT NOT NULL AUTO_INCREMENT,
+  `order_item_id` INT NOT NULL AUTO_INCREMENT,
   `order_id` INT NOT NULL,
+  `table_number` INT DEFAULT NULL,
   `menu_id` INT DEFAULT NULL,
   `cook_id` VARCHAR(50) DEFAULT NULL,
   `item_name` VARCHAR(150) NOT NULL,
@@ -139,7 +140,7 @@ CREATE TABLE `order_items` (
   `status` VARCHAR(30) NOT NULL DEFAULT 'pending',
   `started_at` TIMESTAMP NULL DEFAULT NULL,
   `completed_at` TIMESTAMP NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
+  PRIMARY KEY (`order_item_id`),
   KEY `idx_order_items_order_id` (`order_id`),
   KEY `idx_order_items_menu_id` (`menu_id`),
   KEY `idx_order_items_cook_id` (`cook_id`),
@@ -167,8 +168,6 @@ CREATE TABLE `tables` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `table_number` INT NOT NULL,
   `status` VARCHAR(20) NOT NULL DEFAULT 'available',
-  `reservation_name` VARCHAR(100) DEFAULT NULL,
-  `reservation_time` VARCHAR(50) DEFAULT NULL,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_tables_table_number` (`table_number`)
