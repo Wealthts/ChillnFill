@@ -90,6 +90,47 @@ function bindEnter(ids, handler) {
   });
 }
 
+async function showAlertDialog(message, icon = "error", title = "Notice") {
+  const text = String(message || "");
+  if (window.Swal) {
+    await window.Swal.fire({
+      icon,
+      title,
+      text,
+      confirmButtonColor: "#7a4e2f"
+    });
+    return;
+  }
+  console.warn("SweetAlert2 is unavailable:", text);
+}
+
+function showErrorDialog(message, title = "Error") {
+  return showAlertDialog(message, "error", title);
+}
+
+function showSuccessDialog(message, title = "Success") {
+  return showAlertDialog(message, "success", title);
+}
+
+async function showConfirmDialog(message, title = "Are you sure?") {
+  const text = String(message || "");
+  if (window.Swal) {
+    const result = await window.Swal.fire({
+      icon: "warning",
+      title,
+      text,
+      showCancelButton: true,
+      confirmButtonText: "Yes",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#7a4e2f",
+      cancelButtonColor: "#a97a52"
+    });
+    return Boolean(result.isConfirmed);
+  }
+  console.warn("SweetAlert2 is unavailable for confirm dialog:", text);
+  return false;
+}
+
 async function apiRequest(url, options = {}) {
   const response = await fetch(url, {
     credentials: "same-origin",
@@ -366,7 +407,7 @@ function bindOrderActionButtons(container) {
       try {
         await updateAdminOrderItemStatus(selectEl.getAttribute("data-admin-item-status-id"), event.target.value);
       } catch (err) {
-        alert(err.message || "Unable to update item status");
+        await showErrorDialog(err.message || "Unable to update item status");
       }
     });
   });
@@ -541,7 +582,7 @@ async function addCook() {
   const cook_id = String(document.getElementById("cookId").value || "").trim();
 
   if (!full_name || !cook_id) {
-    alert("Please fill all fields");
+    await showErrorDialog("Please fill all fields", "Missing fields");
     return;
   }
 
@@ -568,7 +609,7 @@ async function toggleCook(index) {
 async function deleteCook(index) {
   const cook = state.cooks[index];
   if (!cook) return;
-  if (!confirm("Delete this cook?")) return;
+  if (!(await showConfirmDialog("Delete this cook?", "Delete cook"))) return;
 
   await apiRequest(`${COOKS_API_BASE}/${encodeURIComponent(cook.cook_id)}`, { method: "DELETE" });
   await loadCooks();
@@ -596,7 +637,7 @@ async function updateCook() {
   const full_name = String(document.getElementById("editCookName").value || "").trim();
 
   if (!cookId || !full_name) {
-    alert("Please fill required fields");
+    await showErrorDialog("Please fill required fields", "Missing fields");
     return;
   }
 
@@ -708,7 +749,7 @@ async function addMenu() {
   const img = await readImageFile(document.getElementById("menuImg"));
 
   if (!name || !price) {
-    alert("Please fill all fields");
+    await showErrorDialog("Please fill all fields", "Missing fields");
     return;
   }
 
@@ -719,13 +760,13 @@ async function addMenu() {
     });
     closeMenuModal();
     await loadMenu();
-    alert("Menu added successfully");
+    await showSuccessDialog("Menu added successfully");
   } catch (error) {
     if (String(error.message || "").includes("max_allowed_packet")) {
-      alert("Image is too large for the database. Please choose a smaller image.");
+      await showErrorDialog("Image is too large for the database. Please choose a smaller image.");
       return;
     }
-    alert(error.message || "Unable to add menu");
+    await showErrorDialog(error.message || "Unable to add menu");
   }
 }
 
@@ -753,7 +794,7 @@ async function updateMenu() {
   const optionKeys = getCheckedOptionValues(".edit-menu-option");
 
   if (!name || !price) {
-    alert("Please fill all fields");
+    await showErrorDialog("Please fill all fields", "Missing fields");
     return;
   }
 
@@ -772,16 +813,16 @@ async function updateMenu() {
     });
     closeEditMenuModal();
     await loadMenu();
-    alert("Menu updated successfully");
+    await showSuccessDialog("Menu updated successfully");
   } catch (error) {
-    alert(error.message || "Unable to update menu");
+    await showErrorDialog(error.message || "Unable to update menu");
   }
 }
 
 async function deleteMenu(index) {
   const menu = state.menus[index];
   if (!menu) return;
-  if (!confirm("Delete this menu?")) return;
+  if (!(await showConfirmDialog("Delete this menu?", "Delete menu"))) return;
 
   await apiRequest(`${MENUS_API_BASE}/${menu.id}`, { method: "DELETE" });
   await loadMenu();
@@ -957,7 +998,7 @@ function applyDashboardDateFilter() {
   const end = endInput ? endInput.value : "";
 
   if (start && end && new Date(start) > new Date(end)) {
-    alert("Start date cannot be after end date");
+    void showErrorDialog("Start date cannot be after end date", "Invalid date range");
     return;
   }
 

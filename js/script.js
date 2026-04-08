@@ -145,10 +145,29 @@ async function parseJsonResponse(response) {
     return response.json();
 }
 
+function showSweetAlertMessage(text, type = "error") {
+    if (!window.Swal) return false;
+    const icon = type === "success" ? "success" : "error";
+    const title = icon === "success" ? "Success" : "Error";
+
+    window.Swal.fire({
+        icon,
+        title,
+        text: String(text || ""),
+        confirmButtonColor: "#7a4e2f"
+    });
+    return true;
+}
+
 function showMessage(text, type = "error") {
     const container = getById(UI_IDS.messageContainer);
+    if (showSweetAlertMessage(text, type)) {
+        if (container) container.innerHTML = "";
+        return;
+    }
+
     if (!container) {
-        window.alert(text);
+        console.warn("SweetAlert2 is unavailable:", text);
         return;
     }
 

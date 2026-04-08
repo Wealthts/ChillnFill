@@ -13,6 +13,20 @@ const state = {
     tablesByNumber: {}
 };
 
+function showWarningAlert(message, title = "Table unavailable") {
+    const text = String(message || "");
+    if (window.Swal) {
+        window.Swal.fire({
+            icon: "warning",
+            title,
+            text,
+            confirmButtonColor: "#7a4e2f"
+        });
+        return;
+    }
+    console.warn("SweetAlert2 is unavailable:", text);
+}
+
 function normalizeStatus(status, fallback = "available") {
     const normalized = String(status || "").trim().toLowerCase();
     return normalized || fallback;
@@ -109,7 +123,7 @@ function bindTableButtons() {
 
             const table = getTableRecord(tableNumber);
             if (isUnavailableStatus(table.status)) {
-                window.alert(`Table ${tableNumber} is currently ${getStatusLabel(table.status).toLowerCase()}.`);
+                showWarningAlert(`Table ${tableNumber} is currently ${getStatusLabel(table.status).toLowerCase()}.`);
                 return;
             }
 

@@ -51,6 +51,20 @@ function formatDateTime(value) {
     return date.toLocaleString();
 }
 
+function showErrorAlert(message, title = "Error") {
+    const text = textValue(message);
+    if (window.Swal) {
+        window.Swal.fire({
+            icon: "error",
+            title,
+            text,
+            confirmButtonColor: "#7a4e2f"
+        });
+        return;
+    }
+    console.warn("SweetAlert2 is unavailable:", text);
+}
+
 function getCookId() {
     return localStorage.getItem("cook_id") || "";
 }
@@ -461,7 +475,7 @@ async function claimItem(itemId) {
         await loadOrders();
     } catch (error) {
         console.error("claimItem failed:", error);
-        window.alert(error.message || "Unable to claim item");
+        showErrorAlert(error.message || "Unable to claim item");
     }
 }
 
