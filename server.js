@@ -34,9 +34,15 @@ const express = require("express");
 const mysql = require("mysql2/promise");
 const session = require("express-session");
 const argon2 = require("argon2");
+const multer = require("multer");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+const MENU_UPLOAD_DIR = path.join(__dirname, "public", "uploads", "menu");
+const MENU_UPLOAD_URL_PREFIX = "/public/uploads/menu";
+const MENU_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+
+fs.mkdirSync(MENU_UPLOAD_DIR, { recursive: true });
 
 const dbConfig = {
   host: process.env.DB_HOST || "localhost",
@@ -193,6 +199,111 @@ function ensureAdminSession(req, res) {
     return false;
   }
   return true;
+}
+
+function requireAdminSession(req, res, next) {
+  if (!ensureAdminSession(req, res)) return;
+  next();
+}
+
+function hasPageRole(req, roles = []) {
+  const userType = toText(req.session?.user_type).toLowerCase();
+  const isAdmin = userType === "admin" || Boolean(req.session?.admin_logged_in);
+  if (roles.includes("admin") && isAdmin) return true;
+  return roles.includes(userType);
+}
+
+function guardPageRequests(req, res, next) {
+  const pagePath = String(req.path || "").toLowerCase();
+  const adminPages = new Set(["/admin", "/admin.html", "/inventory", "/views/admin.html"]);
+  const cookPages = new Set(["/cook", "/cook.html", "/views/cook.html"]);
+  const customerPages = new Set([
+    "/customer",
+    "/customer.html",
+    "/menu",
+    "/menu.html",
+    "/shop",
+    "/cart",
+    "/cart.html",
+    "/payment",
+    "/payment.html",
+    "/order-status",
+    "/order_status.html",
+    "/views/customer.html",
+    "/views/menu.html",
+    "/views/cart.html",
+    "/views/payment.html",
+    "/views/order_status.html"
+  ]);
+
+  if (adminPages.has(pagePath) && !hasPageRole(req, ["admin"])) {
+    return res.redirect(302, "/staff.html");
+  }
+
+  if (cookPages.has(pagePath) && !hasPageRole(req, ["cook", "admin"])) {
+    return res.redirect(302, "/staff.html");
+  }
+
+  if (customerPages.has(pagePath) && !hasPageRole(req, ["customer"])) {
+    return res.redirect(302, "/index.html#customer");
+  }
+
+  return next();
+}
+
+function getSafeUploadBaseName(fileName) {
+  const parsed = path.parse(String(fileName || "menu-image"));
+  const base = parsed.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return base || "menu-image";
+}
+
+const menuImageStorage = multer.diskStorage({
+  destination: function (_req, _file, cb) {
+    cb(null, MENU_UPLOAD_DIR);
+  },
+  filename: function (_req, file, cb) {
+    const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}-${getSafeUploadBaseName(file.originalname)}${ext}`);
+  }
+});
+
+const uploadMenuImage = multer({
+  storage: menuImageStorage,
+  limits: { fileSize: MENU_UPLOAD_MAX_BYTES },
+  fileFilter: function (_req, file, cb) {
+    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+    if (!allowedTypes.has(String(file.mimetype || "").toLowerCase())) {
+      cb(new Error("Only JPG, PNG, WEBP, or GIF image uploads are allowed"));
+      return;
+    }
+    cb(null, true);
+  }
+});
+
+function uploadMenuImageField(req, res, next) {
+  uploadMenuImage.single("image")(req, res, (err) => {
+    if (!err) return next();
+
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ success: false, message: "Menu image must be 5MB or smaller" });
+    }
+
+    return res.status(400).json({ success: false, message: err.message || "Unable to upload menu image" });
+  });
+}
+
+function getUploadedMenuImageUrl(req) {
+  if (!req.file?.filename) return "";
+  return `${MENU_UPLOAD_URL_PREFIX}/${req.file.filename}`;
+}
+
+function removeUploadedMenuImage(req) {
+  if (!req.file?.path) return;
+  fs.unlink(req.file.path, () => {});
 }
 
 function normalizeSessionId(raw, tableNumber = 0) {
@@ -1448,6 +1559,7 @@ async function normalizeCustomerSessionStates() {
 }
 
 app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 app.use(session({
   secret: process.env.SESSION_SECRET || "chill-n-fill-dev-secret",
   resave: false,
@@ -1460,6 +1572,7 @@ app.use(session({
   }
 }));
 
+app.use(guardPageRequests);
 app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/views", express.static(path.join(__dirname, "views")));
 app.use("/js", express.static(path.join(__dirname, "js")));
@@ -1520,6 +1633,8 @@ app.post("/login", async function (req, res) {
 
 app.get("/admin/product", async function (req, res) {
   try {
+    if (!ensureAdminSession(req, res)) return;
+
     const sql = "SELECT *, (is_available = 1) AS available FROM menu ORDER BY id ASC";
     const [results] = await pool.query(sql);
     return res.status(200).json(results);
@@ -1543,21 +1658,24 @@ app.get("/api/menu", async function (req, res) {
   }
 });
 
-app.post("/api/menu", async function (req, res) {
+app.post("/api/menu", requireAdminSession, uploadMenuImageField, async function (req, res) {
   try {
-    if (!ensureAdminSession(req, res)) return;
-
     const name = toText(req.body?.name);
     const thaiName = toText(req.body?.thaiName ?? req.body?.thai_name);
     const price = Math.max(0, toNumber(req.body?.price, 0));
     const category = toText(req.body?.category, "single");
     const desc = toText(req.body?.desc ?? req.body?.description);
     const optionKeys = normalizeMenuOptionKeys(req.body?.optionKeys ?? req.body?.option_keys);
-    const imageUrl = toText(req.body?.img ?? req.body?.image ?? req.body?.image_url);
+    const imageUrl = getUploadedMenuImageUrl(req);
     const available = normalizeMenuAvailability(req.body?.available ?? req.body?.is_available ?? true, 1);
 
     if (!name) {
+      removeUploadedMenuImage(req);
       return res.status(400).json({ success: false, message: "Menu name is required" });
+    }
+    if (price <= 0) {
+      removeUploadedMenuImage(req);
+      return res.status(400).json({ success: false, message: "Menu price must be greater than 0" });
     }
 
     const [maxRows] = await pool.query("SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM menu");
@@ -1576,14 +1694,13 @@ app.post("/api/menu", async function (req, res) {
     const [rows] = await pool.query("SELECT * FROM menu WHERE id = ? LIMIT 1", [result.insertId]);
     return res.status(201).json({ success: true, menu: rows[0] ? mapMenuRow(rows[0]) : null });
   } catch (err) {
+    removeUploadedMenuImage(req);
     return res.status(500).json({ success: false, message: `Error: ${err.message}` });
   }
 });
 
-app.put("/api/menu/:menuId", async function (req, res) {
+app.put("/api/menu/:menuId", requireAdminSession, uploadMenuImageField, async function (req, res) {
   try {
-    if (!ensureAdminSession(req, res)) return;
-
     const menuId = toInt(req.params?.menuId, 0);
     if (!menuId) {
       return res.status(400).json({ success: false, message: "Menu ID is required" });
@@ -1595,11 +1712,16 @@ app.put("/api/menu/:menuId", async function (req, res) {
     const category = toText(req.body?.category, "single");
     const desc = toText(req.body?.desc ?? req.body?.description);
     const optionKeys = normalizeMenuOptionKeys(req.body?.optionKeys ?? req.body?.option_keys);
-    const imageUrl = toText(req.body?.img ?? req.body?.image ?? req.body?.image_url);
+    const imageUrl = toText(getUploadedMenuImageUrl(req) || req.body?.img);
     const available = normalizeMenuAvailability(req.body?.available ?? req.body?.is_available ?? true, 1);
 
     if (!name) {
+      removeUploadedMenuImage(req);
       return res.status(400).json({ success: false, message: "Menu name is required" });
+    }
+    if (price <= 0) {
+      removeUploadedMenuImage(req);
+      return res.status(400).json({ success: false, message: "Menu price must be greater than 0" });
     }
 
     const [out] = await pool.query(
@@ -1613,12 +1735,14 @@ app.put("/api/menu/:menuId", async function (req, res) {
     );
 
     if (out.affectedRows === 0) {
+      removeUploadedMenuImage(req);
       return res.status(404).json({ success: false, message: "Menu not found" });
     }
 
     const [rows] = await pool.query("SELECT * FROM menu WHERE id = ? LIMIT 1", [menuId]);
     return res.json({ success: true, menu: rows[0] ? mapMenuRow(rows[0]) : null });
   } catch (err) {
+    removeUploadedMenuImage(req);
     return res.status(500).json({ success: false, message: `Error: ${err.message}` });
   }
 });

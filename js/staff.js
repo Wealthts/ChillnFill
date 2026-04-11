@@ -35,19 +35,21 @@ const UI_IDS = Object.freeze({
     cookSetupPanel: "cook-setup-panel",
     cookSetupTitle: "cook-setup-title",
     cookSetupSubtitle: "cook-setup-subtitle",
+    staffLoginForm: "staff-login-form",
+    cookSetupForm: "cook-setup-form",
     staffIdInput: "staff-id",
     staffPasswordInput: "staff-password",
     cookNewPasswordInput: "cook-new-password",
     cookConfirmPasswordInput: "cook-confirm-password",
-    staffLoginButton: "btn-staff-login",
     firstTimeButton: "btn-first-time",
-    cookSetupSaveButton: "btn-cook-setup-password",
     cookSetupCancelButton: "btn-cook-setup-cancel"
 });
 
 const state = {
     apiBase: ""
 };
+
+let loadingCount = 0;
 
 function getById(id) {
     return document.getElementById(id);
@@ -162,6 +164,49 @@ function bindEnter(ids, handler) {
     });
 }
 
+function bindFormSubmit(id, handler) {
+    const form = getById(id);
+    if (!form) return;
+
+    form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        handler();
+    });
+}
+
+function validateForm(id) {
+    const form = getById(id);
+    if (!form) return null;
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return null;
+    }
+    return form;
+}
+
+function showLoading(message) {
+    if (!window.Swal) return;
+    if (loadingCount === 0) {
+        window.Swal.fire({
+            title: message || "Please wait",
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => window.Swal.showLoading()
+        });
+    }
+    loadingCount += 1;
+}
+
+function hideLoading() {
+    if (loadingCount > 0) {
+        loadingCount -= 1;
+    }
+    if (loadingCount === 0 && window.Swal?.isLoading?.()) {
+        window.Swal.close();
+    }
+}
+
 function setCookSetupPanelVisible(isVisible, cook = null) {
     const loginPanel = getById(UI_IDS.staffLoginPanel);
     const setupPanel = getById(UI_IDS.cookSetupPanel);
@@ -204,15 +249,21 @@ function persistCookSession(cookId, fullName) {
     localStorage.removeItem(STORAGE_KEYS.adminLoggedIn);
 }
 
-async function postJson(endpoint, payload) {
-    const response = await fetch(`${state.apiBase}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    });
+async function postJson(endpoint, payload, loadingMessage = "Please wait") {
+    showLoading(loadingMessage);
+    try {
+        const response = await fetch(`${state.apiBase}${endpoint}`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
 
-    const data = await parseJsonResponse(response);
-    return { response, data };
+        const data = await parseJsonResponse(response);
+        return { response, data };
+    } finally {
+        hideLoading();
+    }
 }
 
 function redirectToPage(path, delayMs = 400) {
@@ -222,16 +273,15 @@ function redirectToPage(path, delayMs = 400) {
 }
 
 async function staffLogin() {
-    const username = readValue(UI_IDS.staffIdInput);
-    const password = String(getById(UI_IDS.staffPasswordInput)?.value || "");
+    const form = validateForm(UI_IDS.staffLoginForm);
+    if (!form) return;
 
-    if (!username || !password) {
-        showMessage("Please enter ID and password.", "error");
-        return;
-    }
+    const formData = new FormData(form);
+    const username = String(formData.get("username") || "").trim();
+    const password = String(formData.get("password") || "");
 
     try {
-        const { response, data } = await postJson(API_ENDPOINTS.staffLogin, { username, password });
+        const { response, data } = await postJson(API_ENDPOINTS.staffLogin, { username, password }, "Logging in...");
 
         if (!response.ok || !data.success) {
             if (response.status === 403 && data.requires_password_setup) {
@@ -274,7 +324,7 @@ async function cookCheckAccess() {
     }
 
     try {
-        const { response, data } = await postJson(API_ENDPOINTS.cookAccess, { cook_id: cookId });
+        const { response, data } = await postJson(API_ENDPOINTS.cookAccess, { cook_id: cookId }, "Checking Cook ID...");
         if (!response.ok || !data.success) {
             throw new Error(data.message || `Request failed with status ${response.status}`);
         }
@@ -293,17 +343,16 @@ async function cookCheckAccess() {
 }
 
 async function cookSetupPassword() {
+    const form = validateForm(UI_IDS.cookSetupForm);
+    if (!form) return;
+
     const cookId = readValue(UI_IDS.staffIdInput);
-    const password = String(getById(UI_IDS.cookNewPasswordInput)?.value || "");
-    const confirmPassword = String(getById(UI_IDS.cookConfirmPasswordInput)?.value || "");
+    const formData = new FormData(form);
+    const password = String(formData.get("password") || "");
+    const confirmPassword = String(formData.get("confirm_password") || "");
 
-    if (!cookId || !password || !confirmPassword) {
-        showMessage("Please enter Cook ID and both password fields.", "error");
-        return;
-    }
-
-    if (password.length < 4) {
-        showMessage("Password must be at least 4 characters.", "error");
+    if (!cookId) {
+        showMessage("Please enter Cook ID first.", "error");
         return;
     }
 
@@ -316,7 +365,7 @@ async function cookSetupPassword() {
         const { response, data } = await postJson(API_ENDPOINTS.cookSetupPassword, {
             cook_id: cookId,
             password
-        });
+        }, "Saving password...");
 
         if (!response.ok || !data.success) {
             throw new Error(data.message || `Request failed with status ${response.status}`);
@@ -338,9 +387,9 @@ function initFromHash() {
 }
 
 function bindUiEvents() {
-    getById(UI_IDS.staffLoginButton)?.addEventListener("click", staffLogin);
+    bindFormSubmit(UI_IDS.staffLoginForm, staffLogin);
+    bindFormSubmit(UI_IDS.cookSetupForm, cookSetupPassword);
     getById(UI_IDS.firstTimeButton)?.addEventListener("click", cookCheckAccess);
-    getById(UI_IDS.cookSetupSaveButton)?.addEventListener("click", cookSetupPassword);
     getById(UI_IDS.cookSetupCancelButton)?.addEventListener("click", resetCookSetupPanel);
 
     bindEnter([UI_IDS.staffIdInput, UI_IDS.staffPasswordInput], staffLogin);
