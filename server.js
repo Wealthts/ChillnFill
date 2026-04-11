@@ -618,6 +618,7 @@ function mapOrderItemRow(item) {
 
 function mapOrderRow(order, items = []) {
   const mappedItems = items.map(mapOrderItemRow);
+  const rollup = mappedItems.length ? computeOrderRollup(mappedItems, order.status) : null;
   const computedTotal = mappedItems.length
     ? mappedItems
       .filter((item) => item.status !== "cancelled")
@@ -625,6 +626,7 @@ function mapOrderRow(order, items = []) {
     : toNumber(order.total_amount, 0);
   return {
     ...order,
+    status: rollup?.status || order.status,
     table: order.table_number,
     userId: order.session_id,
     total_amount: computedTotal,
@@ -655,12 +657,7 @@ function computeOrderRollup(items = [], fallbackStatus = "pending") {
         .sort();
       completedAt = completionTimes[completionTimes.length - 1] || toMysqlDate(new Date());
     } else if (activeItems.every((item) => ["serving", "completed"].includes(item.status))) {
-      status = "completed";
-      const completionTimes = activeItems
-        .map((item) => toMysqlDate(item.completed_at))
-        .filter(Boolean)
-        .sort();
-      completedAt = completionTimes[completionTimes.length - 1] || toMysqlDate(new Date());
+      status = "serving";
     } else if (activeItems.some((item) => ["cooking", "serving", "completed"].includes(item.status))) {
       status = "cooking";
     } else {
