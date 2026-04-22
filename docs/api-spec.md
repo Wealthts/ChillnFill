@@ -4,6 +4,8 @@ This follows the REST API specification method from the slides: route name, HTTP
 
 Base URL: `/api`
 
+Database setup: see `docs/database-setup.md`.
+
 ## Common Rules
 
 - Request bodies use JSON unless the route says `multipart/form-data`.
