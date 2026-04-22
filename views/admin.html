@@ -58,46 +58,46 @@
 <!-- MODALS -->
 <div id="cookModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
   <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
-    <div class="card-body">
+    <form id="cookForm" class="card-body">
       <h3 class="card-title">Add Cook</h3>
-      <input id="cookName" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Name">
-      <input id="cookId" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Cook ID">
+      <input id="cookName" name="full_name" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Name" required minlength="2" maxlength="100">
+      <input id="cookId" name="cook_id" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Cook ID" required minlength="2" maxlength="40" pattern="[A-Za-z0-9_-]+">
       <div class="rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3 text-sm text-[#a97a52]">
         Admin creates only the Cook ID and name. The cook will set their own password on first login.
       </div>
       <div class="card-actions justify-end">
-        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="addCook()">Save</button>
-        <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeCookModal()">Cancel</button>
+        <button type="submit" class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">Save</button>
+        <button type="button" class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeCookModal()">Cancel</button>
       </div>
-    </div>
+    </form>
   </div>
 </div>
 
 <div id="editCookModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
   <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
-    <div class="card-body">
+    <form id="editCookForm" class="card-body">
       <h3 class="card-title">Edit Cook</h3>
-      <input id="editCookName" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
-      <input id="editCookId" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" disabled>
+      <input id="editCookName" name="full_name" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" required minlength="2" maxlength="100">
+      <input id="editCookId" name="cook_id" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" disabled>
       <div class="rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3 text-sm text-[#a97a52]">
         Password is managed by the cook on first login.
       </div>
       <div class="card-actions justify-end">
-        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="updateCook()">Update</button>
-        <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeEditCookModal()">Cancel</button>
+        <button type="submit" class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">Update</button>
+        <button type="button" class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeEditCookModal()">Cancel</button>
       </div>
-    </div>
+    </form>
   </div>
 </div>
 
 <div id="menuModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
   <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
-    <div class="card-body">
+    <form id="menuForm" class="card-body" enctype="multipart/form-data">
       <h3 class="card-title">Add Menu</h3>
-      <input id="menuName" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Name">
-      <input id="menuPrice" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Price">
-      <input id="menuDesc" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Description">
-      <select id="menuCategory" class="select select-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+      <input id="menuName" name="name" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Name" required minlength="2" maxlength="120">
+      <input id="menuPrice" name="price" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Price" type="number" min="1" step="0.01" required>
+      <input id="menuDesc" name="desc" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" placeholder="Description" maxlength="500">
+      <select id="menuCategory" name="category" class="select select-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" required>
         <option value="single">Single Plate</option>
         <option value="tomyum">Tom Yum</option>
         <option value="salad">Salad</option>
@@ -108,30 +108,30 @@
       <div class="rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3">
         <div class="font-semibold mb-2">Customization Options</div>
         <div class="grid grid-cols-2 gap-2 text-sm">
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="spice"><span class="label-text">Spiciness</span></label>
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="sweet"><span class="label-text">Sweetness</span></label>
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="ice"><span class="label-text">Ice Level</span></label>
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="doneness"><span class="label-text">Doneness</span></label>
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm menu-option" value="size"><span class="label-text">Size</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm menu-option" value="spice"><span class="label-text">Spiciness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm menu-option" value="sweet"><span class="label-text">Sweetness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm menu-option" value="ice"><span class="label-text">Ice Level</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm menu-option" value="doneness"><span class="label-text">Doneness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm menu-option" value="size"><span class="label-text">Size</span></label>
         </div>
       </div>
-      <input id="menuImg" class="file-input file-input-bordered w-full" type="file">
+      <input id="menuImg" name="image" class="file-input file-input-bordered w-full" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
       <div class="card-actions justify-end">
-        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="addMenu()">Save</button>
-        <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeMenuModal()">Cancel</button>
+        <button type="submit" class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">Save</button>
+        <button type="button" class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeMenuModal()">Cancel</button>
       </div>
-    </div>
+    </form>
   </div>
 </div>
 
 <div id="editMenuModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
   <div class="card w-full max-w-sm bg-[#fbf5ee] border border-[#e6d7c7] shadow-xl">
-    <div class="card-body">
+    <form id="editMenuForm" class="card-body" enctype="multipart/form-data">
       <h3 class="card-title">Edit Menu</h3>
-      <input id="editMenuName" aria-label="Edit menu name" title="Edit menu name" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
-      <input id="editMenuPrice" aria-label="Edit menu price" title="Edit menu price" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
-      <input id="editMenuDesc" aria-label="Edit menu description" title="Edit menu description" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
-      <select id="editMenuCategory" aria-label="Edit menu category" title="Edit menu category" class="select select-bordered w-full bg-[#fffaf5] border-[#e6d7c7]">
+      <input id="editMenuName" name="name" aria-label="Edit menu name" title="Edit menu name" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" required minlength="2" maxlength="120">
+      <input id="editMenuPrice" name="price" aria-label="Edit menu price" title="Edit menu price" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" type="number" min="1" step="0.01" required>
+      <input id="editMenuDesc" name="desc" aria-label="Edit menu description" title="Edit menu description" class="input input-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" maxlength="500">
+      <select id="editMenuCategory" name="category" aria-label="Edit menu category" title="Edit menu category" class="select select-bordered w-full bg-[#fffaf5] border-[#e6d7c7]" required>
         <option value="single">Single Plate</option>
         <option value="tomyum">Tom Yum</option>
         <option value="salad">Salad</option>
@@ -142,23 +142,25 @@
       <div class="rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3">
         <div class="font-semibold mb-2">Customization Options</div>
         <div class="grid grid-cols-2 gap-2 text-sm">
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="spice"><span class="label-text">Spiciness</span></label>
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="sweet"><span class="label-text">Sweetness</span></label>
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="ice"><span class="label-text">Ice Level</span></label>
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="doneness"><span class="label-text">Doneness</span></label>
-          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" class="checkbox checkbox-sm edit-menu-option" value="size"><span class="label-text">Size</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm edit-menu-option" value="spice"><span class="label-text">Spiciness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm edit-menu-option" value="sweet"><span class="label-text">Sweetness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm edit-menu-option" value="ice"><span class="label-text">Ice Level</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm edit-menu-option" value="doneness"><span class="label-text">Doneness</span></label>
+          <label class="label cursor-pointer justify-start gap-2 p-0"><input type="checkbox" name="optionKeys" class="checkbox checkbox-sm edit-menu-option" value="size"><span class="label-text">Size</span></label>
         </div>
       </div>
+      <input id="editMenuCurrentImg" name="img" type="hidden">
+      <input id="editMenuImg" name="image" class="file-input file-input-bordered w-full" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
       <div class="card-actions justify-end">
-        <button class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]" onclick="updateMenu()">Update</button>
-        <button class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeEditMenuModal()">Cancel</button>
+        <button type="submit" class="btn bg-[#7a4e2f] text-[#fbf5ee] border-none hover:bg-[#5f4028]">Update</button>
+        <button type="button" class="btn bg-[#efe4d8] text-[#5f4028] border border-[#e6d7c7] hover:bg-[#f3eadf]" onclick="closeEditMenuModal()">Cancel</button>
       </div>
-    </div>
+    </form>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="../js/admin.js?v=20260408_15"></script>
+<script src="../js/admin.js?v=20260411_1"></script>
 </body>
 </html>

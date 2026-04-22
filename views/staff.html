@@ -25,13 +25,15 @@
             <div>
                 <!-- Staff login panel -->
                 <div id="staff-login-panel">
-                    <p class="mb-3 text-sm text-[#a97a52]">Use Admin username or Cook ID with password.</p>
-                    <input type="text" id="staff-id" placeholder="Staff ID / Username" class="input input-bordered mb-2 w-full border-[#e6d7c7] bg-[#fffaf5] focus:border-[#a97a52] focus:outline-none">
-                    <input type="password" id="staff-password" placeholder="Password" class="input input-bordered mb-3 w-full border-[#e6d7c7] bg-[#fffaf5] focus:border-[#a97a52] focus:outline-none">
+                    <form id="staff-login-form">
+                        <p class="mb-3 text-sm text-[#a97a52]">Use Admin username or Cook ID with password.</p>
+                        <input type="text" id="staff-id" name="username" placeholder="Staff ID / Username" class="input input-bordered mb-2 w-full border-[#e6d7c7] bg-[#fffaf5] focus:border-[#a97a52] focus:outline-none" required minlength="2" maxlength="40" autocomplete="username">
+                        <input type="password" id="staff-password" name="password" placeholder="Password" class="input input-bordered mb-3 w-full border-[#e6d7c7] bg-[#fffaf5] focus:border-[#a97a52] focus:outline-none" required minlength="4" maxlength="100" autocomplete="current-password">
 
-                    <button id="btn-staff-login" type="button" class="btn w-full border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:border-[#5f4028] hover:bg-[#5f4028]">
-                        Login
-                    </button>
+                        <button id="btn-staff-login" type="submit" class="btn w-full border-[#7a4e2f] bg-[#7a4e2f] text-[#f3eadf] hover:border-[#5f4028] hover:bg-[#5f4028]">
+                            Login
+                        </button>
+                    </form>
                     <button id="btn-first-time" type="button" class="mt-2 w-full text-center text-xs text-[#a97a52] underline-offset-2 hover:text-[#7a4e2f] hover:underline">
                         First time cook? Set password
                     </button>
@@ -39,15 +41,17 @@
 
                 <!-- Cook setup panel -->
                 <div id="cook-setup-panel" class="hidden">
-                    <div class="mb-3 rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3 text-sm text-[#a97a52]">
-                        <div id="cook-setup-title" class="font-semibold text-[#5f4028]">Create Password</div>
-                        <div id="cook-setup-subtitle">Set your password for this Cook ID.</div>
-                    </div>
-                    <input type="password" id="cook-new-password" placeholder="New Password" class="input input-bordered mb-2 w-full border-[#e6d7c7] bg-[#fffaf5] focus:border-[#a97a52] focus:outline-none">
-                    <input type="password" id="cook-confirm-password" placeholder="Confirm Password" class="input input-bordered mb-3 w-full border-[#e6d7c7] bg-[#fffaf5] focus:border-[#a97a52] focus:outline-none">
-                    <button id="btn-cook-setup-password" type="button" class="btn mb-2 w-full border-[#a97a52] bg-[#a97a52] text-[#f3eadf] hover:border-[#7a4e2f] hover:bg-[#7a4e2f]">
-                        Save Password
-                    </button>
+                    <form id="cook-setup-form">
+                        <div class="mb-3 rounded-xl border border-[#e6d7c7] bg-[#fffaf5] p-3 text-sm text-[#a97a52]">
+                            <div id="cook-setup-title" class="font-semibold text-[#5f4028]">Create Password</div>
+                            <div id="cook-setup-subtitle">Set your password for this Cook ID.</div>
+                        </div>
+                        <input type="password" id="cook-new-password" name="password" placeholder="New Password" class="input input-bordered mb-2 w-full border-[#e6d7c7] bg-[#fffaf5] focus:border-[#a97a52] focus:outline-none" required minlength="4" maxlength="100" autocomplete="new-password">
+                        <input type="password" id="cook-confirm-password" name="confirm_password" placeholder="Confirm Password" class="input input-bordered mb-3 w-full border-[#e6d7c7] bg-[#fffaf5] focus:border-[#a97a52] focus:outline-none" required minlength="4" maxlength="100" autocomplete="new-password">
+                        <button id="btn-cook-setup-password" type="submit" class="btn mb-2 w-full border-[#a97a52] bg-[#a97a52] text-[#f3eadf] hover:border-[#7a4e2f] hover:bg-[#7a4e2f]">
+                            Save Password
+                        </button>
+                    </form>
                     <button id="btn-cook-setup-cancel" type="button" class="btn w-full border-[#e6d7c7] bg-[#efe4d8] text-[#5f4028] hover:bg-[#f3eadf]">
                         Back to Login
                     </button>
@@ -62,6 +66,6 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="../js/staff.js?v=20260408_3"></script>
+    <script src="../js/staff.js?v=20260411_1"></script>
 </body>
 </html>

@@ -30,6 +30,7 @@ const state = {
 
 let dashboardFilter = getDefaultDashboardFilter();
 let dashboardDatePickers = [];
+let adminLoadingCount = 0;
 
 const optionLabelMap = {
   spice: "Spiciness",
@@ -54,14 +55,6 @@ function getDefaultDashboardFilter() {
     start: toDateInputValue(start),
     end: toDateInputValue(end)
   };
-}
-
-function safeParseJson(value, fallback) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
 }
 
 function escapeHtml(value) {
@@ -132,17 +125,70 @@ async function showConfirmDialog(message, title = "Are you sure?") {
   return false;
 }
 
-async function apiRequest(url, options = {}) {
-  const response = await fetch(url, {
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data.success === false) {
-    throw new Error(data.message || `Request failed (${response.status})`);
+function showLoadingDialog(message) {
+  if (!window.Swal) return;
+  if (adminLoadingCount === 0) {
+    window.Swal.fire({
+      title: message || "Please wait",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => window.Swal.showLoading()
+    });
   }
-  return data;
+  adminLoadingCount += 1;
+}
+
+function hideLoadingDialog() {
+  if (adminLoadingCount > 0) {
+    adminLoadingCount -= 1;
+  }
+  if (adminLoadingCount === 0 && window.Swal?.isLoading?.()) {
+    window.Swal.close();
+  }
+}
+
+async function apiRequest(url, options = {}) {
+  const { loadingMessage, ...fetchOptions } = options;
+  const isFormData = fetchOptions.body instanceof FormData;
+  const headers = isFormData
+    ? { ...(fetchOptions.headers || {}) }
+    : { "Content-Type": "application/json", ...(fetchOptions.headers || {}) };
+
+  if (loadingMessage) showLoadingDialog(loadingMessage);
+  try {
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      ...fetchOptions,
+      headers
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      throw new Error(data.message || `Request failed (${response.status})`);
+    }
+    return data;
+  } finally {
+    if (loadingMessage) hideLoadingDialog();
+  }
+}
+
+function bindFormSubmit(formId, handler) {
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    handler();
+  });
+}
+
+function validateForm(formId) {
+  const form = document.getElementById(formId);
+  if (!form) return null;
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return null;
+  }
+  return form;
 }
 
 function normalizeMenu(menu) {
@@ -522,12 +568,6 @@ function isInDashboardRange(isoTime) {
   return true;
 }
 
-function getCheckedOptionValues(selector) {
-  return Array.from(document.querySelectorAll(selector))
-    .filter((input) => input.checked)
-    .map((input) => input.value);
-}
-
 function setCheckedOptionValues(selector, values) {
   const selected = new Set(Array.isArray(values) ? values : []);
   document.querySelectorAll(selector).forEach((input) => {
@@ -630,17 +670,17 @@ function closeCookModal() {
 }
 
 async function addCook() {
-  const full_name = String(document.getElementById("cookName").value || "").trim();
-  const cook_id = String(document.getElementById("cookId").value || "").trim();
+  const form = validateForm("cookForm");
+  if (!form) return;
 
-  if (!full_name || !cook_id) {
-    await showErrorDialog("Please fill all fields", "Missing fields");
-    return;
-  }
+  const formData = new FormData(form);
+  const full_name = String(formData.get("full_name") || "").trim();
+  const cook_id = String(formData.get("cook_id") || "").trim();
 
   await apiRequest(COOKS_API_BASE, {
     method: "POST",
-    body: JSON.stringify({ cook_id, full_name, status: "active" })
+    body: JSON.stringify({ cook_id, full_name, status: "active" }),
+    loadingMessage: "Saving cook..."
   });
   closeCookModal();
   await loadCooks();
@@ -653,7 +693,8 @@ async function toggleCook(index) {
   const nextStatus = String(cook.status || "").toLowerCase() === "active" ? "inactive" : "active";
   await apiRequest(`${COOKS_API_BASE}/${encodeURIComponent(cook.cook_id)}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ status: nextStatus })
+    body: JSON.stringify({ status: nextStatus }),
+    loadingMessage: "Updating cook..."
   });
   await loadCooks();
 }
@@ -663,7 +704,10 @@ async function deleteCook(index) {
   if (!cook) return;
   if (!(await showConfirmDialog("Delete this cook?", "Delete cook"))) return;
 
-  await apiRequest(`${COOKS_API_BASE}/${encodeURIComponent(cook.cook_id)}`, { method: "DELETE" });
+  await apiRequest(`${COOKS_API_BASE}/${encodeURIComponent(cook.cook_id)}`, {
+    method: "DELETE",
+    loadingMessage: "Deleting cook..."
+  });
   await loadCooks();
 }
 
@@ -684,20 +728,19 @@ function closeEditCookModal() {
 
 async function updateCook() {
   if (editCookIndex === null || !state.cooks[editCookIndex]) return;
+  const form = validateForm("editCookForm");
+  if (!form) return;
 
   const cookId = String(document.getElementById("editCookId").value || "").trim();
-  const full_name = String(document.getElementById("editCookName").value || "").trim();
-
-  if (!cookId || !full_name) {
-    await showErrorDialog("Please fill required fields", "Missing fields");
-    return;
-  }
+  const formData = new FormData(form);
+  const full_name = String(formData.get("full_name") || "").trim();
 
   const payload = { full_name };
 
   await apiRequest(`${COOKS_API_BASE}/${encodeURIComponent(cookId)}`, {
     method: "PUT",
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    loadingMessage: "Updating cook..."
   });
   closeEditCookModal();
   await loadCooks();
@@ -737,87 +780,25 @@ function closeEditMenuModal() {
   closeModal(document.getElementById("editMenuModal"));
 }
 
-function loadImageElement(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Unable to read image file"));
-      img.src = String(reader.result || "");
-    };
-    reader.onerror = () => reject(new Error("Unable to read image file"));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function compressImageFile(file) {
-  const image = await loadImageElement(file);
-  const maxWidth = 1280;
-  const maxHeight = 1280;
-  let { width, height } = image;
-
-  const scale = Math.min(maxWidth / width || 1, maxHeight / height || 1, 1);
-  width = Math.max(1, Math.round(width * scale));
-  height = Math.max(1, Math.round(height * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Image compression is not supported in this browser");
-  }
-
-  context.drawImage(image, 0, 0, width, height);
-
-  const qualities = [0.82, 0.72, 0.62, 0.5, 0.4];
-  let output = "";
-  for (const quality of qualities) {
-    output = canvas.toDataURL("image/jpeg", quality);
-    if (output.length <= 900000) break;
-  }
-
-  if (!output || output.length > 900000) {
-    throw new Error("Image is still too large after compression. Please choose a smaller image.");
-  }
-
-  return output;
-}
-
-async function readImageFile(input) {
-  const file = input?.files?.[0];
-  if (!file) return null;
-  return compressImageFile(file);
-}
-
 async function addMenu() {
-  const name = String(document.getElementById("menuName").value || "").trim();
-  const price = Number(document.getElementById("menuPrice").value || 0);
-  const desc = String(document.getElementById("menuDesc").value || "").trim();
-  const category = String(document.getElementById("menuCategory").value || "single").trim();
-  const optionKeys = getCheckedOptionValues(".menu-option");
-  const img = await readImageFile(document.getElementById("menuImg"));
+  const form = validateForm("menuForm");
+  if (!form) return;
 
-  if (!name || !price) {
-    await showErrorDialog("Please fill all fields", "Missing fields");
-    return;
-  }
+  const payload = new FormData(form);
+  const imageInput = document.getElementById("menuImg");
+  if (!imageInput?.files?.length) payload.delete("image");
+  payload.set("available", "true");
 
   try {
     await apiRequest(MENUS_API_BASE, {
       method: "POST",
-      body: JSON.stringify({ name, price, desc, category, optionKeys, img, available: true })
+      body: payload,
+      loadingMessage: "Saving menu..."
     });
     closeMenuModal();
     await loadMenu();
     await showSuccessDialog("Menu added successfully");
   } catch (error) {
-    if (String(error.message || "").includes("max_allowed_packet")) {
-      await showErrorDialog("Image is too large for the database. Please choose a smaller image.");
-      return;
-    }
     await showErrorDialog(error.message || "Unable to add menu");
   }
 }
@@ -831,37 +812,28 @@ function editMenu(index) {
   document.getElementById("editMenuPrice").value = menu.price || "";
   document.getElementById("editMenuDesc").value = menu.desc || "";
   document.getElementById("editMenuCategory").value = menu.category || "single";
+  document.getElementById("editMenuCurrentImg").value = menu.img || "";
+  document.getElementById("editMenuImg").value = "";
   setCheckedOptionValues(".edit-menu-option", menu.optionKeys || []);
   openModal(document.getElementById("editMenuModal"));
 }
 
 async function updateMenu() {
   if (editMenuIndex === null || !state.menus[editMenuIndex]) return;
+  const form = validateForm("editMenuForm");
+  if (!form) return;
 
   const current = state.menus[editMenuIndex];
-  const name = String(document.getElementById("editMenuName").value || "").trim();
-  const price = Number(document.getElementById("editMenuPrice").value || 0);
-  const desc = String(document.getElementById("editMenuDesc").value || "").trim();
-  const category = String(document.getElementById("editMenuCategory").value || "single").trim();
-  const optionKeys = getCheckedOptionValues(".edit-menu-option");
-
-  if (!name || !price) {
-    await showErrorDialog("Please fill all fields", "Missing fields");
-    return;
-  }
+  const payload = new FormData(form);
+  const imageInput = document.getElementById("editMenuImg");
+  if (!imageInput?.files?.length) payload.delete("image");
+  payload.set("available", current.available ? "true" : "false");
 
   try {
     await apiRequest(`${MENUS_API_BASE}/${current.id}`, {
       method: "PUT",
-      body: JSON.stringify({
-        name,
-        price,
-        desc,
-        category,
-        optionKeys,
-        img: current.img || "",
-        available: current.available
-      })
+      body: payload,
+      loadingMessage: "Updating menu..."
     });
     closeEditMenuModal();
     await loadMenu();
@@ -876,7 +848,10 @@ async function deleteMenu(index) {
   if (!menu) return;
   if (!(await showConfirmDialog("Delete this menu?", "Delete menu"))) return;
 
-  await apiRequest(`${MENUS_API_BASE}/${menu.id}`, { method: "DELETE" });
+  await apiRequest(`${MENUS_API_BASE}/${menu.id}`, {
+    method: "DELETE",
+    loadingMessage: "Deleting menu..."
+  });
   await loadMenu();
 }
 
@@ -887,7 +862,8 @@ async function toggleMenu(index) {
   try {
     await apiRequest(`${MENUS_API_BASE}/${menu.id}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ available: !menu.available })
+      body: JSON.stringify({ available: !menu.available }),
+      loadingMessage: "Updating menu..."
     });
     await loadMenu();
   } catch (error) {
@@ -1070,6 +1046,10 @@ function clearDashboardDateFilter() {
 }
 
 async function initAdminPage() {
+  bindFormSubmit("cookForm", addCook);
+  bindFormSubmit("editCookForm", updateCook);
+  bindFormSubmit("menuForm", addMenu);
+  bindFormSubmit("editMenuForm", updateMenu);
   bindEnter(["cookName", "cookId"], addCook);
   bindEnter(["editCookName"], updateCook);
   bindEnter(["menuName", "menuPrice", "menuDesc"], addMenu);

@@ -80,6 +80,23 @@ function getOrderStatusClass(status) {
     return "bg-[#fff1cc] text-[#9a6a00]";
 }
 
+function getOrderStatusLabel(status) {
+    const normalized = normalizeStatus(status, "pending");
+    const labels = {
+        pending: "Pending",
+        cooking: "Cooking",
+        preparing: "Cooking",
+        ready: "Ready",
+        serving: "Serving",
+        served: "Serving",
+        completed: "Completed",
+        done: "Completed",
+        cancelled: "Cancelled",
+        canceled: "Cancelled"
+    };
+    return labels[normalized] || normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
 function formatOrderTime(value) {
     const parsed = new Date(value || 0);
     if (Number.isNaN(parsed.getTime())) return "-";
@@ -140,7 +157,7 @@ function renderOrderStatus() {
             <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                 <div class="font-bold text-[#5f4028]">Order #${order.id}</div>
                 <div class="px-3 py-1 rounded-full text-xs font-bold ${getOrderStatusClass(order.status)}">
-                    ${String(order.status || "pending").toUpperCase()}
+                    ${getOrderStatusLabel(order.status)}
                 </div>
             </div>
             <div class="text-sm text-[#a97a52]">Table: ${order.table || "-"}</div>
